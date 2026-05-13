@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Logo from '../components/Logo';
-import api from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -10,38 +9,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [setupCompleted, setSetupCompleted] = useState(true); // Assume true por padrão
   const { login, isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    // Verificar se o setup foi concluído
-    checkSetupStatus();
-  }, []);
-
-  const checkSetupStatus = async () => {
-    try {
-      console.log('🔍 Login: Verificando status do setup...');
-      const response = await api.get('/api/setup/status');
-      const needsSetup = response.data.needsSetup;
-
-      console.log('🔍 Login: needsSetup =', needsSetup);
-      console.log('🔍 Login: response.data =', response.data);
-
-      setSetupCompleted(!needsSetup);
-
-      // Se setup é necessário, redirecionar para FirstSetup
-      if (needsSetup) {
-        console.log('🔧 Login: Redirecionando para /first-setup');
-        window.location.href = '/first-setup';
-      } else {
-        console.log('✅ Login: Setup já concluído, mostrando tela de login');
-      }
-    } catch (error) {
-      console.error('❌ Login: Erro ao verificar status de setup:', error);
-      // Em caso de erro, assume que setup está completo para não bloquear login
-      setSetupCompleted(true);
-    }
-  };
 
   // Se já estiver autenticado, redirecionar para dashboard
   if (isAuthenticated) {
@@ -63,18 +31,19 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Logo/Header */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
-              <Logo size="large" />
-            </div>
-            <p className="mt-2 text-sm text-gray-600">
-              Faça login para acessar o sistema
-            </p>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#F3EAFE' }}>
+      <div className="max-w-md w-full rounded-2xl shadow-2xl p-8" style={{ backgroundColor: '#3D1B7E' }}>
+        {/* Logo/Header Kontrataai */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-2">
+            <Logo size="large" />
           </div>
+          <p className="text-sm text-white/80 tracking-wide">
+            Sistema de gestão de RH para supermercados
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl p-6">
 
           {/* Error Message */}
           {error && (
@@ -109,8 +78,9 @@ export default function Login() {
                 data-form-type="other"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                onChange={(e) => setEmail(e.target.value.toUpperCase())}
+                style={{ textTransform: 'uppercase' }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent transition-colors"
                 placeholder="Digite seu email ou usuário"
               />
             </div>
@@ -132,7 +102,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent transition-colors"
                   placeholder="Digite sua senha"
                 />
                 <button
@@ -157,7 +127,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
                 <div className="flex items-center">
@@ -173,17 +143,14 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Forgot Password Link - Só aparece se setup estiver completo */}
-          {setupCompleted && (
-            <div className="mt-6 text-center">
-              <Link
-                to="/forgot-password"
-                className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-              >
-                Esqueci minha senha
-              </Link>
-            </div>
-          )}
+          <div className="mt-6 text-center">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-purple-700 hover:text-purple-900 font-medium"
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
 
         </div>
       </div>

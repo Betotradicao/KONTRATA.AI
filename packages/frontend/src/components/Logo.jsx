@@ -29,7 +29,7 @@ export default function Logo({ size = "medium", collapsed = false }) {
 
   const sizeClasses = {
     small: { icon: "h-8 w-8", nameText: "text-xs" },
-    medium: { icon: "h-14 w-14", nameText: "text-sm" },
+    medium: { icon: "h-40 w-40", nameText: "text-lg" },
     large: { icon: "h-28 w-auto max-w-[160px]", nameText: "text-sm" }
   };
   const classes = sizeClasses[size] || sizeClasses.medium;
@@ -87,20 +87,34 @@ export default function Logo({ size = "medium", collapsed = false }) {
     );
   }
 
-  // Default: logo Radar 360
+  // Default: logo Kontrataai
+  const isLarge = size === 'large';
+  const isSmall = size === 'small';
+  const textSize = isLarge ? 'text-6xl' : isSmall ? 'text-lg' : 'text-3xl';
+  const heartSize = isLarge ? 'w-5 h-5' : isSmall ? 'w-2 h-2' : 'w-4 h-4';
+  const heartOffset = isLarge ? '-translate-y-6' : isSmall ? '-translate-y-2' : '-translate-y-4';
   return (
-    <div className="flex items-center space-x-3">
-      <div className="h-12 w-12 bg-orange-500 rounded-lg flex items-center justify-center">
-        <svg className="h-5/6 w-5/6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
-          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="4"/>
-          <path d="M12 12l7-7"/><circle cx="12" cy="12" r="1" fill="currentColor"/>
-          <circle cx="16" cy="8" r="1" fill="currentColor"/><circle cx="8" cy="16" r="1" fill="currentColor"/>
-        </svg>
-      </div>
-      <div className="flex flex-col leading-none text-center">
-        <span className="text-xl font-bold text-orange-500 uppercase" style={{letterSpacing: '0.25em'}}>RADAR</span>
-        <span className="text-2xl font-bold italic text-gray-600 tracking-widest" style={{marginTop: '-4px'}}>360</span>
-      </div>
+    <div className="flex items-baseline" style={{ position: 'relative' }}>
+      <span className={`${textSize} font-extrabold tracking-tight`} style={{ color: '#FFD60A', letterSpacing: '-0.02em' }}>
+        Kontrata.a<span style={{ position: 'relative', display: 'inline-block' }}>
+          ı
+          <svg
+            className="fill-current"
+            style={{
+              color: '#FFFFFF',
+              position: 'absolute',
+              left: '50%',
+              top: isLarge ? '-0.35em' : isSmall ? '-0.4em' : '-0.35em',
+              transform: 'translateX(-50%)',
+              width: isLarge ? '0.45em' : isSmall ? '0.4em' : '0.42em',
+              height: isLarge ? '0.45em' : isSmall ? '0.4em' : '0.42em',
+            }}
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </span>
+      </span>
     </div>
   );
 }

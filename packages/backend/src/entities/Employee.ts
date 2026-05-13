@@ -22,23 +22,29 @@ export class Employee {
   @Column({ type: 'varchar', length: 255 })
   function_description: string;
 
-  @Column({ type: 'varchar', unique: true, length: 100 })
-  username: string;
+  @Column({ type: 'varchar', unique: true, length: 100, nullable: true })
+  username: string | null;
 
-  @Column({ type: 'varchar', length: 255 })
-  password: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  password: string | null;
 
   @Column({ type: 'boolean', default: true })
   first_access: boolean;
 
-  @Column({ type: 'varchar', unique: true, length: 50 })
-  barcode: string;
+  @Column({ type: 'varchar', unique: true, length: 50, nullable: true })
+  barcode: string | null;
 
   @Column({ type: 'boolean', default: true })
   active: boolean;
 
   @Column({ type: 'int', nullable: true })
   cod_loja: number | null;
+
+  @Column({ type: 'varchar', length: 20, default: 'user' })
+  role_kontrata: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  email_recuperacao: string | null;
 
   @Column({ type: 'boolean', default: false })
   is_conferente: boolean;
@@ -48,18 +54,6 @@ export class Employee {
 
   @Column({ type: 'boolean', default: false })
   is_financeiro: boolean;
-
-  @Column({ type: 'boolean', default: false })
-  is_auditor: boolean;
-
-  @Column({ type: 'boolean', default: false })
-  is_auditado: boolean;
-
-  @Column({ type: 'boolean', default: false })
-  can_create_audit_templates: boolean;
-
-  @Column({ type: 'boolean', default: false })
-  can_approve_audit_actions: boolean;
 
   @CreateDateColumn()
   created_at: Date;

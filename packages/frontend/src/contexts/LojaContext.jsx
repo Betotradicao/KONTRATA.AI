@@ -45,10 +45,15 @@ export const LojaProvider = ({ children }) => {
 
   const carregarLojas = async () => {
     try {
-      console.log('📍 [LojaContext] Carregando lojas...');
-      const response = await api.get('/gestao-inteligente/lojas');
-      console.log('📍 [LojaContext] Resposta:', response.data);
-      setLojas(response.data || []);
+      console.log('📍 [LojaContext] Carregando lojas de rh_empresas...');
+      const response = await api.get('/rh/empresas/stores/list');
+      // Adapta {cod_loja, nome_fantasia, apelido} → {COD_LOJA, DES_LOJA, APELIDO}
+      const mapped = (response.data || []).map(s => ({
+        COD_LOJA: s.cod_loja,
+        DES_LOJA: s.nome_fantasia || s.razao_social || `Loja ${s.cod_loja}`,
+        APELIDO: s.apelido,
+      }));
+      setLojas(mapped);
 
       // Verificar se tem loja salva no localStorage
       const lojaSalva = localStorage.getItem('lojaSelecionada');

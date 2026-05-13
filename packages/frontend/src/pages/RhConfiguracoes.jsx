@@ -6,9 +6,11 @@ import { api } from '../utils/api';
 import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 import LgpdTab from '../components/configuracoes/LgpdTab';
+import EmployeesTab from '../components/configuracoes/EmployeesTab';
 
 const TABS = [
   { key: 'lgpd', label: '🛡️ Privacidade e LGPD', custom: true },
+  { key: 'liberacao_acesso', label: '🔑 Liberação de Acesso', custom: true },
   { key: 'mensagens', label: '💬 Mensagens', custom: true },
   { key: 'empresas', label: 'Empresas', custom: true },
   { key: 'turnos', label: 'Turnos', custom: true },
@@ -191,7 +193,15 @@ export default function RhConfiguracoes() {
         {/* Tabs */}
         <div className="bg-white border-b shadow-sm">
           <div className="flex overflow-x-auto px-4">
-            {TABS.map(tab => (
+            {TABS.filter(tab => {
+              // Liberacao de Acesso so para ADMIN ou Master
+              if (tab.key === 'liberacao_acesso') {
+                const isMaster = user?.isMaster;
+                const isAdmin = user?.role_kontrata === 'admin' || user?.role === 'admin';
+                return isMaster || isAdmin;
+              }
+              return true;
+            }).map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -211,6 +221,8 @@ export default function RhConfiguracoes() {
         <div className="p-6">
           {currentTab?.custom && activeTab === 'lgpd' ? (
             <LgpdTab />
+          ) : currentTab?.custom && activeTab === 'liberacao_acesso' ? (
+            <EmployeesTab />
           ) : currentTab?.custom && activeTab === 'mensagens' ? (
             <MensagensTab />
           ) : currentTab?.custom && activeTab === 'feriados' ? (

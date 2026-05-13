@@ -152,7 +152,7 @@ export class CompaniesController {
         cep, rua, numero, complemento, bairro, cidade, estado,
         telefone, email,
         responsavelNome, responsavelEmail, responsavelTelefone,
-        metaChecklist, fotoFachadaUrl
+        fotoFachadaUrl
       } = req.body;
 
       const company = await companyRepository.findOne({ where: { id } });
@@ -200,14 +200,6 @@ export class CompaniesController {
       if (responsavelNome !== undefined) company.responsavelNome = responsavelNome;
       if (responsavelEmail !== undefined) company.responsavelEmail = responsavelEmail;
       if (responsavelTelefone !== undefined) company.responsavelTelefone = responsavelTelefone;
-
-      // Meta de conformidade do checklist por loja
-      if (metaChecklist !== undefined && metaChecklist !== null && metaChecklist !== '') {
-        const parsed = parseFloat(String(metaChecklist));
-        if (!isNaN(parsed)) {
-          company.metaChecklist = Math.max(0, Math.min(100, parsed));
-        }
-      }
 
       // Foto da fachada da loja
       if (fotoFachadaUrl !== undefined) {
@@ -324,7 +316,7 @@ export class CompaniesController {
         cep, rua, numero, complemento, bairro, cidade, estado,
         telefone, email,
         responsavelNome, responsavelEmail, responsavelTelefone,
-        metaChecklist, fotoFachadaUrl
+        fotoFachadaUrl
       } = req.body;
 
       console.log('📥 updateMyCompany - codLoja:', codLoja, 'apelido:', apelido);
@@ -401,14 +393,6 @@ export class CompaniesController {
       if (responsavelNome !== undefined) company.responsavelNome = responsavelNome;
       if (responsavelEmail !== undefined) company.responsavelEmail = responsavelEmail;
       if (responsavelTelefone !== undefined) company.responsavelTelefone = responsavelTelefone;
-
-      // Meta de conformidade do checklist por loja
-      if (metaChecklist !== undefined && metaChecklist !== null && metaChecklist !== '') {
-        const parsed = parseFloat(String(metaChecklist));
-        if (!isNaN(parsed)) {
-          company.metaChecklist = Math.max(0, Math.min(100, parsed));
-        }
-      }
 
       // Foto da fachada da loja
       if (fotoFachadaUrl !== undefined) {

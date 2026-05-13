@@ -134,10 +134,6 @@ export class EmployeesService {
       is_conferente: (data as any).is_conferente || false,
       is_cpd: (data as any).is_cpd || false,
       is_financeiro: (data as any).is_financeiro || false,
-      is_auditor: (data as any).is_auditor || false,
-      is_auditado: (data as any).is_auditado || false,
-      can_create_audit_templates: (data as any).can_create_audit_templates || false,
-      can_approve_audit_actions: (data as any).can_approve_audit_actions || false,
     });
 
     const savedEmployee = await employeeRepository.save(employee);
@@ -195,11 +191,6 @@ export class EmployeesService {
     if (anyData.is_conferente !== undefined) employee.is_conferente = anyData.is_conferente;
     if (anyData.is_cpd !== undefined) employee.is_cpd = anyData.is_cpd;
     if (anyData.is_financeiro !== undefined) employee.is_financeiro = anyData.is_financeiro;
-    // Flags do Check List no Radar
-    if (anyData.is_auditor !== undefined) employee.is_auditor = anyData.is_auditor;
-    if (anyData.is_auditado !== undefined) employee.is_auditado = anyData.is_auditado;
-    if (anyData.can_create_audit_templates !== undefined) employee.can_create_audit_templates = anyData.can_create_audit_templates;
-    if (anyData.can_approve_audit_actions !== undefined) employee.can_approve_audit_actions = anyData.can_approve_audit_actions;
 
     const savedEmployee = await employeeRepository.save(employee);
 
@@ -307,6 +298,9 @@ export class EmployeesService {
     }
 
     // Verify current password
+    if (!employee.password) {
+      throw new Error('Cadastro nao finalizado');
+    }
     const isValidPassword = await bcrypt.compare(currentPassword, employee.password);
     if (!isValidPassword) {
       throw new Error('Current password is incorrect');

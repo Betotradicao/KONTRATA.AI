@@ -4,18 +4,11 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import TabsNavigation from '../components/configuracoes/TabsNavigation';
 import ModulosTab from '../components/configuracoes/ModulosTab';
-import EmpresaTab from '../components/configuracoes/EmpresaTab';
 import APIsTab from '../components/configuracoes/APIsTab';
 import WhatsAppGroupsTab from '../components/configuracoes/WhatsAppGroupsTab';
-import SecurityTab from '../components/configuracoes/SecurityTab';
 import EmailTab from '../components/configuracoes/EmailTab';
-import EmailMonitorTab from '../components/configuracoes/EmailMonitorTab';
-import CronMonitorTab from '../components/configuracoes/CronMonitorTab';
-import BarcodeInstallerTab from '../components/configuracoes/BarcodeInstallerTab';
-import CadastroBancarioTab from '../components/configuracoes/CadastroBancarioTab';
-import DVRCFTVTab from '../components/configuracoes/DVRCFTVTab';
-import DisparoWhatsTab from '../components/configuracoes/DisparoWhatsTab';
 import ResetSenhaAdminTab from '../components/configuracoes/ResetSenhaAdminTab';
+import EmpresaConfigTab from '../components/configuracoes/EmpresaConfigTab';
 
 export default function ConfiguracoesRede() {
   const { user, logout } = useAuth();
@@ -36,7 +29,7 @@ export default function ConfiguracoesRede() {
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && (tabFromUrl === 'modulos' || tabFromUrl === 'empresa' || tabFromUrl === 'apis' || tabFromUrl === 'whatsapp-groups' || tabFromUrl === 'security' || tabFromUrl === 'email' || tabFromUrl === 'email-monitor' || tabFromUrl === 'cron-monitor' || tabFromUrl === 'barcode-installer' || tabFromUrl === 'cadastro-bancario' || tabFromUrl === 'dvr-cftv' || tabFromUrl === 'disparo-whats' || tabFromUrl === 'reset-admin')) {
+    if (tabFromUrl && ['modulos','apis','whatsapp-groups','email','reset-admin','personalizacao'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [searchParams]);
@@ -87,7 +80,7 @@ export default function ConfiguracoesRede() {
         {/* Content Area */}
         <div className="p-6">
           {/* Card com Gradiente Laranja */}
-          <div className="hidden lg:block bg-gradient-to-br from-orange-500 to-red-600 rounded-lg shadow-lg p-6 mb-6 text-white">
+          <div className="hidden lg:block rounded-lg shadow-lg p-6 mb-6 text-white" style={{ background: 'linear-gradient(135deg, #6B21A8 0%, #3D1B7E 100%)' }}>
             <div className="flex items-center justify-between">
               <h1 className="text-2xl lg:text-3xl font-bold">🌐 Configurações de REDE</h1>
               <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
@@ -102,18 +95,11 @@ export default function ConfiguracoesRede() {
 
           <div className="mt-6">
             {activeTab === 'modulos' && <ModulosTab />}
-            {activeTab === 'empresa' && <EmpresaTab />}
             {activeTab === 'apis' && <APIsTab />}
             {activeTab === 'whatsapp-groups' && <WhatsAppGroupsTab />}
-            {activeTab === 'security' && <SecurityTab />}
             {activeTab === 'email' && <EmailTab />}
-            {activeTab === 'email-monitor' && <EmailMonitorTab />}
-            {activeTab === 'cron-monitor' && <CronMonitorTab />}
-            {activeTab === 'barcode-installer' && <BarcodeInstallerTab />}
-            {activeTab === 'cadastro-bancario' && <CadastroBancarioTab />}
-            {activeTab === 'dvr-cftv' && <DVRCFTVTab />}
-            {activeTab === 'disparo-whats' && <DisparoWhatsTab />}
             {activeTab === 'reset-admin' && <ResetSenhaAdminTab />}
+            {activeTab === 'personalizacao' && <EmpresaConfigTab />}
           </div>
         </div>
       </div>

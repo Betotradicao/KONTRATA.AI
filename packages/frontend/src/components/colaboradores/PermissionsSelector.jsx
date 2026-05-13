@@ -1,9 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { MENU_STRUCTURE } from '../../constants/menuConstants';
+import { loadModulesConfig, readCachedModulesConfig } from '../../utils/modulesConfig';
 
 export default function PermissionsSelector({ selectedPermissions, onChange }) {
   const [permissions, setPermissions] = useState({});
   const moduleCheckboxRefs = useRef({});
+  const [activeModuleIds, setActiveModuleIds] = useState(() => {
+    const { config } = readCachedModulesConfig();
+    return new Set((config || []).filter(m => m.active).map(m => m.id));
+  });
+
+  // Recarrega lista de modulos ativos do backend ao montar
+  useEffect(() => {
+    (async () => {
+      try {
+        const { config } = await loadModulesConfig({ force: true });
+        setActiveModuleIds(new Set((config || []).filter(m => m.active).map(m => m.id)));
+      } catch {}
+    })();
+  }, []);
 
   // Inicializar permissions do prop
   useEffect(() => {
@@ -222,7 +237,15 @@ export default function PermissionsSelector({ selectedPermissions, onChange }) {
   const visionModules = MENU_STRUCTURE.filter(m => m.section === 'vision' && m.submenus.length > 0);
   const iaModules = MENU_STRUCTURE.filter(m => m.section === 'ia' && m.submenus.length > 0);
   const checklistModules = MENU_STRUCTURE.filter(m => m.section === 'checklist' && m.submenus.length > 0);
-  const rhModules = MENU_STRUCTURE.filter(m => m.section === 'rh' && m.submenus.length > 0);
+  const rhModules = MENU_STRUCTURE
+    .filter(m => m.section === 'rh' && m.submenus.length > 0)
+    // Se modulesConfig foi carregado e o modulo nao esta na lista de ativos, esconde
+    .filter(m => activeModuleIds.size === 0 || activeModuleIds.has(m.id))
+    // Filtra tambem submenus inativos
+    .map(m => ({
+      ...m,
+      submenus: m.submenus.filter(s => activeModuleIds.size === 0 || activeModuleIds.has(s.id))
+    }));
 
   const renderModuleCard = (module) => {
     const moduleEmoji = moduleEmojis[module.id] || '📦';
@@ -465,6 +488,23 @@ export default function PermissionsSelector({ selectedPermissions, onChange }) {
               <span className="text-white text-xs font-bold">RH</span>
             </div>
             <h4 className="text-sm font-bold text-pink-800 uppercase tracking-wide">RH no Radar</h4>
+            <button
+              type="button"
+              onClick={() => {
+                const allSelected = rhModules.every(m => permissions[m.id]?.fullAccess);
+                const newPermissions = { ...permissions };
+                if (allSelected) {
+                  rhModules.forEach(m => { delete newPermissions[m.id]; });
+                } else {
+                  rhModules.forEach(m => { newPermissions[m.id] = { fullAccess: true, submenus: [] }; });
+                }
+                setPermissions(newPermissions);
+                onChange(convertToApiFormat(newPermissions));
+              }}
+              className="ml-2 px-3 py-1 text-xs font-semibold bg-pink-100 text-pink-700 rounded-md hover:bg-pink-200 transition-colors border border-pink-300"
+            >
+              {rhModules.every(m => permissions[m.id]?.fullAccess) ? '✗ Desmarcar todos' : '✓ Selecionar todos'}
+            </button>
             <div className="flex-1 border-t border-pink-200"></div>
           </div>
           {rhModules.map(module => renderModuleCard(module))}

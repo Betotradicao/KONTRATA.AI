@@ -62,9 +62,6 @@ export class Company {
   @Column({ default: true })
   active: boolean;
 
-  @Column({ name: 'meta_checklist', type: 'numeric', precision: 5, scale: 2, default: 95 })
-  metaChecklist: number;
-
   @Column({ name: 'foto_fachada_url', type: 'text', nullable: true })
   fotoFachadaUrl: string | null;
 

@@ -11,6 +11,7 @@ import {
   Legend
 } from 'chart.js';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
@@ -59,6 +60,8 @@ export default function RhRecrutadorIA() {
   const navigate = useNavigate();
   const { tab: tabParam } = useParams();
   const [tab, setTab] = useState(tabParam || 'treinar');
+  const { user, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
 
@@ -72,7 +75,7 @@ export default function RhRecrutadorIA() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+      <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <main className="flex-1 p-6">
         <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl p-6 mb-6 text-white">
           <div className="flex items-center gap-3">

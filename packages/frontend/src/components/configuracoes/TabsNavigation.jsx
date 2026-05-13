@@ -3,17 +3,10 @@ export default function TabsNavigation({ activeTab, onChange, pageType = 'config
   const redeTabs = [
     { id: 'apis', label: 'APIs' },
     { id: 'whatsapp-groups', label: 'Grupos WhatsApp' },
-    { id: 'security', label: 'Segurança' },
     { id: 'reset-admin', label: 'Resetar Senha Admin' },
-    { id: 'email-monitor', label: 'Monitor Email' },
     { id: 'email', label: 'Email' },
-    { id: 'cron-monitor', label: 'CRON Monitor' },
-    { id: 'empresa', label: 'Empresa' },
     { id: 'modulos', label: 'Módulos' },
-    { id: 'barcode-installer', label: 'Instalador Scanner' },
-    { id: 'cadastro-bancario', label: 'Cadastro Bancário' },
-    { id: 'dvr-cftv', label: 'DVR / CFTV' },
-    { id: 'disparo-whats', label: 'Disparo WhatsApp' }
+    { id: 'personalizacao', label: 'Personalização' }
   ];
 
   // Abas para Configurações normais
@@ -21,9 +14,7 @@ export default function TabsNavigation({ activeTab, onChange, pageType = 'config
   // Obs: "Leitores" foi movido pra Vision Bipagens > Leitores (/leitores)
   // Obs: "Caixas HortFrut" e "Fornecedores" foram removidos (nao usados mais)
   const configTabs = [
-    { id: 'empresa', label: 'Empresa' },
     { id: 'sectors', label: 'Setores' },
-    { id: 'employees', label: 'Colaboradores' },
     { id: 'holidays', label: 'Feriados' }
   ];
 

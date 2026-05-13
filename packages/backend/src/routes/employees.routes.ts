@@ -27,6 +27,13 @@ router.patch('/me/profile', authenticateToken, EmployeesController.updateProfile
 router.patch('/me/avatar', authenticateToken, upload.single('avatar'), EmployeesController.updateProfileAvatar);
 router.patch('/me/password', authenticateToken, EmployeesController.changePassword);
 
+// Setup via link (publico - sem auth)
+router.get('/setup/:token', EmployeesController.getBySetupToken);
+router.post('/setup/:token', EmployeesController.completeSetup);
+
+// Gerar link de cadastro (admin)
+router.post('/generate-link', authenticateToken, isAdmin, EmployeesController.generateLink);
+
 // List employees - available for all authenticated users (for filters)
 router.get('/', authenticateToken, EmployeesController.getAll);
 

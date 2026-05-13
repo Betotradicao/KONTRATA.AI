@@ -4,9 +4,6 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Repara clientes onde a tabela `rh_vagas` foi criada incompleta
  * (sem cargo_id, titulo, status, etc) — caso do novacentral.
  *
- * Tambem garante a coluna `database_connections.erp_type` que vinha
- * faltando em alguns ambientes e quebrava o MappingService.
- *
  * Todos os ALTER usam IF NOT EXISTS — idempotente, seguro re-rodar.
  */
 export class FixRhVagasMissingColumns1784780000000 implements MigrationInterface {
@@ -40,9 +37,6 @@ export class FixRhVagasMissingColumns1784780000000 implements MigrationInterface
         END IF;
       END $$;
     `);
-
-    // database_connections — erp_type ausente quebrava MappingService
-    await queryRunner.query(`ALTER TABLE database_connections ADD COLUMN IF NOT EXISTS erp_type VARCHAR(50)`);
   }
 
   public async down(): Promise<void> {

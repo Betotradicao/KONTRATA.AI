@@ -29,7 +29,7 @@ export default defineConfig({
     // Proxy para encaminhar chamadas /api para o backend na porta 3000
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3010',
         changeOrigin: true,
         secure: false,
       },

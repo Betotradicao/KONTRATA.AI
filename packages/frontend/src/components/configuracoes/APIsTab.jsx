@@ -59,14 +59,10 @@ export default function APIsTab() {
   });
 
   const subTabs = [
-    { id: 'zanthus', label: 'ZANTHUS' },
-    { id: 'intersolid', label: 'INTERSOLID' },
     { id: 'evolution', label: 'EVOLUTION API' },
     { id: 'database', label: 'BANCO DE DADOS' },
     { id: 'minio', label: 'MINIO (Armazenamento)' },
-    { id: 'simulator', label: 'SIMULADOR BIPAGENS' },
-    { id: 'ai', label: 'INTELIGENCIA ARTIFICIAL' },
-    { id: 'garimpador', label: 'GARIMPADOR' }
+    { id: 'ai', label: 'INTELIGENCIA ARTIFICIAL' }
   ];
 
   // Busca configurações salvas do banco ao carregar

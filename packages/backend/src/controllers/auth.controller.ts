@@ -537,6 +537,9 @@ export class AuthController {
       }
 
       // Validate password
+      if (!employee.password) {
+        return res.status(401).json({ error: 'Cadastro ainda nao finalizado. Use o link de cadastro recebido.' });
+      }
       const isValidPassword = await bcrypt.compare(password, employee.password);
       if (!isValidPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
@@ -546,7 +549,7 @@ export class AuthController {
       const permissions = await EmployeePermissionsService.getPermissions(employee.id);
 
       const token = jwt.sign(
-        { id: employee.id, username: employee.username, type: 'employee' },
+        { id: employee.id, username: employee.username, type: 'employee', role_kontrata: employee.role_kontrata },
         process.env.JWT_SECRET || 'development-secret',
         { expiresIn: '24h' }
       );
@@ -559,6 +562,7 @@ export class AuthController {
           name: employee.name,
           username: employee.username,
           avatar: employee.avatar,
+          role_kontrata: employee.role_kontrata,
           sector: employee.sector ? {
             id: employee.sector.id,
             name: employee.sector.name,

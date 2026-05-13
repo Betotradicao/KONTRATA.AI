@@ -32,8 +32,8 @@ export async function seedMasterUser(dataSource: DataSource): Promise<void> {
     // IMPORTANTE: NÃO fazer hash manual aqui - o @BeforeInsert() do User entity já faz isso
     // Passar senha em texto puro para evitar double hashing
     const masterUser = userRepository.create({
-      name: 'Roberto',
-      username: 'Roberto',
+      name: 'ROBERTO',
+      username: 'ROBERTO',
       email: 'admin@prevencao.com.br',
       password: 'Beto3107@@##', // Senha em texto puro - será hashada pelo @BeforeInsert()
       role: UserRole.MASTER,

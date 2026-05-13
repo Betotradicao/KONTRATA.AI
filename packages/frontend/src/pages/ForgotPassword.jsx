@@ -27,14 +27,20 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Logo/Header */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
-              <Logo size="large" />
-            </div>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#F3EAFE' }}>
+      <div className="max-w-md w-full rounded-2xl shadow-2xl p-8" style={{ backgroundColor: '#3D1B7E' }}>
+        {/* Logo/Header Kontrataai */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-2">
+            <Logo size="large" />
+          </div>
+          <p className="text-sm text-white/80 tracking-wide">
+            Sistema de gestão de RH para supermercados
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl p-6">
+          <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-gray-900">
               Recuperar Senha
             </h1>
@@ -96,7 +102,7 @@ export default function ForgotPassword() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent transition-colors"
                   placeholder="Digite seu email de login"
                 />
                 <p className="mt-2 text-xs text-gray-500">
@@ -107,7 +113,7 @@ export default function ForgotPassword() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors font-medium disabled:opacity-50"
+                className="w-full bg-purple-700 text-white py-3 px-4 rounded-lg hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-700 focus:ring-offset-2 transition-colors font-medium disabled:opacity-50"
               >
                 {loading ? 'Enviando...' : 'Enviar Link de Recuperação'}
               </button>
@@ -118,35 +124,12 @@ export default function ForgotPassword() {
           <div className="mt-6 text-center">
             <Link
               to="/login"
-              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+              className="text-sm text-purple-700 hover:text-purple-900 font-medium"
             >
               ← Voltar para o login
             </Link>
           </div>
 
-          {/* Info Box */}
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">
-                  Como funciona?
-                </h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <ol className="list-decimal list-inside space-y-1">
-                    <li>Digite o email que você usa para fazer login</li>
-                    <li>Você receberá um email no endereço de recuperação</li>
-                    <li>Clique no link recebido (válido por 1 hora)</li>
-                    <li>Defina sua nova senha</li>
-                  </ol>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

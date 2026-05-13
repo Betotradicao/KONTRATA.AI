@@ -6,21 +6,26 @@ import api from '../../services/api';
 import { useLoja } from '../../contexts/LojaContext';
 
 export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvatar, onSaveComplete, onResetPassword, codLoja }) {
-  const { lojas, lojaSelecionada } = useLoja();
+  const { lojas, lojaSelecionada, carregarLojas } = useLoja();
+
+  // Recarrega lojas quando o modal abre (pega empresas recem-cadastradas em /rh/configuracoes?tab=empresas)
+  useEffect(() => {
+    carregarLojas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [formData, setFormData] = useState({
     name: '',
     sector_id: '',
     function_description: '',
     username: '',
     password: '',
+    email_recuperacao: '',
+    role_kontrata: 'user',
     cod_loja: codLoja || null,
+    cod_lojas: codLoja ? [codLoja] : [],
     is_conferente: false,
     is_cpd: false,
     is_financeiro: false,
-    is_auditor: false,
-    is_auditado: false,
-    can_create_audit_templates: false,
-    can_approve_audit_actions: false
   });
   const [sectors, setSectors] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -33,10 +38,10 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
-    loadSectors();
-
     if (employee) {
       setFormData({
         name: employee.name,
@@ -44,14 +49,12 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
         function_description: employee.function_description,
         username: employee.username,
         password: '', // Never pre-fill password
+        email_recuperacao: employee.email_recuperacao || '',
+        role_kontrata: employee.role_kontrata || 'user',
         cod_loja: employee.cod_loja || codLoja || null,
         is_conferente: employee.is_conferente || false,
         is_cpd: employee.is_cpd || false,
         is_financeiro: employee.is_financeiro || false,
-        is_auditor: employee.is_auditor || false,
-        is_auditado: employee.is_auditado || false,
-        can_create_audit_templates: employee.can_create_audit_templates || false,
-        can_approve_audit_actions: employee.can_approve_audit_actions || false
       });
       setAvatarPreview(employee.avatar);
 
@@ -112,30 +115,27 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
     setIsSubmitting(true);
 
     try {
-      // Save employee data - agora retorna o employee com ID
+      if (!employee) {
+        // NOVO: gera link de cadastro
+        const resp = await api.post('/employees/generate-link', {
+          name: formData.name,
+          function_description: formData.function_description,
+          cod_loja: formData.cod_loja,
+          role_kontrata: formData.role_kontrata,
+          permissions: permissions,
+        });
+        setGeneratedLink(resp.data.linkUrl);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // EDIÇÃO: salva alterações normais
       const savedEmployee = await onSave(formData);
-
-      // Get employee ID (from editing or newly created)
       const employeeId = employee?.id || savedEmployee?.id;
-
-      if (!employeeId) {
-        throw new Error('Não foi possível obter o ID do colaborador');
-      }
-
-      // If there's a new avatar, upload it
-      if (avatarFile) {
-        await onUploadAvatar(employeeId, avatarFile);
-      }
-
-      // Save permissions (mesmo que vazio, para limpar permissões existentes)
-      await api.put(`/employees/${employeeId}/permissions`, {
-        permissions
-      });
-
-      // Tudo salvo com sucesso - fechar modal e atualizar lista
-      if (onSaveComplete) {
-        await onSaveComplete();
-      }
+      if (!employeeId) throw new Error('Não foi possível obter o ID do colaborador');
+      if (avatarFile) await onUploadAvatar(employeeId, avatarFile);
+      await api.put(`/employees/${employeeId}/permissions`, { permissions });
+      if (onSaveComplete) await onSaveComplete();
     } catch (error) {
       if (error.errors) {
         setErrors(error.errors);
@@ -306,6 +306,32 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
 
         {/* Conteúdo com scroll */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Link gerado */}
+          {generatedLink && (
+            <div className="mb-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+              <h4 className="font-semibold text-green-800 mb-2">✅ Link gerado! Envie para o(a) colaborador(a):</h4>
+              <div className="bg-white border border-green-200 rounded p-2 break-all text-sm font-mono text-gray-700">
+                {generatedLink}
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(generatedLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+                  className="px-4 py-2 bg-purple-700 text-white text-sm rounded hover:bg-purple-800"
+                >
+                  {linkCopied ? '✓ Copiado!' : '📋 Copiar Link'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setGeneratedLink(null); if (onSaveComplete) onSaveComplete(); }}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300"
+                >
+                  Fechar
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-green-700">⏰ Link válido por 3 horas</p>
+            </div>
+          )}
           {errors.length > 0 && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
               <p className="text-red-800 font-semibold mb-1">Erros:</p>
@@ -349,31 +375,54 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
               </p>
             </div>
 
-            {/* Loja */}
+            {/* Lojas (multi-select via checkboxes) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Loja *
+                Lojas a que tem acesso *
               </label>
-              <select
-                value={formData.cod_loja || ''}
-                onChange={(e) => {
-                  const newCodLoja = e.target.value ? parseInt(e.target.value) : null;
-                  setFormData({ ...formData, cod_loja: newCodLoja, sector_id: '' });
-                  // Recarregar setores da nova loja
-                  if (newCodLoja) {
-                    fetchSectors(newCodLoja, true).then(data => setSectors(data || []));
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Selecione uma loja</option>
-                {lojas.map((loja) => (
-                  <option key={loja.COD_LOJA} value={loja.COD_LOJA}>
-                    {loja.DES_LOJA || loja.APELIDO || `Loja ${loja.COD_LOJA}`}
-                  </option>
-                ))}
-              </select>
+              {lojas.length === 0 ? (
+                <p className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded">
+                  Nenhuma loja cadastrada. Cadastre em <strong>Configurações de RH → Empresas</strong>.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2 p-3 border border-gray-300 rounded-md max-h-40 overflow-y-auto">
+                  {lojas.length > 1 && (
+                    <label className="flex items-center gap-2 pb-2 border-b border-gray-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.cod_lojas && formData.cod_lojas.length === lojas.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ ...formData, cod_lojas: lojas.map(l => l.COD_LOJA), cod_loja: lojas[0].COD_LOJA });
+                          } else {
+                            setFormData({ ...formData, cod_lojas: [], cod_loja: null });
+                          }
+                        }}
+                      />
+                      <span className="text-sm font-semibold text-purple-700">✓ Selecionar todas as lojas</span>
+                    </label>
+                  )}
+                  {lojas.map((loja) => (
+                    <label key={loja.COD_LOJA} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={(formData.cod_lojas || []).includes(loja.COD_LOJA)}
+                        onChange={(e) => {
+                          const current = formData.cod_lojas || [];
+                          const next = e.target.checked
+                            ? [...current, loja.COD_LOJA]
+                            : current.filter(l => l !== loja.COD_LOJA);
+                          setFormData({ ...formData, cod_lojas: next, cod_loja: next[0] || null });
+                        }}
+                      />
+                      <span className="text-sm text-gray-700">
+                        {loja.DES_LOJA || loja.APELIDO || `Loja ${loja.COD_LOJA}`}
+                        {loja.APELIDO && loja.DES_LOJA && ` (${loja.APELIDO})`}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Nome */}
@@ -384,33 +433,14 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value.toUpperCase() })}
+                style={{ textTransform: 'uppercase' }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Ex: João da Silva"
                 required
                 minLength={3}
                 maxLength={255}
               />
-            </div>
-
-            {/* Setor */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Setor *
-              </label>
-              <select
-                value={formData.sector_id}
-                onChange={(e) => setFormData({ ...formData, sector_id: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="">Selecione um setor</option>
-                {sectors.map(sector => (
-                  <option key={sector.id} value={sector.id}>
-                    {sector.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Função */}
@@ -425,52 +455,46 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Ex: Gerente de Vendas"
                 required
-                minLength={3}
                 maxLength={255}
               />
             </div>
 
-            {/* Username */}
+            {/* Tipo de Acesso (ADMIN / USER) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Usuário *
+                Tipo de Acesso *
               </label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ex: joao.silva"
-                required
-                minLength={3}
-                maxLength={100}
-                pattern="[a-zA-Z0-9._-]+"
-                title="Apenas letras, números, pontos, underscores e hífens"
-                autoComplete="off"
-                name="employee-username"
-              />
-            </div>
-
-            {/* Password (only for new employees) */}
-            {!employee && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Senha *
+              <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role_kontrata"
+                    value="admin"
+                    checked={formData.role_kontrata === 'admin'}
+                    onChange={(e) => setFormData({ ...formData, role_kontrata: e.target.value })}
+                    className="mt-1"
+                  />
+                  <div>
+                    <span className="font-semibold text-sm text-gray-800">ADMIN</span>
+                    <p className="text-xs text-gray-600">Acesso a tudo — exceto Configurações de Rede</p>
+                  </div>
                 </label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Mínimo 6 caracteres"
-                  required
-                  minLength={6}
-                  maxLength={100}
-                  autoComplete="new-password"
-                  name="employee-password"
-                />
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="role_kontrata"
+                    value="user"
+                    checked={formData.role_kontrata === 'user'}
+                    onChange={(e) => setFormData({ ...formData, role_kontrata: e.target.value })}
+                    className="mt-1"
+                  />
+                  <div>
+                    <span className="font-semibold text-sm text-gray-800">USER</span>
+                    <p className="text-xs text-gray-600">Acesso só ao que for liberado abaixo — não vê o menu "Configurações"</p>
+                  </div>
+                </label>
               </div>
-            )}
+            </div>
 
             {/* Change Password Section (only for editing existing employees) */}
             {employee && (
@@ -602,87 +626,6 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
               </div>
             )}
 
-            {/* Funções de Recebimento */}
-            <div className="border-t pt-4 mt-4">
-              <h4 className="text-sm font-semibold mb-3 text-gray-900">
-                Funções de Recebimento de NF
-              </h4>
-              <div className="flex flex-wrap gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_conferente}
-                    onChange={(e) => setFormData({ ...formData, is_conferente: e.target.checked })}
-                    className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">Conferente</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_cpd}
-                    onChange={(e) => setFormData({ ...formData, is_cpd: e.target.checked })}
-                    className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">CPD</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_financeiro}
-                    onChange={(e) => setFormData({ ...formData, is_financeiro: e.target.checked })}
-                    className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">Financeiro</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Check List no Radar */}
-            <div className="border-t pt-4 mt-4">
-              <h4 className="text-sm font-semibold mb-3 text-gray-900">
-                ✅ Check List no Radar
-              </h4>
-              <div className="flex flex-wrap gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_auditor}
-                    onChange={(e) => setFormData({ ...formData, is_auditor: e.target.checked })}
-                    className="w-4 h-4 text-teal-500 border-gray-300 rounded focus:ring-teal-500"
-                  />
-                  <span className="text-sm text-gray-700">Pode auditar</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_auditado}
-                    onChange={(e) => setFormData({ ...formData, is_auditado: e.target.checked })}
-                    className="w-4 h-4 text-teal-500 border-gray-300 rounded focus:ring-teal-500"
-                  />
-                  <span className="text-sm text-gray-700">Pode ser auditado</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.can_create_audit_templates}
-                    onChange={(e) => setFormData({ ...formData, can_create_audit_templates: e.target.checked })}
-                    className="w-4 h-4 text-teal-500 border-gray-300 rounded focus:ring-teal-500"
-                  />
-                  <span className="text-sm text-gray-700">Pode criar templates</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.can_approve_audit_actions}
-                    onChange={(e) => setFormData({ ...formData, can_approve_audit_actions: e.target.checked })}
-                    className="w-4 h-4 text-teal-500 border-gray-300 rounded focus:ring-teal-500"
-                  />
-                  <span className="text-sm text-gray-700">Pode aprovar planos de ação</span>
-                </label>
-              </div>
-            </div>
-
             {/* Permissions Section */}
             <div className="border-t pt-6 mt-6">
               <h4 className="text-lg font-semibold mb-2 text-gray-900">
@@ -735,7 +678,7 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
               disabled={isSubmitting}
               className="py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isSubmitting ? 'Salvando...' : 'Salvar'}
+              {isSubmitting ? 'Gerando...' : (employee ? 'Salvar Alterações' : '🔗 Gerar Link de Cadastro')}
             </button>
             <button
               type="button"

@@ -108,17 +108,6 @@ export default function WhatsAppGroupsTab() {
   const [modalTarget, setModalTarget] = useState(null);
 
   const subTabs = [
-    { id: 'ruptura', label: '📦 Prevenção Ruptura', icon: '📦' },
-    { id: 'etiquetas', label: '🏷️ Prevenção Etiquetas', icon: '🏷️' },
-    { id: 'bipagens', label: '🔔 Prevenção Bipagens', icon: '🔔' },
-    { id: 'quebras', label: '📊 Prevenção Quebras', icon: '📊' },
-    { id: 'abastecimento', label: '📦 Prioridade Abastecimento', icon: '📦' },
-    { id: 'cortes', label: '✂️ Prevenção Pedidos', icon: '✂️' },
-    { id: 'atrasos', label: '⏰ Pedidos em Atraso', icon: '⏰' },
-    { id: 'producao', label: '🥖 Prevenção Produção', icon: '🥖' },
-    { id: 'facial', label: '👤 Prevenção Facial', icon: '👤' },
-    { id: 'prazoFornecedores', label: '📋 Prazo Fornecedores', icon: '📋' },
-    { id: 'garimpadorOfertas', label: '🏷️ Oferta no Radar', icon: '🏷️' },
     { id: 'topQuedas', label: '📉 Top Quedas Semanal', icon: '📉' }
   ];
 
