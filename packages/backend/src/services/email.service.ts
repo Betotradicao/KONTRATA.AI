@@ -77,7 +77,7 @@ class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: `"Radar 360" <${process.env.EMAIL_USER}>`,
+        from: `"Kontrata.ai" <${process.env.EMAIL_USER}>`,
         to: options.to,
         subject: options.subject,
         text: options.text || '',
@@ -140,12 +140,12 @@ class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Radar 360</h1>
+            <h1>Kontrata.ai</h1>
           </div>
           <div class="content">
             <h2>Recuperação de Senha</h2>
             <p>Olá ${userName},</p>
-            <p>Você solicitou a recuperação de senha para sua conta no sistema Radar 360.</p>
+            <p>Você solicitou a recuperação de senha para sua conta no sistema Kontrata.ai.</p>
             <p>Clique no botão abaixo para redefinir sua senha:</p>
             <p style="text-align: center;">
               <a href="${resetUrl}" class="button">Redefinir Senha</a>
@@ -158,7 +158,7 @@ class EmailService {
             <p>Se você não solicitou esta recuperação, ignore este email. Sua senha permanecerá inalterada.</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} Radar 360 - Todos os direitos reservados</p>
+            <p>© ${new Date().getFullYear()} Kontrata.ai - Todos os direitos reservados</p>
           </div>
         </div>
       </body>
@@ -166,7 +166,7 @@ class EmailService {
     `;
 
     const text = `
-Recuperação de Senha - Radar 360
+Recuperação de Senha - Kontrata.ai
 
 Olá ${userName},
 
@@ -180,12 +180,12 @@ Este link é válido por 1 hora.
 Se você não solicitou esta recuperação, ignore este email.
 
 ---
-© ${new Date().getFullYear()} Radar 360
+© ${new Date().getFullYear()} Kontrata.ai
     `;
 
     return this.sendEmail({
       to: email,
-      subject: 'Recuperação de Senha - Radar 360',
+      subject: 'Recuperação de Senha - Kontrata.ai',
       html,
       text
     });

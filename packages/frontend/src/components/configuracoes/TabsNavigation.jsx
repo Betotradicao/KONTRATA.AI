@@ -6,7 +6,9 @@ export default function TabsNavigation({ activeTab, onChange, pageType = 'config
     { id: 'reset-admin', label: 'Resetar Senha Admin' },
     { id: 'email', label: 'Email' },
     { id: 'modulos', label: 'Módulos' },
-    { id: 'personalizacao', label: 'Personalização' }
+    { id: 'personalizacao', label: 'Personalização' },
+    { id: 'lgpd', label: '🛡️ Privacidade e LGPD' },
+    { id: 'logs-acesso', label: '📋 Logs de Acesso' }
   ];
 
   // Abas para Configurações normais

@@ -1,4 +1,4 @@
-# POLÍTICA DE PRIVACIDADE — RADAR 360
+# POLÍTICA DE PRIVACIDADE — KONTRATA.AI
 
 **Versão:** 1.0
 **Última atualização:** 04/05/2026
@@ -7,10 +7,10 @@
 
 ## 1. INTRODUÇÃO
 
-A **RADAR 360** (CNPJ [a preencher]), responsável pela plataforma **Radar 360**, leva a sério a privacidade e a proteção de dados pessoais. Esta Política de Privacidade ("Política") explica como coletamos, usamos, armazenamos, compartilhamos e protegemos dados pessoais, em conformidade com a **Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD)**.
+A **KONTRATA.AI** (CNPJ [a preencher]), responsável pela plataforma **Kontrata.ai**, leva a sério a privacidade e a proteção de dados pessoais. Esta Política de Privacidade ("Política") explica como coletamos, usamos, armazenamos, compartilhamos e protegemos dados pessoais, em conformidade com a **Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD)**.
 
 Esta Política aplica-se a:
-- **Clientes** (pessoas jurídicas que contratam o Radar 360);
+- **Clientes** (pessoas jurídicas que contratam o Kontrata.ai);
 - **Usuários** dos Clientes (administradores, gerentes, colaboradores autorizados);
 - **Visitantes** do site institucional;
 - **Candidatos** que enviam currículos via formulário público da Plataforma;
@@ -21,7 +21,7 @@ Esta Política aplica-se a:
 ## 2. NOSSO PAPEL: CONTROLADOR x OPERADOR
 
 ### 2.1. Quando somos OPERADOR
-Quando o Cliente (supermercado) insere dados de seus colaboradores, candidatos ou clientes no Radar 360, **nós atuamos como Operador** — apenas processamos os dados conforme instruções do Cliente, que é o **Controlador**. Nesse caso, a Política de Privacidade aplicável aos Titulares é a do próprio Cliente. Nós seguimos o **DPA (Data Processing Agreement)** firmado com o Cliente.
+Quando o Cliente (supermercado) insere dados de seus colaboradores, candidatos ou clientes no Kontrata.ai, **nós atuamos como Operador** — apenas processamos os dados conforme instruções do Cliente, que é o **Controlador**. Nesse caso, a Política de Privacidade aplicável aos Titulares é a do próprio Cliente. Nós seguimos o **DPA (Data Processing Agreement)** firmado com o Cliente.
 
 ### 2.2. Quando somos CONTROLADOR
 Atuamos como **Controlador** em relação a:
@@ -148,7 +148,7 @@ Listamos abaixo os principais terceiros com quem podemos compartilhar dados, tod
 | IA / NLP | Anthropic / OpenAI (quando aplicável) | Recrutador IA, assistentes | EUA |
 | Reconhecimento facial | (modelo local — sem terceiros externos) | Vision Facial | Brasil (servidor próprio) |
 
-A lista atualizada está em https://prevencaonoradar.com.br/sub-operadores.
+A lista atualizada está em https://kontrata.ai/sub-operadores.
 
 ### 6.2. Autoridades
 Compartilhamos dados quando legalmente exigidos: ANPD, autoridades fiscais, ordens judiciais, requisições do Ministério Público.
@@ -207,9 +207,9 @@ Você, Titular dos dados, tem direito a:
 
 ### 9.1. Como exercer
 - **Funcionário**: pelo canal "Meus Dados" disponível no sistema, ou solicite ao RH da sua empresa (Cliente).
-- **Candidato**: link específico enviado por e-mail ou solicitação a privacidade@prevencaonoradar.com.br.
-- **Cliente, Usuário ou Visitante**: privacidade@prevencaonoradar.com.br.
-- **Encarregado (DPO)**: dpo@prevencaonoradar.com.br.
+- **Candidato**: link específico enviado por e-mail ou solicitação a kontrataai@gmail.com.
+- **Cliente, Usuário ou Visitante**: kontrataai@gmail.com.
+- **Encarregado (DPO)**: kontrataai@gmail.com.
 
 ### 9.2. Prazo de resposta
 **Até 15 dias** corridos a contar do recebimento, conforme Art. 19 da LGPD.
@@ -295,7 +295,7 @@ Você pode gerenciar cookies pelo banner ou pelas configurações do seu navegad
 
 Podemos atualizar esta Política para refletir mudanças legais, novas funcionalidades ou melhorias. Em caso de alteração relevante:
 - Comunicaremos por e-mail aos Clientes e Usuários cadastrados;
-- Publicaremos a nova versão em https://prevencaonoradar.com.br/privacidade;
+- Publicaremos a nova versão em https://kontrata.ai/privacidade;
 - Indicaremos a data da última atualização no topo do documento;
 - Manteremos histórico das versões anteriores acessível.
 
@@ -304,22 +304,22 @@ Podemos atualizar esta Política para refletir mudanças legais, novas funcional
 ## 16. CONTATO
 
 **Encarregado pelo Tratamento de Dados (DPO)**
-E-mail: dpo@prevencaonoradar.com.br
+E-mail: kontrataai@gmail.com
 Atendimento: dias úteis, das 9h às 18h
 Prazo de resposta: até 15 dias corridos
 
 **Privacidade e Direitos do Titular**
-E-mail: privacidade@prevencaonoradar.com.br
+E-mail: kontrataai@gmail.com
 
 **Suporte Comercial e Técnico**
-E-mail: contato@prevencaonoradar.com.br
+E-mail: kontrataai@gmail.com
 
 **ANPD — Autoridade Nacional de Proteção de Dados**
 Caso entenda que seus direitos foram violados, você pode apresentar reclamação à ANPD em https://www.gov.br/anpd/pt-br/canais_atendimento/cidadao-titular-de-dados
 
 ---
 
-**RADAR 360**
+**KONTRATA.AI**
 CNPJ: [a preencher]
 [Endereço completo]
 

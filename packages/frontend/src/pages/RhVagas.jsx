@@ -1585,9 +1585,10 @@ export default function RhVagas() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 px-3 py-2 border border-gray-300 rounded-lg max-h-44 overflow-y-auto">
                         {beneficiosCatalogo.map(b => {
+                          const nomeBeneficio = (b.nome || '').trim();
                           const selecionados = (formData.beneficios || '')
                             .split(',').map(s => s.trim()).filter(Boolean);
-                          const marcado = selecionados.includes(b.nome);
+                          const marcado = selecionados.includes(nomeBeneficio);
                           return (
                             <label key={b.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-orange-50 px-2 py-1 rounded">
                               <input
@@ -1595,8 +1596,8 @@ export default function RhVagas() {
                                 checked={marcado}
                                 onChange={() => {
                                   const next = marcado
-                                    ? selecionados.filter(n => n !== b.nome)
-                                    : [...selecionados, b.nome];
+                                    ? selecionados.filter(n => n !== nomeBeneficio)
+                                    : [...new Set([...selecionados, nomeBeneficio])]; // Set evita duplicata
                                   setFormData(prev => ({ ...prev, beneficios: next.join(', ') }));
                                 }}
                                 className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"

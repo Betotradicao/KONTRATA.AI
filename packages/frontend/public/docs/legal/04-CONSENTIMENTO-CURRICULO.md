@@ -7,7 +7,7 @@
 
 ## EXIBIÇÃO NO FORMULÁRIO PÚBLICO DE CURRÍCULO
 
-> Este texto deve ser exibido **logo acima do botão "Enviar"** no formulário público de cadastro de currículo da Plataforma Radar 360.
+> Este texto deve ser exibido **logo acima do botão "Enviar"** no formulário público de cadastro de currículo da Plataforma Kontrata.ai.
 
 ---
 
@@ -16,7 +16,7 @@
 Antes de enviar seu currículo, leia atentamente como seus dados serão tratados:
 
 **Quem coleta seus dados?**
-A empresa **[NOME DA EMPRESA-CLIENTE]** (CNPJ: [CNPJ]), **Controladora** dos seus dados, em parceria com a **Radar 360** (CNPJ: [a preencher]) que opera a plataforma **Radar 360**.
+A empresa **[NOME DA EMPRESA-CLIENTE]** (CNPJ: [CNPJ]), **Controladora** dos seus dados, em parceria com a **Kontrata.ai** (CNPJ: [a preencher]) que opera a plataforma **Kontrata.ai**.
 
 **Quais dados coletamos?**
 Os dados que você inserir voluntariamente neste formulário, que podem incluir:
@@ -40,7 +40,7 @@ Os dados que você inserir voluntariamente neste formulário, que podem incluir:
 
 **Com quem compartilhamos?**
 - Apenas com a equipe de RH da empresa-Controladora autorizada;
-- Com a Radar 360 como Operadora da plataforma;
+- Com a Kontrata.ai como Operadora da plataforma;
 - Com sub-operadores autorizados (hospedagem, IA), conforme Política de Privacidade;
 - Com autoridades, quando legalmente exigido.
 
@@ -60,10 +60,10 @@ A qualquer momento você pode solicitar:
 **Como exercer seus direitos?**
 - Através do link "Meus Dados" enviado por e-mail após cadastro;
 - Por e-mail à empresa-Controladora: [E-MAIL DO RH DA EMPRESA-CLIENTE];
-- Pelo Encarregado de Dados (DPO): dpo@prevencaonoradar.com.br.
+- Pelo Encarregado de Dados (DPO): kontrataai@gmail.com.
 
 **Mais informações**
-- Política de Privacidade completa: https://prevencaonoradar.com.br/privacidade
+- Política de Privacidade completa: https://kontrata.ai/privacidade
 - Política da empresa-Controladora: [link, se houver]
 - ANPD: https://www.gov.br/anpd
 
@@ -114,7 +114,7 @@ Esses dados servem como **prova de consentimento** em caso de questionamento fut
 
 O candidato deve poder revogar o consentimento a qualquer momento:
 
-1. **Link único** enviado por e-mail após cadastro: `https://[empresa].prevencaonoradar.com.br/meus-dados/[token]`
+1. **Link único** enviado por e-mail após cadastro: `https://[empresa].kontrata.ai/meus-dados/[token]`
 2. **Solicitação por e-mail** ao DPO ou RH;
 3. **Solicitação dentro do sistema** se ele se autenticar.
 

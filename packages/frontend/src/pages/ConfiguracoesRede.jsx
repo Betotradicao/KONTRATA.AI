@@ -9,6 +9,8 @@ import WhatsAppGroupsTab from '../components/configuracoes/WhatsAppGroupsTab';
 import EmailTab from '../components/configuracoes/EmailTab';
 import ResetSenhaAdminTab from '../components/configuracoes/ResetSenhaAdminTab';
 import EmpresaConfigTab from '../components/configuracoes/EmpresaConfigTab';
+import LgpdTab from '../components/configuracoes/LgpdTab';
+import LogsAcessoTab from '../components/configuracoes/LogsAcessoTab';
 
 export default function ConfiguracoesRede() {
   const { user, logout } = useAuth();
@@ -29,7 +31,7 @@ export default function ConfiguracoesRede() {
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && ['modulos','apis','whatsapp-groups','email','reset-admin','personalizacao'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['modulos','apis','whatsapp-groups','email','reset-admin','personalizacao','lgpd','logs-acesso'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [searchParams]);
@@ -100,6 +102,8 @@ export default function ConfiguracoesRede() {
             {activeTab === 'email' && <EmailTab />}
             {activeTab === 'reset-admin' && <ResetSenhaAdminTab />}
             {activeTab === 'personalizacao' && <EmpresaConfigTab />}
+            {activeTab === 'lgpd' && <LgpdTab />}
+            {activeTab === 'logs-acesso' && <LogsAcessoTab />}
           </div>
         </div>
       </div>

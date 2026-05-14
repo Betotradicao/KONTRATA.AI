@@ -1,6 +1,6 @@
-# RESUMO EXECUTIVO — LGPD NO RADAR 360
+# RESUMO EXECUTIVO — LGPD NO KONTRATA.AI
 
-**Para:** Roberto (fundador Radar 360)
+**Para:** Roberto (fundador Kontrata.ai)
 **De:** Consultoria técnica em Privacy by Design
 **Data:** 04/05/2026
 **Confidencial — uso interno**
@@ -9,7 +9,7 @@
 
 ## 📌 NOTA DE STATUS — MVP
 
-O Radar 360 está em **fase MVP** (Minimum Viable Product). Atualmente:
+O Kontrata.ai está em **fase MVP** (Minimum Viable Product). Atualmente:
 - **Sem CNPJ formal** — operando como pessoa física até validar o produto;
 - **Clientes atuais** são parceiros próximos (ex: Tradição, Mameva), não há contrato comercial formal de grande porte;
 - **Documentação legal** em construção (este pacote);
@@ -23,7 +23,7 @@ Os campos `[a preencher]` nos documentos serão completados **assim que o CNPJ f
 
 ## 1. SITUAÇÃO ATUAL
 
-A plataforma **Radar 360** está sendo preparada para revenda comercial. Trata dados pessoais em alto volume, incluindo **dados sensíveis** (saúde via ASOs, biometria via Vision Facial, eventualmente sindicalização). Hoje opera **sem documentação jurídica formal**, sem aceite registrado, sem mecanismo de exercício de direitos do titular, sem DPA com Clientes e sem DPO designado.
+A plataforma **Kontrata.ai** está sendo preparada para revenda comercial. Trata dados pessoais em alto volume, incluindo **dados sensíveis** (saúde via ASOs, biometria via Vision Facial, eventualmente sindicalização). Hoje opera **sem documentação jurídica formal**, sem aceite registrado, sem mecanismo de exercício de direitos do titular, sem DPA com Clientes e sem DPO designado.
 
 **Risco atual: ALTO.** Em caso de incidente ou fiscalização da ANPD, exposição financeira e reputacional severa.
 
@@ -63,7 +63,7 @@ A plataforma **Radar 360** está sendo preparada para revenda comercial. Trata d
 |---|------|-------------|-------|
 | 1 | Definir razão social e CNPJ a usar nos documentos | Roberto | Imediato |
 | 2 | Designar DPO formal (pode ser você inicialmente) | Roberto | Esta semana |
-| 3 | Configurar e-mail dpo@prevencaonoradar.com.br | Roberto | Esta semana |
+| 3 | Configurar e-mail kontrataai@gmail.com | Roberto | Esta semana |
 | 4 | Buscar 2-3 advogados LGPD para orçar revisão | Roberto | Esta semana |
 | 5 | Implementar aceite no first-setup | Claude | Próxima sessão |
 

@@ -106,9 +106,16 @@ export class EmployeesController {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 3); // 3 horas
 
+      // Verifica se o user_id existe; se nao, salva como NULL (FK seguro)
+      let createdByUserId: string | null = null;
+      const rawUserId = (req as any).userId;
+      if (rawUserId) {
+        const exists = await AppDataSource.query(`SELECT 1 FROM users WHERE id = $1 LIMIT 1`, [rawUserId]);
+        if (exists.length > 0) createdByUserId = rawUserId;
+      }
       await AppDataSource.query(
         `INSERT INTO employee_setup_tokens (token, employee_id, created_by_user_id, expires_at) VALUES ($1, $2, $3, $4)`,
-        [token, saved.id, (req as any).userId || null, expiresAt]
+        [token, saved.id, createdByUserId, expiresAt]
       );
 
       const protocol = req.protocol;

@@ -451,9 +451,10 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
               <input
                 type="text"
                 value={formData.function_description}
-                onChange={(e) => setFormData({ ...formData, function_description: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, function_description: e.target.value.toUpperCase() })}
+                style={{ textTransform: 'uppercase' }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ex: Gerente de Vendas"
+                placeholder="Ex: GERENTE DE VENDAS"
                 required
                 maxLength={255}
               />

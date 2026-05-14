@@ -1,4 +1,4 @@
-# TERMOS DE USO DO SISTEMA RADAR 360
+# TERMOS DE USO DO SISTEMA KONTRATA.AI
 
 **Versão:** 1.0
 **Última atualização:** 04/05/2026
@@ -7,13 +7,13 @@
 
 ## 1. ACEITAÇÃO DOS TERMOS
 
-1.1. Estes Termos de Uso ("Termos") regulam o uso da plataforma **Radar 360** ("Sistema" ou "Plataforma"), de propriedade da **RADAR 360**, inscrita no CNPJ sob o nº [a preencher], com sede em [endereço completo a preencher] ("Radar 360", "nós" ou "Empresa").
+1.1. Estes Termos de Uso ("Termos") regulam o uso da plataforma **Kontrata.ai** ("Sistema" ou "Plataforma"), de propriedade da **KONTRATA.AI**, inscrita no CNPJ sob o nº [a preencher], com sede em [endereço completo a preencher] ("Kontrata.ai", "nós" ou "Empresa").
 
 1.2. Ao acessar, contratar, utilizar ou se cadastrar na Plataforma, o **Cliente** declara ter lido, compreendido e aceitado integralmente estes Termos, bem como a **Política de Privacidade** vigente, que é parte integrante deste documento.
 
 1.3. Caso o Cliente não concorde com qualquer disposição destes Termos, deve abster-se de utilizar a Plataforma.
 
-1.4. A versão vigente destes Termos será sempre disponibilizada em https://prevencaonoradar.com.br/termos e qualquer alteração será comunicada com no mínimo 30 (trinta) dias de antecedência via e-mail cadastrado, salvo alterações estritamente necessárias por força de lei ou ordem judicial.
+1.4. A versão vigente destes Termos será sempre disponibilizada em https://kontrata.ai/termos e qualquer alteração será comunicada com no mínimo 30 (trinta) dias de antecedência via e-mail cadastrado, salvo alterações estritamente necessárias por força de lei ou ordem judicial.
 
 ---
 
@@ -24,7 +24,7 @@ Para os fins destes Termos:
 - **"Cliente"** ou **"Contratante"**: pessoa jurídica que contrata a Plataforma para uso em seu(s) estabelecimento(s).
 - **"Usuário"**: qualquer pessoa física autorizada pelo Cliente a acessar a Plataforma (ex: gerentes, RH, colaboradores cadastrados).
 - **"Titular"**: pessoa natural a quem se referem os dados pessoais tratados pelo Sistema (colaboradores, candidatos, clientes finais do estabelecimento).
-- **"Plataforma"** ou **"Radar 360"**: o software como serviço (SaaS) e seus módulos: Gestão no Radar, Prevenção no Radar, Vision 360, Garimpador 360, Check List no Radar, RH no Radar, Marketing no Radar, Finanças no Radar, e demais módulos presentes ou futuros.
+- **"Plataforma"** ou **"Kontrata.ai"**: o software como serviço (SaaS) e seus módulos: Gestão no Radar, Prevenção no Radar, Vision 360, Garimpador 360, Check List no Radar, RH no Radar, Marketing no Radar, Finanças no Radar, e demais módulos presentes ou futuros.
 - **"Conteúdo do Cliente"**: dados, arquivos, imagens, currículos, gravações, configurações e demais informações inseridas no Sistema pelo Cliente ou seus Usuários.
 - **"LGPD"**: Lei nº 13.709/2018 (Lei Geral de Proteção de Dados Pessoais).
 
@@ -32,11 +32,11 @@ Para os fins destes Termos:
 
 ## 3. OBJETO
 
-3.1. Por meio destes Termos, a Radar 360 concede ao Cliente licença não exclusiva, intransferível e onerosa de uso da Plataforma Radar 360, no modelo Software como Serviço (SaaS), nos termos e condições aqui estabelecidos.
+3.1. Por meio destes Termos, a Kontrata.ai concede ao Cliente licença não exclusiva, intransferível e onerosa de uso da Plataforma Kontrata.ai, no modelo Software como Serviço (SaaS), nos termos e condições aqui estabelecidos.
 
 3.2. A Plataforma é fornecida "como está" e "como disponível", em ambiente multi-tenant hospedado em infraestrutura de nuvem com isolamento lógico de dados por Cliente.
 
-3.3. As funcionalidades disponíveis ao Cliente são aquelas constantes no plano contratado, podendo a Radar 360 adicionar, modificar ou descontinuar funcionalidades a qualquer tempo, mediante comunicação prévia.
+3.3. As funcionalidades disponíveis ao Cliente são aquelas constantes no plano contratado, podendo a Kontrata.ai adicionar, modificar ou descontinuar funcionalidades a qualquer tempo, mediante comunicação prévia.
 
 ---
 
@@ -47,12 +47,12 @@ Para os fins destes Termos:
 4.2. O Cliente é integralmente responsável por:
    a) Manter o sigilo absoluto de suas credenciais de acesso (login e senha);
    b) Gerenciar perfis de acesso de seus Usuários, atribuindo permissões compatíveis com a função de cada um;
-   c) Comunicar imediatamente à Radar 360 qualquer suspeita de uso não autorizado;
+   c) Comunicar imediatamente à Kontrata.ai qualquer suspeita de uso não autorizado;
    d) Manter os dados de cadastro atualizados (e-mail, telefone, responsável técnico).
 
 4.3. Cada Usuário deverá possuir credencial individualizada, sendo **proibido o compartilhamento de contas**.
 
-4.4. A Radar 360 reserva-se o direito de suspender o acesso em caso de uso indevido, descumprimento destes Termos, inadimplência ou determinação legal.
+4.4. A Kontrata.ai reserva-se o direito de suspender o acesso em caso de uso indevido, descumprimento destes Termos, inadimplência ou determinação legal.
 
 ---
 
@@ -70,9 +70,9 @@ Para os fins destes Termos:
 
 ---
 
-## 6. OBRIGAÇÕES DA Radar 360
+## 6. OBRIGAÇÕES DA Kontrata.ai
 
-A Radar 360 compromete-se a:
+A Kontrata.ai compromete-se a:
 
 a) Manter a Plataforma disponível em regime **24x7**, com SLA mínimo de **99,0% de disponibilidade mensal** (excetuadas janelas de manutenção previamente comunicadas);
 
@@ -90,7 +90,7 @@ g) Manter sigilo sobre todos os dados acessados em razão da prestação dos ser
 
 h) Atender solicitações dos Titulares de Dados encaminhadas pelo Cliente, conforme previsto no DPA (Data Processing Agreement);
 
-i) Designar **Encarregado de Dados (DPO)** acessível por canal específico (dpo@prevencaonoradar.com.br).
+i) Designar **Encarregado de Dados (DPO)** acessível por canal específico (kontrataai@gmail.com).
 
 ---
 
@@ -112,7 +112,7 @@ f) Afixar **aviso visível de monitoramento por câmeras** em todos os pontos re
 
 g) Atender, no prazo de 15 (quinze) dias, requisições de Titulares quanto aos seus direitos previstos na LGPD (Art. 18), valendo-se da Plataforma para registro;
 
-h) Comunicar à Radar 360, por escrito, em até 24 (vinte e quatro) horas, qualquer incidente, suspeita de incidente, ou requisição da ANPD relacionada a dados tratados na Plataforma;
+h) Comunicar à Kontrata.ai, por escrito, em até 24 (vinte e quatro) horas, qualquer incidente, suspeita de incidente, ou requisição da ANPD relacionada a dados tratados na Plataforma;
 
 i) **Não tentar burlar mecanismos de segurança**, fazer engenharia reversa, descompilar, copiar ou redistribuir o Sistema;
 
@@ -148,11 +148,11 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 ## 9. PROPRIEDADE INTELECTUAL
 
-9.1. A Plataforma, sua interface, código-fonte, banco de dados, marca, logotipos, documentação e demais elementos são de **propriedade exclusiva da Radar 360** ou de seus licenciantes, protegidos pelas Leis nº 9.610/1998 e nº 9.609/1998.
+9.1. A Plataforma, sua interface, código-fonte, banco de dados, marca, logotipos, documentação e demais elementos são de **propriedade exclusiva da Kontrata.ai** ou de seus licenciantes, protegidos pelas Leis nº 9.610/1998 e nº 9.609/1998.
 
 9.2. O Cliente recebe apenas **licença de uso**, não havendo qualquer transferência de propriedade intelectual.
 
-9.3. **Conteúdo do Cliente**: Os dados inseridos pelo Cliente permanecem de sua propriedade. A Radar 360 recebe apenas licença operacional para tratá-los na execução dos serviços, conforme DPA.
+9.3. **Conteúdo do Cliente**: Os dados inseridos pelo Cliente permanecem de sua propriedade. A Kontrata.ai recebe apenas licença operacional para tratá-los na execução dos serviços, conforme DPA.
 
 9.4. É vedada a remoção, ocultação ou alteração de avisos de propriedade intelectual.
 
@@ -164,11 +164,11 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 10.2. Para fins de LGPD:
    - O **Cliente** é o **CONTROLADOR** dos dados pessoais que insere na Plataforma;
-   - A **Radar 360** é o **OPERADOR**, atuando exclusivamente em nome e seguindo instruções documentadas do Cliente.
+   - A **Kontrata.ai** é o **OPERADOR**, atuando exclusivamente em nome e seguindo instruções documentadas do Cliente.
 
 10.3. Os termos específicos do tratamento de dados, incluindo bases legais, finalidades, prazos de retenção, sub-operadores, transferências internacionais e medidas de segurança, são objeto de **DPA (Data Processing Agreement)** anexo a estes Termos.
 
-10.4. A **Política de Privacidade da Plataforma** detalha o tratamento de dados realizado pela Radar 360 em sua relação direta com Clientes e Usuários.
+10.4. A **Política de Privacidade da Plataforma** detalha o tratamento de dados realizado pela Kontrata.ai em sua relação direta com Clientes e Usuários.
 
 ---
 
@@ -176,7 +176,7 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 11.1. **Rescisão por iniciativa do Cliente**: O Cliente pode rescindir a qualquer tempo mediante aviso prévio de 30 (trinta) dias, sem multa rescisória.
 
-11.2. **Rescisão por iniciativa da Radar 360**: A Radar 360 pode rescindir mediante aviso prévio de 60 (sessenta) dias ou imediatamente em caso de:
+11.2. **Rescisão por iniciativa da Kontrata.ai**: A Kontrata.ai pode rescindir mediante aviso prévio de 60 (sessenta) dias ou imediatamente em caso de:
    a) Violação grave destes Termos pelo Cliente;
    b) Inadimplência superior a 60 dias;
    c) Uso da Plataforma para fins ilícitos;
@@ -184,22 +184,22 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 11.3. **Após a rescisão**:
    a) O Cliente terá prazo de **30 (trinta) dias** para exportar seus dados via funcionalidade nativa da Plataforma;
-   b) Findo esse prazo, a Radar 360 **excluirá ou anonimizará** todos os dados pessoais do Cliente, exceto aqueles cuja retenção seja exigida por obrigação legal (ex: dados fiscais, eSocial, contratos);
+   b) Findo esse prazo, a Kontrata.ai **excluirá ou anonimizará** todos os dados pessoais do Cliente, exceto aqueles cuja retenção seja exigida por obrigação legal (ex: dados fiscais, eSocial, contratos);
    c) Backups serão purgados conforme ciclo natural de retenção (até 30 dias);
-   d) A Radar 360 fornecerá **declaração de exclusão** ao Cliente.
+   d) A Kontrata.ai fornecerá **declaração de exclusão** ao Cliente.
 
 ---
 
 ## 12. LIMITAÇÃO DE RESPONSABILIDADE
 
-12.1. A Radar 360 envidará seus melhores esforços para manter a Plataforma operacional, segura e livre de erros, **NÃO GARANTINDO**, contudo:
+12.1. A Kontrata.ai envidará seus melhores esforços para manter a Plataforma operacional, segura e livre de erros, **NÃO GARANTINDO**, contudo:
    a) Funcionamento ininterrupto ou ausência absoluta de falhas;
    b) Compatibilidade com todos os ambientes do Cliente;
    c) Resultados específicos de negócio (vendas, prevenção de perdas, contratações).
 
-12.2. A responsabilidade total da Radar 360 perante o Cliente, em qualquer hipótese, fica limitada ao **valor pago pelo Cliente nos 12 (doze) meses imediatamente anteriores ao evento danoso**, salvo nos casos de dolo ou culpa grave.
+12.2. A responsabilidade total da Kontrata.ai perante o Cliente, em qualquer hipótese, fica limitada ao **valor pago pelo Cliente nos 12 (doze) meses imediatamente anteriores ao evento danoso**, salvo nos casos de dolo ou culpa grave.
 
-12.3. **Em nenhuma hipótese a Radar 360 responderá por**:
+12.3. **Em nenhuma hipótese a Kontrata.ai responderá por**:
    a) Danos indiretos, lucros cessantes, perda de chance ou danos reflexos;
    b) Danos decorrentes de uso indevido pelo Cliente ou seus Usuários;
    c) Danos causados por terceiros mediante ataques cibernéticos quando comprovadamente adotadas as medidas de segurança razoáveis;
@@ -211,7 +211,7 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
    c) Obtenção dos consentimentos necessários dos Titulares;
    d) Atos de seus Usuários no Sistema.
 
-12.5. Em caso de demanda de terceiro contra a Radar 360 em razão de ato ou omissão do Cliente, este o **indenizará** integralmente, incluindo honorários advocatícios e custas processuais.
+12.5. Em caso de demanda de terceiro contra a Kontrata.ai em razão de ato ou omissão do Cliente, este o **indenizará** integralmente, incluindo honorários advocatícios e custas processuais.
 
 ---
 
@@ -230,9 +230,9 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 ## 14. ATUALIZAÇÕES E ALTERAÇÕES
 
-14.1. A Radar 360 poderá, a qualquer tempo, **atualizar** a Plataforma, incluindo correções, melhorias e novas funcionalidades. Atualizações que impliquem **alteração relevante de funcionalidade ou condições** serão comunicadas com antecedência mínima de 30 dias.
+14.1. A Kontrata.ai poderá, a qualquer tempo, **atualizar** a Plataforma, incluindo correções, melhorias e novas funcionalidades. Atualizações que impliquem **alteração relevante de funcionalidade ou condições** serão comunicadas com antecedência mínima de 30 dias.
 
-14.2. **Alterações nestes Termos** serão comunicadas por e-mail e publicadas em https://prevencaonoradar.com.br/termos, vigorando 30 dias após a comunicação. O uso continuado após a vigência implica aceitação tácita.
+14.2. **Alterações nestes Termos** serão comunicadas por e-mail e publicadas em https://kontrata.ai/termos, vigorando 30 dias após a comunicação. O uso continuado após a vigência implica aceitação tácita.
 
 14.3. Caso o Cliente discorde de alteração relevante, poderá rescindir o contrato sem ônus no prazo de 30 dias contados da comunicação.
 
@@ -240,14 +240,14 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 ## 15. SUBCONTRATAÇÃO
 
-15.1. A Radar 360 está autorizada a subcontratar terceiros para execução de partes dos serviços, em especial:
+15.1. A Kontrata.ai está autorizada a subcontratar terceiros para execução de partes dos serviços, em especial:
    a) Provedores de infraestrutura em nuvem (atualmente Hostinger);
    b) Serviços de e-mail transacional;
    c) Serviços de mensageria (WhatsApp Business API, quando aplicável);
    d) Serviços de IA/processamento de linguagem natural (Anthropic Claude, OpenAI, quando aplicável);
    e) Outros prestadores que sejam comunicados por aviso prévio.
 
-15.2. A Radar 360 **permanece responsável** pelos atos dos sub-operadores em relação ao Cliente.
+15.2. A Kontrata.ai **permanece responsável** pelos atos dos sub-operadores em relação ao Cliente.
 
 15.3. A lista atualizada de sub-operadores e países de processamento estará disponível no DPA e na Política de Privacidade.
 
@@ -257,7 +257,7 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 16.1. **Comunicações**: As comunicações formais serão realizadas por e-mail aos endereços cadastrados, com confirmação de recebimento.
 
-16.2. **Cessão**: O Cliente não pode ceder direitos e obrigações deste contrato sem prévio consentimento escrito da Radar 360. A Radar 360 pode ceder em caso de reorganização societária, fusão ou aquisição, mediante aviso prévio.
+16.2. **Cessão**: O Cliente não pode ceder direitos e obrigações deste contrato sem prévio consentimento escrito da Kontrata.ai. A Kontrata.ai pode ceder em caso de reorganização societária, fusão ou aquisição, mediante aviso prévio.
 
 16.3. **Tolerância**: A tolerância de uma parte com o descumprimento de obrigação pela outra não constitui novação ou renúncia de direitos.
 
@@ -273,7 +273,7 @@ h) Reutilizar dados coletados em uma finalidade para outra finalidade incompatí
 
 ## 17. FORO
 
-17.1. Para dirimir quaisquer controvérsias oriundas destes Termos, as partes elegem o **foro da Comarca de [a definir — sugestão: cidade-sede da Radar 360]**, com renúncia expressa a qualquer outro, por mais privilegiado que seja.
+17.1. Para dirimir quaisquer controvérsias oriundas destes Termos, as partes elegem o **foro da Comarca de [a definir — sugestão: cidade-sede da Kontrata.ai]**, com renúncia expressa a qualquer outro, por mais privilegiado que seja.
 
 17.2. As partes se comprometem a tentar **solução amigável** antes de recorrer ao Poder Judiciário, observado prazo mínimo de 30 dias para tratativas.
 
@@ -290,10 +290,10 @@ Ao clicar em "Li e aceito os Termos de Uso e Política de Privacidade" no moment
 
 ---
 
-**RADAR 360**
+**KONTRATA.AI**
 CNPJ: [a preencher]
 [Endereço completo]
-DPO: dpo@prevencaonoradar.com.br
-Contato: contato@prevencaonoradar.com.br
+DPO: kontrataai@gmail.com
+Contato: kontrataai@gmail.com
 
 **Documento sujeito a revisão jurídica antes do uso comercial.**

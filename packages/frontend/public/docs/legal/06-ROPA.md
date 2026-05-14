@@ -3,7 +3,7 @@
 **Documento Interno** — Art. 37 da LGPD
 **Versão:** 1.0
 **Última atualização:** 04/05/2026
-**Responsável pela manutenção:** DPO Radar 360 (dpo@prevencaonoradar.com.br)
+**Responsável pela manutenção:** DPO Kontrata.ai (kontrataai@gmail.com)
 
 ---
 
@@ -20,10 +20,10 @@ Este é um **documento interno obrigatório** pela LGPD. Não é compartilhado p
 ## 1. CONTROLADOR / OPERADOR
 
 ### 1.1. Como Operador
-A Radar 360 atua como Operador para os Clientes da plataforma Radar 360. Os ROPAs específicos de cada Cliente devem ser mantidos por eles próprios, refletindo as decisões de tratamento que tomam.
+A Kontrata.ai atua como Operador para os Clientes da plataforma Kontrata.ai. Os ROPAs específicos de cada Cliente devem ser mantidos por eles próprios, refletindo as decisões de tratamento que tomam.
 
 ### 1.2. Como Controlador
-A Radar 360 atua como Controlador em relação a:
+A Kontrata.ai atua como Controlador em relação a:
 - Dados de seus Clientes (pessoa jurídica e responsáveis);
 - Dados de Usuários administradores;
 - Dados de cobrança;
@@ -34,14 +34,14 @@ Este ROPA cobre **ambos os papéis**.
 
 ### 1.3. Encarregado (DPO)
 Nome: [a definir]
-E-mail: dpo@prevencaonoradar.com.br
+E-mail: kontrataai@gmail.com
 Capacitação: [especificar curso/certificação]
 
 ---
 
 ## 2. OPERAÇÕES — VISÃO GERAL
 
-| ID | Operação | Papel da Radar 360 | Categoria de Dados | Volume Estimado |
+| ID | Operação | Papel da Kontrata.ai | Categoria de Dados | Volume Estimado |
 |----|----------|--------------|---------------------|------------------|
 | OP-01 | Cadastro de Cliente (PJ) e Usuários | Controlador | Comuns | Baixo |
 | OP-02 | Cadastro de Colaboradores no RH | Operador | Comuns + Sensíveis (saúde) | Alto |
@@ -190,7 +190,7 @@ Capacitação: [especificar curso/certificação]
 
 | Item | Detalhe |
 |------|---------|
-| **Papel** | Controlador (logs operacionais da Radar 360) e Operador (logs do tenant) |
+| **Papel** | Controlador (logs operacionais da Kontrata.ai) e Operador (logs do tenant) |
 | **Finalidade** | Segurança, investigação de incidentes, auditoria |
 | **Base legal** | Legítimo interesse (Art. 7, IX) + obrigação legal (Marco Civil, Art. 15) |
 | **Dados** | IP, timestamp, usuário, ação, recurso acessado |
@@ -275,7 +275,7 @@ Capacitação: [especificar curso/certificação]
 
 ### Físicas
 - Servidores em data center de provedor certificado (Hostinger);
-- Sem acesso físico de pessoal da Radar 360 aos servidores.
+- Sem acesso físico de pessoal da Kontrata.ai aos servidores.
 
 ---
 
@@ -302,7 +302,7 @@ DPIAs serão elaboradas conforme priorização e disponibilidade do DPO.
 
 | Data da Revisão | Revisor | Mudanças |
 |-----------------|---------|----------|
-| 04/05/2026 | DPO Radar 360 | Versão inicial 1.0 |
+| 04/05/2026 | DPO Kontrata.ai | Versão inicial 1.0 |
 
 ---
 

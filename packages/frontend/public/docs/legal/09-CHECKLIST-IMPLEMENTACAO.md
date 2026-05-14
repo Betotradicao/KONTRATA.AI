@@ -1,4 +1,4 @@
-# CHECKLIST DE IMPLEMENTAÇÃO TÉCNICA — LGPD NO RADAR 360
+# CHECKLIST DE IMPLEMENTAÇÃO TÉCNICA — LGPD NO KONTRATA.AI
 
 **Documento Interno** — Guia de desenvolvimento
 **Versão:** 1.0
@@ -8,7 +8,7 @@
 
 ## OBJETIVO
 
-Lista priorizada de implementações técnicas necessárias no Radar 360 para conformidade com LGPD. Cada item indica:
+Lista priorizada de implementações técnicas necessárias no Kontrata.ai para conformidade com LGPD. Cada item indica:
 - 🔴 **Crítico**: bloqueia uso comercial seguro
 - 🟡 **Importante**: deve ser entregue antes de escala
 - 🟢 **Desejável**: melhoria contínua
@@ -317,7 +317,7 @@ Termos de Uso publicados.
 ### 8.3. Página /dpo (canal de contato)
 🔴 **Crítico** — Status: ⬜ Pendente
 
-E-mail dpo@prevencaonoradar.com.br ativo + formulário de contato no site.
+E-mail kontrataai@gmail.com ativo + formulário de contato no site.
 
 ### 8.4. Banner de cookies
 🟡 **Importante** — Status: ⬜ Pendente
@@ -351,7 +351,7 @@ Mesmo formato; ênfase em decisão automatizada.
 ### 10.1. Treinamento interno LGPD
 🟡 **Importante** — Status: ⬜ Pendente
 
-Para toda a equipe da Radar 360, especialmente quem tem acesso a dados.
+Para toda a equipe da Kontrata.ai, especialmente quem tem acesso a dados.
 
 ### 10.2. Manual de boas práticas para Cliente
 🟢 **Desejável** — Status: ⬜ Pendente
@@ -405,7 +405,7 @@ Página de FAQ sobre privacidade no site.
 Checklist mínimo:
 - [ ] Termos de Uso e Política revisados por advogado
 - [ ] DPA pronto para assinatura
-- [ ] DPO da Radar 360 designado e e-mail ativo
+- [ ] DPO da Kontrata.ai designado e e-mail ativo
 - [ ] Consentimento de currículo e biometria implementados
 - [ ] Página `/privacidade` e `/termos` publicadas
 - [ ] Tela "Meus Dados" do colaborador
@@ -417,4 +417,4 @@ Checklist mínimo:
 ---
 
 **Próxima revisão:** 04/06/2026
-**Responsável:** DPO Radar 360
+**Responsável:** DPO Kontrata.ai

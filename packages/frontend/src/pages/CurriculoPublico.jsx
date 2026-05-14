@@ -1357,7 +1357,7 @@ export default function CurriculoPublico() {
             <div className="text-xs text-gray-700 leading-relaxed bg-white rounded-lg p-3 border border-gray-200 max-h-48 overflow-y-auto">
               <p className="font-semibold mb-2">Antes de enviar, leia atentamente:</p>
               <p className="mb-2">
-                <strong>Quem coleta seus dados:</strong> a empresa (Controladora dos dados) em parceria com o Radar 360 (Operador).
+                <strong>Quem coleta seus dados:</strong> a empresa (Controladora dos dados) em parceria com o Kontrata.ai (Operador).
               </p>
               <p className="mb-2">
                 <strong>Para que serão usados:</strong> avaliar sua candidatura para vagas em aberto e futuras, comunicar sobre o processo seletivo e compor o banco de talentos.
@@ -1444,7 +1444,7 @@ function DocumentoLgpd({ tipo }) {
 
         <div>
           <h4 className="font-bold text-gray-800">📌 Quem coleta seus dados</h4>
-          <p>A empresa onde você está se candidatando (Controladora dos seus dados) em parceria com a plataforma <strong>Radar 360</strong> (Operadora).</p>
+          <p>A empresa onde você está se candidatando (Controladora dos seus dados) em parceria com a plataforma <strong>Kontrata.ai</strong> (Operadora).</p>
         </div>
 
         <div>
@@ -1482,7 +1482,7 @@ function DocumentoLgpd({ tipo }) {
           <h4 className="font-bold text-gray-800">🔗 Com quem compartilhamos</h4>
           <ul className="list-disc list-inside space-y-0.5">
             <li>Apenas com a equipe de RH da empresa autorizada</li>
-            <li>Com a Radar 360 como Operadora da plataforma</li>
+            <li>Com a Kontrata.ai como Operadora da plataforma</li>
             <li>Com sub-operadores autorizados (hospedagem, IA quando aplicável)</li>
             <li>Com autoridades quando legalmente exigido</li>
           </ul>
@@ -1513,7 +1513,7 @@ function DocumentoLgpd({ tipo }) {
           <h4 className="font-bold text-gray-800">📞 Como exercer seus direitos</h4>
           <ul className="list-disc list-inside space-y-0.5">
             <li>Por e-mail à empresa onde você se candidatou</li>
-            <li>Pelo Encarregado de Dados do Radar 360: <strong>dpo@prevencaonoradar.com.br</strong></li>
+            <li>Pelo Encarregado de Dados do Kontrata.ai: <strong>dpo@prevencaonoradar.com.br</strong></li>
             <li>ANPD: <strong>www.gov.br/anpd</strong></li>
           </ul>
         </div>
@@ -1528,12 +1528,12 @@ function DocumentoLgpd({ tipo }) {
   // Política de Privacidade resumida (versão para candidato)
   return (
     <div className="space-y-4 text-sm text-gray-800 leading-relaxed">
-      <h3 className="font-bold text-base text-gray-900">Política de Privacidade — Radar 360</h3>
+      <h3 className="font-bold text-base text-gray-900">Política de Privacidade — Kontrata.ai</h3>
       <p className="text-xs text-gray-500">Última atualização: 04/05/2026</p>
 
       <div>
         <h4 className="font-bold text-gray-800">Quem somos</h4>
-        <p>O <strong>Radar 360</strong> é uma plataforma utilizada por empresas para gerir RH, processos seletivos, prevenção de perdas e operações. Atuamos como <strong>Operadora</strong> dos dados que as empresas inserem na plataforma.</p>
+        <p>O <strong>Kontrata.ai</strong> é uma plataforma utilizada por empresas para gerir RH, processos seletivos, prevenção de perdas e operações. Atuamos como <strong>Operadora</strong> dos dados que as empresas inserem na plataforma.</p>
       </div>
 
       <div>

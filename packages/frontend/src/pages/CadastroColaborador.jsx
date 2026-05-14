@@ -18,6 +18,7 @@ export default function CadastroColaborador() {
   const [email, setEmail] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [aceiteLgpd, setAceiteLgpd] = useState(false);
 
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
@@ -45,6 +46,10 @@ export default function CadastroColaborador() {
     }
     if (!isPasswordStrong(password)) {
       setErro('A senha não atende os requisitos abaixo');
+      return;
+    }
+    if (!aceiteLgpd) {
+      setErro('Você precisa aceitar os termos de uso e a política de privacidade');
       return;
     }
     setEnviando(true);
@@ -184,10 +189,28 @@ export default function CadastroColaborador() {
               />
               <p className="mt-1 text-xs text-gray-500">Email usado para redefinir a senha caso esqueça</p>
             </div>
+            {/* Aceite LGPD */}
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={aceiteLgpd}
+                  onChange={(e) => setAceiteLgpd(e.target.checked)}
+                  className="mt-1 w-4 h-4 accent-purple-700"
+                />
+                <span className="text-xs text-gray-700">
+                  Declaro que li e concordo com os{' '}
+                  <a href="/docs/legal/01-TERMOS-DE-USO.md" target="_blank" rel="noreferrer" className="text-purple-700 underline font-semibold">Termos de Uso</a>,{' '}
+                  <a href="/docs/legal/02-POLITICA-DE-PRIVACIDADE.md" target="_blank" rel="noreferrer" className="text-purple-700 underline font-semibold">Política de Privacidade</a>{' '}
+                  e estou ciente das normas da <strong>LGPD (Lei Geral de Proteção de Dados)</strong> aplicáveis ao tratamento dos meus dados pela plataforma Kontrata.ai.
+                </span>
+              </label>
+            </div>
+
             <button
               type="submit"
-              disabled={enviando}
-              className="w-full py-3 px-4 bg-purple-700 text-white rounded-lg hover:bg-purple-800 disabled:opacity-50 transition-colors font-medium"
+              disabled={enviando || !aceiteLgpd}
+              className="w-full py-3 px-4 bg-purple-700 text-white rounded-lg hover:bg-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               {enviando ? 'Salvando...' : 'Concluir Cadastro'}
             </button>

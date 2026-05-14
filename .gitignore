@@ -102,3 +102,9 @@ APONTAMENTOS*.xlsx
 *.xlsm
 exportacao_folha_*.TXT
 exportacao_folha_*.txt
+tradicao_data.sql
+tradicao_data_clean.sql
+tradicao_schema.sql
+add_missing_cols.sql
+kontrata_tables.txt
+KONTRATAAI.png

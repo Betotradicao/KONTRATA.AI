@@ -3,7 +3,7 @@
 **Documento Interno** — Art. 50, §1º, II, "g" da LGPD
 **Versão:** 1.0
 **Última atualização:** 04/05/2026
-**Responsável:** DPO Radar 360
+**Responsável:** DPO Kontrata.ai
 
 ---
 
@@ -33,9 +33,9 @@ Este plano é **acionado em emergência**. Mantenha cópia impressa e digital, a
 
 | Papel | Responsável | Contato Principal | Backup |
 |-------|-------------|-------------------|--------|
-| **Comandante de Incidente** | DPO Radar 360 | dpo@prevencaonoradar.com.br / [tel] | [backup] |
+| **Comandante de Incidente** | DPO Kontrata.ai | kontrataai@gmail.com / [tel] | [backup] |
 | **Líder Técnico** | Roberto / [a definir] | [tel] | [backup] |
-| **Comunicação Externa** | DPO Radar 360 | dpo@prevencaonoradar.com.br | [backup] |
+| **Comunicação Externa** | DPO Kontrata.ai | kontrataai@gmail.com | [backup] |
 | **Jurídico** | Advogado contratado [a definir] | [contato] | - |
 | **Suporte ao Cliente** | [a definir] | [contato] | - |
 | **Forense** (se necessário) | Empresa terceirizada [a contratar] | [contato] | - |
@@ -161,8 +161,8 @@ Comandante avalia:
 **Prazo**: prazo razoável — recomendação ANPD: **até 3 dias úteis**.
 **Canal**: formulário oficial em https://www.gov.br/anpd
 **Quando notificar**: incidentes que possam acarretar **risco ou dano relevante** aos titulares (Art. 48 LGPD).
-**Quem notifica**: Cliente Controlador notifica ANPD; Radar 360 presta apoio técnico.
-**Para incidentes na infra da Radar 360**: Radar 360 notifica ANPD em paralelo, citando os Clientes afetados.
+**Quem notifica**: Cliente Controlador notifica ANPD; Kontrata.ai presta apoio técnico.
+**Para incidentes na infra da Kontrata.ai**: Kontrata.ai notifica ANPD em paralelo, citando os Clientes afetados.
 
 **Conteúdo (formulário ANPD)**:
 - Descrição da natureza dos dados afetados;
@@ -275,7 +275,7 @@ Documentar lições, atualizar plano.
 ## APÊNDICE A — TEMPLATE DE NOTIFICAÇÃO AO CLIENTE
 
 ```
-Assunto: [URGENTE] Notificação de Incidente de Segurança — Radar 360
+Assunto: [URGENTE] Notificação de Incidente de Segurança — Kontrata.ai
 
 Prezado(a) [Nome],
 
@@ -312,12 +312,12 @@ DOCUMENTAÇÃO:
 Estamos preparando relatório completo, que será enviado em [prazo].
 
 CANAL DEDICADO:
-DPO Radar 360: dpo@prevencaonoradar.com.br
+DPO Kontrata.ai: kontrataai@gmail.com
 Telefone: [tel]
 
 Atenciosamente,
 [Nome do DPO]
-Radar 360
+Kontrata.ai
 ```
 
 ---
@@ -348,10 +348,10 @@ LAMENTAMOS PROFUNDAMENTE
 [Pedido de desculpas]
 
 CANAL DE DÚVIDAS
-E-mail: dpo@prevencaonoradar.com.br
+E-mail: kontrataai@gmail.com
 
 Atenciosamente,
-Equipe Radar 360
+Equipe Kontrata.ai
 ```
 
 ---

@@ -56,14 +56,14 @@ A captura, processamento e armazenamento de uma representação matemática (vet
 - Metadados: data/hora do cadastro, identificação do operador que cadastrou.
 
 **1.4.** Onde os dados ficam armazenados:
-- No servidor da empresa-Controladora, dentro da plataforma Radar 360 (operada pela Radar 360);
+- No servidor da empresa-Controladora, dentro da plataforma Kontrata.ai (operada pela Kontrata.ai);
 - **Não há envio das imagens para serviços externos de IA**;
 - Dados criptografados em trânsito (HTTPS) e em repouso (a partir da implementação completa).
 
 **1.5.** Quem terá acesso:
 - Sistema de reconhecimento facial automatizado (sem intervenção humana);
 - Equipe de Prevenção de Perdas e RH da empresa-Controladora, com login individualizado;
-- Radar 360, exclusivamente para suporte técnico, mediante registro;
+- Kontrata.ai, exclusivamente para suporte técnico, mediante registro;
 - Autoridades, quando legalmente exigido.
 
 **1.6.** Por quanto tempo:
@@ -126,8 +126,8 @@ Nome: ____________________________________________
 E-mail: _______________________
 Telefone: _______________________
 
-**Encarregado de Dados (DPO) da Radar 360:**
-E-mail: dpo@prevencaonoradar.com.br
+**Encarregado de Dados (DPO) da Kontrata.ai:**
+E-mail: kontrataai@gmail.com
 
 **RH da Empresa:**
 E-mail: _______________________
@@ -206,7 +206,7 @@ Quando o cadastro for realizado no Vision Facial, o sistema deve armazenar:
    - Foto original (se armazenada) é **excluída**;
    - Histórico de identificações é **anonimizado** (mantém estatística, remove vínculo);
 5. Sistema gera **declaração de exclusão** entregue ao colaborador;
-6. Notificação ao DPO da Radar 360 registrando a operação.
+6. Notificação ao DPO da Kontrata.ai registrando a operação.
 
 ---
 

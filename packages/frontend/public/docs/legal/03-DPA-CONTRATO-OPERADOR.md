@@ -20,19 +20,19 @@
 **E-mail do DPO:** _______________________
 
 ### OPERADOR
-**Razão Social:** RADAR 360
+**Razão Social:** KONTRATA.AI
 **CNPJ:** [a preencher]
 **Endereço:** [endereço completo]
 **Representante Legal:** Roberto [completar]
 **CPF:** [a preencher]
-**E-mail:** contato@prevencaonoradar.com.br
-**DPO:** dpo@prevencaonoradar.com.br
+**E-mail:** kontrataai@gmail.com
+**DPO:** kontrataai@gmail.com
 
 ---
 
 ## CONSIDERANDOS
 
-CONSIDERANDO que o Controlador firmou Contrato Principal de Prestação de Serviços com o Operador para uso da plataforma **Radar 360**;
+CONSIDERANDO que o Controlador firmou Contrato Principal de Prestação de Serviços com o Operador para uso da plataforma **Kontrata.ai**;
 
 CONSIDERANDO que o uso da plataforma envolve tratamento de **dados pessoais** de Titulares (colaboradores, candidatos, clientes finais, fornecedores) sob responsabilidade do Controlador;
 
@@ -46,7 +46,7 @@ As partes celebram o presente **CONTRATO DE TRATAMENTO DE DADOS PESSOAIS** ("DPA
 
 ## CLÁUSULA 1ª — OBJETO
 
-1.1. Este DPA regula as condições, finalidades, garantias e responsabilidades das partes em relação ao tratamento de dados pessoais decorrente da execução do Contrato Principal de Prestação de Serviços da plataforma Radar 360.
+1.1. Este DPA regula as condições, finalidades, garantias e responsabilidades das partes em relação ao tratamento de dados pessoais decorrente da execução do Contrato Principal de Prestação de Serviços da plataforma Kontrata.ai.
 
 1.2. Este DPA integra e complementa o Contrato Principal e os Termos de Uso, prevalecendo, em caso de conflito, sobre cláusulas contraditórias relativas a tratamento de dados pessoais.
 
@@ -72,9 +72,9 @@ Aplicam-se as definições da LGPD (Art. 5), em especial:
 
 3.1. **Para todos os fins legais**:
    - O **CLIENTE** atua como **CONTROLADOR** dos dados pessoais inseridos na plataforma, sendo responsável pela legalidade da coleta, finalidade, base legal, retenção e atendimento dos direitos dos Titulares;
-   - A **Radar 360** atua como **OPERADOR**, processando os dados estritamente conforme instruções documentadas do Controlador.
+   - A **Kontrata.ai** atua como **OPERADOR**, processando os dados estritamente conforme instruções documentadas do Controlador.
 
-3.2. **A Radar 360 atuará como Controlador apenas em relação a**:
+3.2. **A Kontrata.ai atuará como Controlador apenas em relação a**:
    - Dados de cadastro do próprio Cliente;
    - Dados de Usuários administradores;
    - Dados de cobrança e faturamento;
@@ -130,11 +130,11 @@ g) **Configurar adequadamente** as permissões de acesso de seus Usuários, apli
 
 h) **Não compartilhar credenciais** de acesso e revogar imediatamente acessos de pessoas que se desliguem;
 
-i) **Notificar a Radar 360 em até 24 horas** sobre qualquer incidente, suspeita de incidente, ou requisição da ANPD ou de Titulares relacionada à Plataforma;
+i) **Notificar a Kontrata.ai em até 24 horas** sobre qualquer incidente, suspeita de incidente, ou requisição da ANPD ou de Titulares relacionada à Plataforma;
 
-j) **Indenizar a Radar 360** por demandas decorrentes do descumprimento das obrigações desta cláusula 5;
+j) **Indenizar a Kontrata.ai** por demandas decorrentes do descumprimento das obrigações desta cláusula 5;
 
-k) **Manter Encarregado (DPO) próprio** ou autorizar formalmente a Radar 360 a indicar um, conforme suas necessidades;
+k) **Manter Encarregado (DPO) próprio** ou autorizar formalmente a Kontrata.ai a indicar um, conforme suas necessidades;
 
 l) **Responder, perante os Titulares e a ANPD**, pelas decisões de tratamento que tomar;
 
@@ -144,7 +144,7 @@ m) **Cumprir as legislações setoriais aplicáveis**: CLT, eSocial, NRs, Regula
 
 ## CLÁUSULA 6ª — OBRIGAÇÕES DO OPERADOR
 
-6.1. A Radar 360, como Operador, obriga-se a:
+6.1. A Kontrata.ai, como Operador, obriga-se a:
 
 a) **Tratar os dados estritamente conforme instruções** documentadas do Controlador, salvo se exigido por lei;
 
@@ -199,13 +199,13 @@ n) **Aceitar auditorias** do Controlador ou de terceiro por ele indicado, median
 | OpenAI LLC | IA conversacional (modelos alternativos, quando aplicável) | EUA |
 | Meta Platforms Inc. | WhatsApp Business API (quando aplicável) | Global |
 
-7.2. A Radar 360 poderá **alterar a lista de sub-operadores** mediante:
+7.2. A Kontrata.ai poderá **alterar a lista de sub-operadores** mediante:
    a) Aviso prévio de 30 dias ao Controlador;
    b) Direito do Controlador de objetar fundamentadamente, com possibilidade de rescisão do contrato sem ônus caso a alternativa não seja viável.
 
-7.3. A Radar 360 **garante que cada sub-operador** está vinculado a obrigações de proteção de dados **equivalentes ou superiores** a este DPA, mediante contratos específicos.
+7.3. A Kontrata.ai **garante que cada sub-operador** está vinculado a obrigações de proteção de dados **equivalentes ou superiores** a este DPA, mediante contratos específicos.
 
-7.4. **Responsabilidade**: A Radar 360 **permanece responsável** perante o Controlador pelo cumprimento das obrigações pelos sub-operadores.
+7.4. **Responsabilidade**: A Kontrata.ai **permanece responsável** perante o Controlador pelo cumprimento das obrigações pelos sub-operadores.
 
 ---
 
@@ -213,50 +213,50 @@ n) **Aceitar auditorias** do Controlador ou de terceiro por ele indicado, median
 
 8.1. Pode haver transferência internacional de dados aos sub-operadores listados, especialmente para CDN e provedores de IA com infraestrutura nos EUA.
 
-8.2. A Radar 360 compromete-se a adotar, para cada transferência:
+8.2. A Kontrata.ai compromete-se a adotar, para cada transferência:
    a) Cláusulas contratuais padrão equivalentes às SCCs europeias adaptadas à LGPD;
    b) Avaliação de adequação do país (quando publicada lista pela ANPD);
    c) Medidas técnicas suplementares (criptografia, pseudonimização) quando aplicável.
 
-8.3. A Radar 360 fornecerá, mediante solicitação razoável, informações sobre as garantias adotadas.
+8.3. A Kontrata.ai fornecerá, mediante solicitação razoável, informações sobre as garantias adotadas.
 
 ---
 
 ## CLÁUSULA 9ª — INCIDENTES DE SEGURANÇA
 
-9.1. **Notificação ao Controlador**: A Radar 360 notificará o Controlador em até **24 (vinte e quatro) horas** após tomar conhecimento de incidente que afete dados pessoais sob responsabilidade do Controlador, contendo:
+9.1. **Notificação ao Controlador**: A Kontrata.ai notificará o Controlador em até **24 (vinte e quatro) horas** após tomar conhecimento de incidente que afete dados pessoais sob responsabilidade do Controlador, contendo:
    a) Descrição do incidente e dados envolvidos;
    b) Categorias e número aproximado de Titulares afetados;
    c) Causa provável;
    d) Medidas tomadas e a tomar;
    e) Possíveis riscos e impactos.
 
-9.2. **Notificação à ANPD e Titulares**: É **responsabilidade do Controlador** notificar a ANPD e os Titulares afetados quando legalmente exigido. A Radar 360 prestará todo apoio técnico necessário.
+9.2. **Notificação à ANPD e Titulares**: É **responsabilidade do Controlador** notificar a ANPD e os Titulares afetados quando legalmente exigido. A Kontrata.ai prestará todo apoio técnico necessário.
 
 9.3. **Cooperação**: As partes cooperarão de forma diligente, transparente e tempestiva na resposta ao incidente, mitigação de danos e investigação.
 
-9.4. **Documentação**: A Radar 360 manterá registro detalhado do incidente e medidas adotadas, disponível ao Controlador e à ANPD se solicitado.
+9.4. **Documentação**: A Kontrata.ai manterá registro detalhado do incidente e medidas adotadas, disponível ao Controlador e à ANPD se solicitado.
 
 ---
 
 ## CLÁUSULA 10ª — DIREITOS DOS TITULARES
 
-10.1. A Radar 360 disponibilizará funcionalidades técnicas para que o Controlador atenda os direitos dos Titulares:
+10.1. A Kontrata.ai disponibilizará funcionalidades técnicas para que o Controlador atenda os direitos dos Titulares:
    a) Acesso aos dados (tela "Meus Dados");
    b) Correção (edição direta);
    c) Exportação (download de dados em formato estruturado);
    d) Exclusão / Anonimização (botão de exclusão com retenção legal observada);
    e) Logs de quem acessou determinado dado (para investigação).
 
-10.2. **Solicitações recebidas pela Radar 360 diretamente**: serão **encaminhadas ao Controlador em até 5 dias úteis** para que ele as atenda, salvo se o Titular for diretamente Cliente, Usuário ou Visitante (caso em que a Radar 360 atende como Controlador).
+10.2. **Solicitações recebidas pela Kontrata.ai diretamente**: serão **encaminhadas ao Controlador em até 5 dias úteis** para que ele as atenda, salvo se o Titular for diretamente Cliente, Usuário ou Visitante (caso em que a Kontrata.ai atende como Controlador).
 
-10.3. **Auxílio técnico**: A Radar 360 prestará auxílio razoável e proporcional, podendo cobrar custos quando a solicitação for excessiva ou repetitiva, conforme legislação.
+10.3. **Auxílio técnico**: A Kontrata.ai prestará auxílio razoável e proporcional, podendo cobrar custos quando a solicitação for excessiva ou repetitiva, conforme legislação.
 
 ---
 
 ## CLÁUSULA 11ª — AUDITORIA E COMPROVAÇÃO
 
-11.1. A Radar 360 fornecerá ao Controlador, mediante solicitação razoável:
+11.1. A Kontrata.ai fornecerá ao Controlador, mediante solicitação razoável:
    a) Cópia da Política de Privacidade e desta DPA;
    b) Lista atualizada de sub-operadores;
    c) Resumo das medidas de segurança adotadas;
@@ -268,10 +268,10 @@ n) **Aceitar auditorias** do Controlador ou de terceiro por ele indicado, median
    b) Limitação a horário comercial;
    c) Limitação de frequência (uma vez por ano, exceto em caso de incidente grave);
    d) Cobertura por NDA;
-   e) Custos arcados pelo Controlador (incluindo eventual reembolso do tempo da equipe da Radar 360, exceto quando a auditoria identificar não conformidade relevante);
+   e) Custos arcados pelo Controlador (incluindo eventual reembolso do tempo da equipe da Kontrata.ai, exceto quando a auditoria identificar não conformidade relevante);
    f) Escopo previamente acordado.
 
-11.3. A Radar 360 poderá, em substituição a auditoria presencial, apresentar **relatório de auditor independente** (ex: SOC 2, ISO 27001, ISO 27701, quando aplicável).
+11.3. A Kontrata.ai poderá, em substituição a auditoria presencial, apresentar **relatório de auditor independente** (ex: SOC 2, ISO 27001, ISO 27701, quando aplicável).
 
 ---
 
@@ -281,14 +281,14 @@ n) **Aceitar auditorias** do Controlador ou de terceiro por ele indicado, median
 
 a) **Período de exportação**: O Controlador terá **30 (trinta) dias** a partir do término para exportar todos os seus dados via funcionalidade nativa da Plataforma;
 
-b) **Exclusão**: Findo o prazo, a Radar 360 **excluirá ou anonimizará** todos os dados pessoais do Controlador, exceto:
+b) **Exclusão**: Findo o prazo, a Kontrata.ai **excluirá ou anonimizará** todos os dados pessoais do Controlador, exceto:
    - Dados de cobrança e fiscais (5 anos para prescrição tributária);
    - Logs de auditoria mínimos exigidos pelo Marco Civil (6 meses);
    - Dados em backups, que serão purgados no ciclo natural (até 30 dias);
 
-c) **Declaração de exclusão**: A Radar 360 fornecerá declaração formal ao Controlador confirmando a exclusão.
+c) **Declaração de exclusão**: A Kontrata.ai fornecerá declaração formal ao Controlador confirmando a exclusão.
 
-12.2. **Backup do Controlador**: O Controlador é responsável por extrair e armazenar suas próprias cópias antes do término. Após excluído, **a Radar 360 não pode recuperar os dados**.
+12.2. **Backup do Controlador**: O Controlador é responsável por extrair e armazenar suas próprias cópias antes do término. Após excluído, **a Kontrata.ai não pode recuperar os dados**.
 
 12.3. **Continuidade de obrigações**: As obrigações de confidencialidade, segurança e cooperação em incidentes **sobrevivem** ao término do contrato pelos prazos legais.
 
@@ -300,14 +300,14 @@ c) **Declaração de exclusão**: A Radar 360 fornecerá declaração formal ao 
 
 13.2. **Solidariedade**: Reconhecem que, em razão do Art. 42, §1º, da LGPD, **podem responder solidariamente** perante Titulares e ANPD por danos decorrentes do tratamento. Sem prejuízo do direito de regresso.
 
-13.3. **Limitação de responsabilidade da Radar 360**: A responsabilidade total da Radar 360 perante o Controlador, em decorrência deste DPA, fica limitada conforme cláusula equivalente do Contrato Principal, salvo:
+13.3. **Limitação de responsabilidade da Kontrata.ai**: A responsabilidade total da Kontrata.ai perante o Controlador, em decorrência deste DPA, fica limitada conforme cláusula equivalente do Contrato Principal, salvo:
    a) Casos de dolo ou culpa grave;
-   b) Multas administrativas aplicadas pela ANPD em razão exclusiva de ato/omissão da Radar 360;
-   c) Indenizações a Titulares por incidentes causados exclusivamente pela Radar 360.
+   b) Multas administrativas aplicadas pela ANPD em razão exclusiva de ato/omissão da Kontrata.ai;
+   c) Indenizações a Titulares por incidentes causados exclusivamente pela Kontrata.ai.
 
 13.4. **Indenização cruzada**:
-   a) A Radar 360 indenizará o Controlador por danos comprovadamente decorrentes de descumprimento das obrigações de Operador (Cláusula 6);
-   b) O Controlador indenizará a Radar 360 por danos comprovadamente decorrentes de descumprimento das obrigações de Controlador (Cláusula 5).
+   a) A Kontrata.ai indenizará o Controlador por danos comprovadamente decorrentes de descumprimento das obrigações de Operador (Cláusula 6);
+   b) O Controlador indenizará a Kontrata.ai por danos comprovadamente decorrentes de descumprimento das obrigações de Controlador (Cláusula 5).
 
 13.5. **Notificação prévia**: Antes de qualquer demanda, a parte afetada deve notificar a outra com prazo razoável (mínimo 15 dias) para tentativa de mitigação.
 
@@ -353,7 +353,7 @@ CPF: _______________________
 
 ---
 
-**OPERADOR — RADAR 360 LTDA**
+**OPERADOR — KONTRATA.AI LTDA**
 
 ____________________________________________
 [Nome do Representante]

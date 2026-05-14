@@ -67,6 +67,11 @@ export default function Logo({ size = "medium", collapsed = false }) {
             </span>
           </div>
         )}
+        <div className="w-full text-center mt-2">
+          <span className="text-xl font-extrabold tracking-tight" style={{ color: '#DAA520' }}>
+            Kontrata.ai
+          </span>
+        </div>
       </div>
     );
   }
@@ -81,6 +86,11 @@ export default function Logo({ size = "medium", collapsed = false }) {
         <div className="w-full bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5 mt-1">
           <span className="text-xs font-bold text-orange-600 uppercase text-center block leading-tight" style={{letterSpacing: '0.05em'}}>
             {brandName}
+          </span>
+        </div>
+        <div className="w-full text-center mt-2">
+          <span className="text-xl font-extrabold tracking-tight" style={{ color: '#DAA520' }}>
+            Kontrata.ai
           </span>
         </div>
       </div>

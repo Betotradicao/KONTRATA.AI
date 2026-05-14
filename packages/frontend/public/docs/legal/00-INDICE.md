@@ -1,9 +1,9 @@
-# Documentação Legal — Radar 360
+# Documentação Legal — Kontrata.ai
 
 **Versão:** 1.0 (rascunho para revisão jurídica)
 **Data:** 04/05/2026
-**Empresa:** Radar 360 (a confirmar razão social/CNPJ)
-**Sistema:** Radar 360 — Plataforma SaaS multi-tenant para gestão e prevenção de perdas em supermercados.
+**Empresa:** Kontrata.ai (a confirmar razão social/CNPJ)
+**Sistema:** Kontrata.ai — Plataforma SaaS multi-tenant para gestão e prevenção de perdas em supermercados.
 
 ---
 
@@ -17,7 +17,7 @@ Estes documentos são **rascunhos profissionais** elaborados por consultoria té
 
 | Nº | Documento | Quem assina | Quando |
 |----|-----------|-------------|--------|
-| [01](01-TERMOS-DE-USO.md) | Termos de Uso do Radar 360 | Cliente (loja) | First-setup do sistema |
+| [01](01-TERMOS-DE-USO.md) | Termos de Uso do Kontrata.ai | Cliente (loja) | First-setup do sistema |
 | [02](02-POLITICA-DE-PRIVACIDADE.md) | Política de Privacidade | (aceite passivo) | Apresentada ao cliente e titulares |
 | [03](03-DPA-CONTRATO-OPERADOR.md) | DPA — Contrato de Operador | Você (operador) + Cliente (controlador) | Anexo ao contrato comercial |
 | [04](04-CONSENTIMENTO-CURRICULO.md) | Consentimento — Currículo | Candidato | Formulário público de currículo |
@@ -31,7 +31,7 @@ Estes documentos são **rascunhos profissionais** elaborados por consultoria té
 
 ## Fluxo de Aceite Pelo Cliente Final (Supermercado)
 
-1. Cliente recebe link do Radar 360
+1. Cliente recebe link do Kontrata.ai
 2. Acessa first-setup
 3. Lê e aceita: **Termos de Uso (01)** + **Política de Privacidade (02)**
 4. Antes de operar, assina o **DPA (03)** com você (PDF assinado digitalmente)
@@ -65,7 +65,7 @@ Estes documentos são **rascunhos profissionais** elaborados por consultoria té
 | **ANPD** | Autoridade Nacional de Proteção de Dados |
 | **Titular** | Pessoa cujos dados são tratados (funcionário, candidato) |
 | **Controlador** | Quem decide o tratamento (cliente / supermercado) |
-| **Operador** | Quem trata os dados em nome do controlador (você / Radar 360) |
+| **Operador** | Quem trata os dados em nome do controlador (você / Kontrata.ai) |
 | **Encarregado/DPO** | Pessoa que canaliza relação com ANPD e titulares |
 | **DPA** | Data Processing Agreement — contrato entre controlador e operador |
 | **ROPA** | Registro de Operações de Tratamento (Art. 37 LGPD) |

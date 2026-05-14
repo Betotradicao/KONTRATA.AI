@@ -28,6 +28,8 @@ import pesquisaClimaRouter from './routes/pesquisa-clima.routes';
 import curriculosRouter from './routes/curriculos.routes';
 import holidaysRouter from './routes/holidays.routes';
 import lgpdRouter from './routes/lgpd.routes';
+import accessLogsRouter from './routes/access-logs.routes';
+import { accessLogMiddleware } from './middleware/access-log.middleware';
 
 import { minioService } from './services/minio.service';
 import { seedMasterUser } from './database/seeds/masterUser.seed';
@@ -90,6 +92,9 @@ app.use(rateLimit({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Middleware de log de acesso (LGPD/Marco Civil) — captura toda request
+app.use(accessLogMiddleware);
+
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -119,6 +124,7 @@ app.use('/api/pesquisa-clima', pesquisaClimaRouter);
 app.use('/api/curriculos', curriculosRouter);
 app.use('/api/holidays', holidaysRouter);
 app.use('/api/lgpd', lgpdRouter);
+app.use('/api/access-logs', accessLogsRouter);
 
 const startServer = async () => {
   try {

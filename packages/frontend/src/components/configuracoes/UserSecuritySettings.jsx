@@ -33,7 +33,7 @@ export default function UserSecuritySettings() {
     smtpPassword: '',
     smtpSecure: true,
     smtpFromEmail: '',
-    smtpFromName: 'Radar 360',
+    smtpFromName: 'Kontrata.ai',
   });
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
 
@@ -71,7 +71,7 @@ export default function UserSecuritySettings() {
           smtpPassword: '', // Never load password
           smtpSecure: response.data.smtpSecure !== false,
           smtpFromEmail: response.data.smtpFromEmail || '',
-          smtpFromName: response.data.smtpFromName || 'Radar 360',
+          smtpFromName: response.data.smtpFromName || 'Kontrata.ai',
         });
       }
     } catch (err) {

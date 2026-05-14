@@ -333,6 +333,7 @@ export class EmployeesService {
   /**
    * Delete employee permanently
    */
+  // Soft delete — marca como inativo pra preservar rastreabilidade (LGPD/audit logs)
   static async delete(id: string) {
     const employeeRepository = AppDataSource.getRepository(Employee);
 
@@ -341,19 +342,9 @@ export class EmployeesService {
       throw new Error('Employee not found');
     }
 
-    // Delete avatar if exists
-    if (employee.avatar) {
-      try {
-        const fileName = minioService.extractFileNameFromUrl(employee.avatar);
-        await minioService.deleteFile(fileName);
-      } catch (error) {
-        console.error('Error deleting avatar:', error);
-        // Continue anyway
-      }
-    }
+    employee.active = false;
+    await employeeRepository.save(employee);
 
-    await employeeRepository.remove(employee);
-
-    return { message: 'Employee deleted successfully' };
+    return { message: 'Employee deactivated successfully' };
   }
 }

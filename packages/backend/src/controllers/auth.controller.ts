@@ -492,6 +492,8 @@ export class AuthController {
           {
             id: user.id,
             email: user.email,
+            username: user.username,
+            name: user.name,
             type: 'admin',
             role: user.role,
             isMaster: user.isMaster,

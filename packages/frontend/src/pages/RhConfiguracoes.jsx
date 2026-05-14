@@ -5,13 +5,10 @@ import Sidebar from '../components/Sidebar';
 import { api } from '../utils/api';
 import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
-import LgpdTab from '../components/configuracoes/LgpdTab';
 import EmployeesTab from '../components/configuracoes/EmployeesTab';
 
 const TABS = [
-  { key: 'lgpd', label: '🛡️ Privacidade e LGPD', custom: true },
   { key: 'liberacao_acesso', label: '🔑 Liberação de Acesso', custom: true },
-  { key: 'mensagens', label: '💬 Mensagens', custom: true },
   { key: 'empresas', label: 'Empresas', custom: true },
   { key: 'turnos', label: 'Turnos', custom: true },
   { key: 'cargos', label: 'Cargos', custom: true },
@@ -31,6 +28,7 @@ const TABS = [
   { key: 'beneficios', label: 'Benefícios', endpoint: '/rh/configuracoes/beneficios', fields: ['nome', 'descricao', 'valor'] },
   { key: 'feriados', label: 'Feriados', custom: true },
   { key: 'epis_epcs', label: 'EPIs e EPCs', custom: true },
+  { key: 'mensagens', label: '💬 Mensagens', custom: true },
 ];
 
 const FIELD_LABELS = {
@@ -219,9 +217,7 @@ export default function RhConfiguracoes() {
 
         {/* Content */}
         <div className="p-6">
-          {currentTab?.custom && activeTab === 'lgpd' ? (
-            <LgpdTab />
-          ) : currentTab?.custom && activeTab === 'liberacao_acesso' ? (
+          {currentTab?.custom && activeTab === 'liberacao_acesso' ? (
             <EmployeesTab />
           ) : currentTab?.custom && activeTab === 'mensagens' ? (
             <MensagensTab />
