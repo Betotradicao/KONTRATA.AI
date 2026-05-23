@@ -1,11 +1,11 @@
 {
-  "name": "Prevenção no Radar",
-  "short_name": "Prevenção",
-  "description": "Sistema de Prevenção de Perdas",
+  "name": "Kontrata.ai",
+  "short_name": "Kontrata.ai",
+  "description": "Sistema de gestão de RH para supermercados",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#F97316",
+  "theme_color": "#6B21A8",
   "icons": [
     {
       "src": "/favicon.ico",

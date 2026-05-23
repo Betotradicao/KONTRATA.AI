@@ -32,7 +32,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#F3EAFE' }}>
-      <div className="max-w-md w-full rounded-2xl shadow-2xl p-8" style={{ backgroundColor: '#3D1B7E' }}>
+      <div className="max-w-md w-full rounded-2xl shadow-2xl p-8" style={{ backgroundColor: '#6B21A8' }}>
         {/* Logo/Header Kontrataai */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-2">

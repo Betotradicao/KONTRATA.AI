@@ -1,20 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <!-- Fundo laranja -->
-  <rect width="512" height="512" rx="64" fill="#FB923C"/>
-
-  <!-- Radar branco -->
-  <g stroke="white" stroke-width="12" fill="none">
-    <!-- Círculos concêntricos -->
-    <circle cx="256" cy="256" r="180"/>
-    <circle cx="256" cy="256" r="120"/>
-    <circle cx="256" cy="256" r="60"/>
-
-    <!-- Linha do radar -->
-    <line x1="256" y1="256" x2="396" y2="116" stroke-width="16" stroke-linecap="round"/>
-
-    <!-- Pontos de detecção -->
-    <circle cx="256" cy="256" r="12" fill="white"/>
-    <circle cx="336" cy="176" r="12" fill="white"/>
-    <circle cx="176" cy="336" r="12" fill="white"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="92" ry="92" fill="#6B21A8"/>
+  <text x="50%" y="50%" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="320" fill="#FACC15" text-anchor="middle" dominant-baseline="central" dy="14">K</text>
 </svg>

@@ -51,10 +51,8 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
     const cached = readCachedModulesConfig();
     return Array.isArray(cached.config) ? cached.config : [];
   });
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    const saved = localStorage.getItem('sidebar_collapsed');
-    return saved === 'true';
-  });
+  // Sidebar fixo aberto na Kontrata — sem persistencia de estado
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [lojaDropdownOpen, setLojaDropdownOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState(null);
   const navigate = useNavigate();
@@ -83,10 +81,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
     return () => clearInterval(interval);
   }, []);
 
-  // Salvar estado do collapse no localStorage
-  useEffect(() => {
-    localStorage.setItem('sidebar_collapsed', isCollapsed.toString());
-  }, [isCollapsed]);
+  // (sidebar fixo aberto — sem persistencia de collapse)
 
   // Salvar estado dos menus expandidos no localStorage
   useEffect(() => {
@@ -343,7 +338,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
         <span className="font-bold" style={{ color: '#DAA520' }}>KONTRATA AI</span>
       ),
       icon: (
-        <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: '#3D1B7E' }}>
+        <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: '#6B21A8' }}>
           <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
           </svg>
@@ -496,28 +491,14 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
       {/* Logo Section */}
-      <div className={`${isCollapsed ? 'p-2' : 'px-4 py-12'} border-b border-gray-200 flex justify-center relative`} style={{ backgroundColor: '#3D1B7E' }}>
+      <div className={`${isCollapsed ? 'p-2' : 'px-4 py-12'} border-b border-gray-200 flex justify-center relative`} style={{ backgroundColor: '#6B21A8' }}>
         {isCollapsed ? (
           <Logo size="small" collapsed={true} />
         ) : (
           <Logo size="medium" />
         )}
 
-        {/* Botão de Toggle - Desktop only */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center shadow-sm hover:bg-gray-50 transition-colors"
-          title={isCollapsed ? 'Expandir menu' : 'Minimizar menu'}
-        >
-          <svg
-            className={`w-3 h-3 text-gray-500 transition-transform ${isCollapsed ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/>
-          </svg>
-        </button>
+        {/* Botão de Toggle removido — sidebar fica sempre aberto */}
       </div>
 
       {/* Menu Items */}
@@ -881,7 +862,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
       </div>
 
       {/* User Section at Bottom */}
-      <div className={`border-t border-purple-900 ${isCollapsed ? 'p-2' : 'p-4'}`} style={{ backgroundColor: '#3D1B7E' }}>
+      <div className={`border-t border-purple-900 ${isCollapsed ? 'p-2' : 'p-4'}`} style={{ backgroundColor: '#6B21A8' }}>
         {isCollapsed ? (
           // Versão colapsada - só o avatar e logout
           <div className="flex flex-col items-center gap-2">
