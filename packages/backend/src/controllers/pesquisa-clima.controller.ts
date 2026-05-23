@@ -232,10 +232,22 @@ export class PesquisaClimaController {
          FROM pesquisa_perguntas WHERE modelo_id = $1 ORDER BY ordem ASC, id ASC`,
         [rodada.modelo_id]
       );
+
+      // Branding do cliente (logo + nome) — mesmas configs usadas no Sidebar
+      const brandConfigs = await AppDataSource.query(
+        `SELECT key, value FROM configurations WHERE key IN ('client_brand_name','client_logo_url')`
+      );
+      const brand: Record<string, string> = {};
+      for (const c of brandConfigs) brand[c.key] = c.value;
+
       res.json({
         rodada: { id: rodada.id, nome: rodada.nome, modelo_nome: rodada.modelo_nome, modelo_descricao: rodada.modelo_descricao, cor: rodada.cor, icone: rodada.icone, anonima: rodada.anonima },
         perguntas,
         ja_respondeu: !!existing,
+        brand: {
+          name: brand.client_brand_name || null,
+          logo_url: brand.client_logo_url || null,
+        },
       });
     } catch (e: any) {
       console.error('[PesquisaClima] publicoCarregar:', e);
@@ -387,11 +399,18 @@ export class PesquisaClimaController {
         } else if (p.tipo === 'rating_5_matriz') {
           const criterios = (p.configuracao?.criterios) || [];
           const medias: Record<string, number> = {};
+          // distribuicao_criterios[criterio][nota] = contagem
+          const distCrit: Record<string, Record<string, number>> = {};
           for (const c of criterios) {
             const vals = itens.map((i: any) => Number(i.valor_matriz?.[c])).filter((v: number) => v > 0);
             medias[c] = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : 0;
+            const d: Record<string, number> = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+            vals.forEach((v: number) => { d[String(v)] = (d[String(v)] || 0) + 1; });
+            distCrit[c] = d;
           }
           analiseP.medias_criterios = medias;
+          analiseP.distribuicao_criterios = distCrit;
+          analiseP.escala_labels = p.configuracao?.escala_labels || ['1','2','3','4','5'];
           const todos = itens.map((i: any) => Number(i.valor_numerico)).filter((v: number) => !isNaN(v));
           analiseP.media = todos.length ? todos.reduce((a: number, b: number) => a + b, 0) / todos.length : 0;
         } else if (p.tipo === 'multipla_escolha' || p.tipo === 'sim_nao') {

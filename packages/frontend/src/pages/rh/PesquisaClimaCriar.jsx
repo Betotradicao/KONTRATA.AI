@@ -40,6 +40,8 @@ export default function PesquisaClimaCriar() {
   const [novoNome, setNovoNome] = useState('');
   const [novoIcone, setNovoIcone] = useState('📋');
   const [salvando, setSalvando] = useState(false);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
 
   useEffect(() => { carregar(); }, []);
 
@@ -124,11 +126,12 @@ export default function PesquisaClimaCriar() {
     updatePerg(idx, { configuracao: { ...edit.perguntas[idx].configuracao, ...patch } });
   };
 
-  const moverPerg = (idx, dir) => {
-    const target = idx + dir;
-    if (target < 0 || target >= edit.perguntas.length) return;
+  // Drag-and-drop: move pergunta de from -> to (insercao na posicao alvo)
+  const reordenarPerg = (from, to) => {
+    if (from === to || from == null || to == null) return;
     const p = [...edit.perguntas];
-    [p[idx], p[target]] = [p[target], p[idx]];
+    const [item] = p.splice(from, 1);
+    p.splice(to > from ? to - 1 : to, 0, item);
     setEdit({ ...edit, perguntas: p });
   };
 
@@ -226,7 +229,9 @@ export default function PesquisaClimaCriar() {
               salvarEdicao={salvarEdicao}
               voltar={() => setEdit(null)}
               addPergunta={addPergunta} updatePerg={updatePerg} updateConfig={updateConfig}
-              moverPerg={moverPerg} removerPerg={removerPerg} />
+              reordenarPerg={reordenarPerg} removerPerg={removerPerg}
+              dragIdx={dragIdx} setDragIdx={setDragIdx}
+              dragOverIdx={dragOverIdx} setDragOverIdx={setDragOverIdx} />
           )}
         </div>
       </div>
@@ -234,7 +239,7 @@ export default function PesquisaClimaCriar() {
   );
 }
 
-function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPergunta, updatePerg, updateConfig, moverPerg, removerPerg }) {
+function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPergunta, updatePerg, updateConfig, reordenarPerg, removerPerg, dragIdx, setDragIdx, dragOverIdx, setDragOverIdx }) {
   return (
     <>
       <div className="flex items-center gap-2 mb-4">
@@ -279,13 +284,23 @@ function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPerg
 
       <div className="space-y-3">
         {(edit.perguntas || []).map((p, idx) => (
-          <div key={idx} className="bg-slate-200 rounded-lg shadow p-4 border-l-4 border-rose-400 border border-slate-300">
+          <div key={idx}
+            draggable
+            onDragStart={(e) => { setDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; }}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverIdx !== idx) setDragOverIdx(idx); }}
+            onDragLeave={() => { if (dragOverIdx === idx) setDragOverIdx(null); }}
+            onDrop={(e) => { e.preventDefault(); if (dragIdx != null && dragIdx !== idx) reordenarPerg(dragIdx, idx > dragIdx ? idx + 1 : idx); setDragIdx(null); setDragOverIdx(null); }}
+            onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+            className={`bg-slate-200 rounded-lg shadow p-4 border-l-4 border-rose-400 border border-slate-300 transition ${
+              dragIdx === idx ? 'opacity-50' : ''
+            } ${
+              dragOverIdx === idx && dragIdx !== idx ? 'ring-2 ring-rose-400 ring-offset-1' : ''
+            }`}>
             <div className="flex items-center gap-2 mb-2">
+              <span className="cursor-grab active:cursor-grabbing select-none text-gray-400 hover:text-gray-700 text-lg leading-none" title="Arraste para reordenar">⠿</span>
               <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold text-xs">#{idx + 1}</span>
               <span className="text-xs uppercase font-bold text-gray-500">{TIPOS.find(t => t.id === p.tipo)?.label || p.tipo}</span>
               <div className="flex-1"></div>
-              <button onClick={() => moverPerg(idx, -1)} disabled={idx === 0} className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-30">↑</button>
-              <button onClick={() => moverPerg(idx, 1)} disabled={idx === edit.perguntas.length - 1} className="px-2 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded disabled:opacity-30">↓</button>
               <button onClick={() => removerPerg(idx)} className="px-2 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded">🗑️</button>
             </div>
             <input type="text" value={p.secao || ''} onChange={e => updatePerg(idx, { secao: e.target.value })}
@@ -300,9 +315,33 @@ function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPerg
             </label>
 
             {/* Editor de configuracao por tipo */}
-            {p.tipo === 'rating_5_matriz' && (
+            {p.tipo === 'rating_5_matriz' && (() => {
+              const labels = (p.configuracao?.escala_labels && p.configuracao.escala_labels.length === 5)
+                ? p.configuracao.escala_labels
+                : ['Excelente', 'Bom', 'Regular', 'Ruim', 'Péssimo'];
+              return (
               <div className="mt-2 bg-gray-50 rounded p-2">
-                <div className="text-xs font-bold mb-1">Critérios avaliados (escala 1 a 5):</div>
+                {/* Editor dos labels da escala (5 botoes) */}
+                <div className="text-xs font-bold mb-1">Labels da escala (5 níveis):</div>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {labels.map((lbl, li) => (
+                    <input key={li} type="text" value={lbl}
+                      onChange={e => {
+                        const arr = [...labels];
+                        arr[li] = e.target.value;
+                        updateConfig(idx, { escala_labels: arr });
+                      }}
+                      className="w-24 border rounded px-2 py-1 text-xs text-center font-medium" />
+                  ))}
+                  <button type="button"
+                    onClick={() => updateConfig(idx, { escala_labels: ['Excelente', 'Bom', 'Regular', 'Ruim', 'Péssimo'] })}
+                    className="text-[11px] bg-amber-100 text-amber-800 px-2 rounded">Padrão</button>
+                  <button type="button"
+                    onClick={() => updateConfig(idx, { escala_labels: ['1', '2', '3', '4', '5'] })}
+                    className="text-[11px] bg-gray-100 text-gray-800 px-2 rounded">Numérico 1-5</button>
+                </div>
+
+                <div className="text-xs font-bold mb-1">Critérios avaliados:</div>
                 {(p.configuracao?.criterios || []).map((c, ci) => (
                   <div key={ci} className="flex flex-wrap items-center gap-2 mb-1.5 bg-white rounded px-2 py-1.5">
                     <input type="text" value={c}
@@ -314,8 +353,8 @@ function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPerg
                       className="flex-1 min-w-[140px] border rounded px-2 py-1 text-sm" />
                     {/* PREVIEW dos botoes que o respondente vai ver */}
                     <div className="flex gap-0.5 opacity-60 pointer-events-none">
-                      {[1,2,3,4,5].map(n => (
-                        <span key={n} className="w-7 h-7 rounded border-2 border-gray-200 text-xs font-bold flex items-center justify-center bg-gray-50">{n}</span>
+                      {labels.map((lbl, n) => (
+                        <span key={n} className="w-14 h-6 rounded border-2 border-gray-200 text-[10px] font-bold flex items-center justify-center bg-gray-50 truncate px-1">{lbl}</span>
                       ))}
                     </div>
                     <button onClick={() => updateConfig(idx, { criterios: p.configuracao.criterios.filter((_, i) => i !== ci) })}
@@ -325,10 +364,11 @@ function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPerg
                 <button onClick={() => updateConfig(idx, { criterios: [...(p.configuracao.criterios || []), 'Novo critério'] })}
                   className="text-xs bg-rose-100 text-rose-700 px-2 py-1 rounded">+ Critério</button>
                 <div className="text-[11px] text-gray-500 mt-2 italic">
-                  💡 1 = péssimo · 5 = ótimo. Cada critério vira uma linha com botões 1-5 pro respondente clicar.
+                  💡 Cada critério vira uma linha com os 5 botões pro respondente clicar.
                 </div>
               </div>
-            )}
+              );
+            })()}
             {(p.tipo === 'multipla_escolha' || p.tipo === 'checkbox') && (
               <div className="mt-2 bg-gray-50 rounded p-2">
                 <div className="text-xs font-bold mb-1">
