@@ -486,7 +486,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
       {/* Sidebar */}
       <div className={`
         fixed lg:static inset-y-0 left-0 z-50 lg:z-auto
-        ${isCollapsed ? 'w-16' : 'w-80'} bg-white h-screen shadow-lg flex flex-col
+        ${isCollapsed ? 'w-16' : 'w-72'} bg-white h-screen shadow-lg flex flex-col
         transform transition-all duration-300 ease-in-out lg:transform-none
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
