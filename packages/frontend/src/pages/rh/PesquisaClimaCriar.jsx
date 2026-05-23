@@ -265,13 +265,13 @@ function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPerg
       </div>
 
       <div className="bg-gradient-to-br from-orange-200 to-amber-200 rounded-lg shadow p-4 mb-4 border-2 border-orange-400">
-        <h3 className="font-bold mb-2 text-orange-800">Adicionar pergunta:</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+        <h3 className="font-bold mb-3 text-orange-800">Adicionar pergunta:</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
           {TIPOS.map(t => (
             <button key={t.id} onClick={() => addPergunta(t.id)}
-              className="text-left p-3 bg-white border-2 border-orange-300 hover:border-orange-500 hover:bg-orange-50 rounded-lg transition shadow-sm">
-              <div className="font-bold text-sm text-gray-800">{t.label}</div>
-              <div className="text-xs text-gray-600">{t.desc}</div>
+              className="flex flex-col text-left p-3 min-h-[78px] bg-white border-2 border-orange-200 hover:border-orange-500 hover:bg-orange-50 rounded-lg transition shadow-sm hover:shadow-md active:scale-[0.98]">
+              <div className="font-bold text-sm text-gray-800 leading-tight">{t.label}</div>
+              <div className="text-xs text-gray-600 leading-snug mt-1">{t.desc}</div>
             </button>
           ))}
         </div>
