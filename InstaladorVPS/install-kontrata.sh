@@ -456,6 +456,9 @@ services:
     build:
       context: /root/kontrata-repo/packages/backend
       dockerfile: /root/kontrata-repo/InstaladorVPS/Dockerfile.backend
+    # Tag de imagem com prefixo kontrata- pra nao sobrescrever a imagem
+    # do Radar quando o cliente tem o mesmo nome nos dois sistemas
+    image: ${CONTAINER_PREFIX}-backend:latest
     container_name: ${CONTAINER_PREFIX}-backend
     restart: unless-stopped
     environment:
@@ -502,6 +505,7 @@ services:
       args:
         VITE_API_URL: \${VITE_API_URL}
         VITE_CLIENT_NAME: \${VITE_CLIENT_NAME}
+    image: ${CONTAINER_PREFIX}-frontend:latest
     container_name: ${CONTAINER_PREFIX}-frontend
     restart: unless-stopped
     environment:
