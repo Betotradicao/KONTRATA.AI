@@ -603,7 +603,7 @@ export default function RhVagas() {
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="px-2 py-4">
           {/* Filtro de Loja */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-4 flex items-center gap-3 flex-wrap">
             <label className="text-sm font-semibold text-gray-700">🏢 Loja:</label>
@@ -727,28 +727,28 @@ export default function RhVagas() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-8"></th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-rose-600 uppercase">❤️ Interessados</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">🚫 Recusados</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-amber-600 uppercase">🔎 Vagas Futuras</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-blue-600 uppercase">🎯 Selecionados</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-purple-600 uppercase">🎉 Contratados</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titulo</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salario</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jornada</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Benefícios</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Experiência</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Abertura</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dias Em Aberto</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acoes</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-rose-600 uppercase">❤️ Interessados</th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">🚫 Recusados</th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-amber-600 uppercase">🔎 Vagas Futuras</th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-blue-600 uppercase">🎯 Selecionados</th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-purple-600 uppercase">🎉 Contratados</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titulo</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salario</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jornada</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Benefícios</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Experiência</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Abertura</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dias Em Aberto</th>
+                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {vagasFiltradas.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={17} className="px-4 py-8 text-center text-gray-500">
                         {vagas.length === 0 ? 'Nenhuma vaga cadastrada' : 'Nenhuma vaga pra essa loja'}
                       </td>
                     </tr>
@@ -772,7 +772,7 @@ export default function RhVagas() {
                               {isExpanded ? '−' : '+'}
                             </button>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-2 py-3 text-sm text-gray-600">
                             {(() => {
                               if (v.cod_loja == null) return <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Todas</span>;
                               const l = lojas.find(x => String(x.codLoja) === String(v.cod_loja));
@@ -780,7 +780,7 @@ export default function RhVagas() {
                               return <span className="px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs font-medium border border-orange-200">🏢 {nome}</span>;
                             })()}
                           </td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-2 py-3 text-sm">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[v.status] || 'bg-gray-100 text-gray-800'}`}>
                               {v.status === 'Fechada' ? 'Contratado(a)' : v.status}
                             </span>
@@ -802,7 +802,7 @@ export default function RhVagas() {
                             const totalContratados = intContratados.length + selsExtras.filter(s => s.contratado).length;
                             return (
                               <>
-                                <td className="px-4 py-3 text-center">
+                                <td className="px-2 py-3 text-center">
                                   {intPendentes.length > 0 ? (
                                     <button
                                       onClick={() => setExpandedVagaId(isExpanded ? null : v.id)}
@@ -811,7 +811,7 @@ export default function RhVagas() {
                                     >❤️ {intPendentes.length}</button>
                                   ) : <span className="text-gray-300 text-xs">—</span>}
                                 </td>
-                                <td className="px-4 py-3 text-center">
+                                <td className="px-2 py-3 text-center">
                                   {intRecusados.length > 0 ? (
                                     <button
                                       onClick={() => setExpandedVagaId(isExpanded ? null : v.id)}
@@ -820,7 +820,7 @@ export default function RhVagas() {
                                     >🚫 {intRecusados.length}</button>
                                   ) : <span className="text-gray-300 text-xs">—</span>}
                                 </td>
-                                <td className="px-4 py-3 text-center">
+                                <td className="px-2 py-3 text-center">
                                   {intEmAnalise.length > 0 ? (
                                     <button
                                       onClick={() => setExpandedVagaId(isExpanded ? null : v.id)}
@@ -829,7 +829,7 @@ export default function RhVagas() {
                                     >🔎 {intEmAnalise.length}</button>
                                   ) : <span className="text-gray-300 text-xs">—</span>}
                                 </td>
-                                <td className="px-4 py-3 text-center">
+                                <td className="px-2 py-3 text-center">
                                   {totalSelecionados > 0 ? (
                                     <button
                                       onClick={() => setExpandedVagaId(isExpanded ? null : v.id)}
@@ -838,7 +838,7 @@ export default function RhVagas() {
                                     >🎯 {totalSelecionados}</button>
                                   ) : <span className="text-gray-300 text-xs">—</span>}
                                 </td>
-                                <td className="px-4 py-3 text-center">
+                                <td className="px-2 py-3 text-center">
                                   {totalContratados > 0 ? (
                                     <button
                                       onClick={() => setExpandedVagaId(isExpanded ? null : v.id)}
@@ -850,14 +850,14 @@ export default function RhVagas() {
                               </>
                             );
                           })()}
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                          <td className="px-2 py-3 text-sm font-medium text-gray-900">
                             {v.titulo}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{v.cargo_nome || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-2 py-3 text-sm text-gray-600">{v.cargo_nome || '-'}</td>
+                          <td className="px-2 py-3 text-sm text-gray-600">
                             {v.salario_min ? formatCurrency(v.salario_min) : '-'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                          <td className="px-2 py-3 text-sm text-gray-600 whitespace-nowrap">
                             {v.jornada_nome ? (
                               <span className="inline-flex items-center gap-1">
                                 <span className="font-medium">{v.jornada_nome}</span>
@@ -869,7 +869,7 @@ export default function RhVagas() {
                               </span>
                             ) : <span className="text-gray-300">—</span>}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-2 py-3 text-sm text-gray-600">
                             {(() => {
                               const lista = (v.beneficios || '').split(',').map(s => s.trim()).filter(Boolean);
                               if (lista.length === 0) return <span className="text-gray-300">—</span>;
@@ -884,7 +884,7 @@ export default function RhVagas() {
                               );
                             })()}
                           </td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-2 py-3 text-sm">
                             {v.experiencia_obrigatoria ? (
                               <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-medium">
                                 ✓ {v.experiencia_meses_minimo ? `${v.experiencia_meses_minimo} meses` : 'Sim'}
@@ -893,8 +893,8 @@ export default function RhVagas() {
                               <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">Não exige</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{formatDate(v.data_abertura)}</td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-2 py-3 text-sm text-gray-600">{formatDate(v.data_abertura)}</td>
+                          <td className="px-2 py-3 text-sm">
                             {(() => {
                               if (!v.data_abertura) return <span className="text-gray-300">—</span>;
                               if (STATUS_FINALIZADO_VALUES.includes(v.status) || v.status === 'Cancelada') {
@@ -911,7 +911,7 @@ export default function RhVagas() {
                               );
                             })()}
                           </td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-2 py-3 text-sm">
                             <div className="flex gap-3">
                               <button
                                 onClick={() => abrirModal(v)}
@@ -932,7 +932,7 @@ export default function RhVagas() {
                       if (isExpanded && podeExpandir) {
                         rows.push(
                           <tr key={`${v.id}-expand`} className="bg-blue-50">
-                            <td colSpan={15} className="px-4 py-3 space-y-4">
+                            <td colSpan={17} className="px-2 py-3 space-y-4">
                               {/* Adicionar candidato manualmente pelo numero (linha compacta) */}
                               <div className="border border-blue-300 bg-blue-50 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold text-blue-900 whitespace-nowrap">🎯 Adicionar do Banco:</span>
@@ -987,7 +987,7 @@ export default function RhVagas() {
                                       ❤️ Candidatos desta vaga ({todos.length})
                                     </div>
                                     <div className="overflow-x-auto">
-                                      <table className="min-w-full text-xs">
+                                      <table className="w-full text-xs">
                                         <thead>
                                           <tr className="bg-rose-100 text-rose-900">
                                             <th className="px-2 py-1.5 text-left">Nº</th>
@@ -1047,30 +1047,30 @@ export default function RhVagas() {
                                                     {c.created_at ? new Date(c.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                                                   </td>
                                                   <td className="px-2 py-1.5">
-                                                    <div className="flex gap-0.5 justify-center whitespace-nowrap">
+                                                    <div className="flex gap-1 justify-center whitespace-nowrap">
                                                       {/* Ordem = cards de cima: Interessados | Recusados | Vagas Futuras | Selecionar | Contratar */}
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'novo', v.id)}
                                                         disabled={st === 'novo'}
-                                                        className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition ${st === 'novo' ? 'bg-rose-200 text-rose-700 cursor-default' : 'bg-rose-500 hover:bg-rose-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${st === 'novo' ? 'bg-rose-200 text-rose-700 cursor-default' : 'bg-rose-500 hover:bg-rose-600 text-white'}`}
                                                         title="Marcar como Interessado"
                                                       >❤️ Interessado</button>
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'recusado', v.id)}
                                                         disabled={isRec}
-                                                        className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition ${isRec ? 'bg-gray-300 text-gray-600 cursor-default' : 'bg-gray-500 hover:bg-gray-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isRec ? 'bg-gray-300 text-gray-600 cursor-default' : 'bg-gray-500 hover:bg-gray-600 text-white'}`}
                                                         title="Recusar"
                                                       >🚫 Recusar</button>
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'em_analise', v.id)}
                                                         disabled={st === 'em_analise'}
-                                                        className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition ${st === 'em_analise' ? 'bg-amber-200 text-amber-700 cursor-default' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${st === 'em_analise' ? 'bg-amber-200 text-amber-700 cursor-default' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}
                                                         title="Vagas Futuras"
                                                       >🔎 Vagas Futuras</button>
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'selecionado', v.id)}
                                                         disabled={isSel}
-                                                        className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition ${isSel ? 'bg-blue-200 text-blue-700 cursor-default' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isSel ? 'bg-blue-200 text-blue-700 cursor-default' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
                                                         title="Selecionar (vaga vira 'Em Seleção')"
                                                       >✓ Selecionar</button>
                                                       <button
@@ -1082,7 +1082,7 @@ export default function RhVagas() {
                                                           }
                                                         }}
                                                         disabled={isCont}
-                                                        className={`px-1.5 py-0.5 text-[10px] font-bold rounded transition ${isCont ? 'bg-purple-200 text-purple-700 cursor-default' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isCont ? 'bg-purple-200 text-purple-700 cursor-default' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
                                                         title="Contratar (encerra a vaga)"
                                                       >🎉 Contratar</button>
                                                     </div>
