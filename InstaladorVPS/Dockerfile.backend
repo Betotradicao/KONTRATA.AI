@@ -1,0 +1,50 @@
+# Backend Kontrata.ai — versao enxuta (sem Oracle Client)
+# Multi-stage build pra imagem final compacta
+
+# ===================================
+# STAGE 1: Build
+# ===================================
+FROM node:18-slim AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY tsconfig.json ./
+
+RUN npm install && npm cache clean --force
+
+COPY src ./src
+
+RUN npx tsc && \
+    find src -name "*.js" -exec sh -c 'mkdir -p dist/$(dirname ${1#src/}) && cp "$1" dist/${1#src/}' _ {} \; && \
+    mkdir -p dist/templates && cp -r src/templates/. dist/templates/ 2>/dev/null || true
+
+# ===================================
+# STAGE 2: Production
+# ===================================
+FROM node:18-slim
+
+WORKDIR /app
+
+# Dependencias minimas (sem Oracle, sem ffmpeg pesado)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Apenas deps de producao
+COPY package*.json ./
+RUN npm install --omit=dev && npm cache clean --force
+
+# Codigo compilado
+COPY --from=builder /app/dist ./dist
+
+# Pastas de uploads
+RUN mkdir -p /app/uploads/temp /app/uploads/images /app/uploads/documentos
+
+EXPOSE 3010
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3010/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+CMD ["node", "dist/index.js"]

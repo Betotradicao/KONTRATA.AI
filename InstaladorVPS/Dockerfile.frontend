@@ -1,0 +1,36 @@
+# Frontend Kontrata.ai — Vite build → Nginx servindo dist
+# Multi-stage build
+
+# ===================================
+# STAGE 1: Build
+# ===================================
+FROM node:20-alpine AS builder
+
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_CLIENT_NAME="Kontrata.ai"
+ENV VITE_CLIENT_NAME=$VITE_CLIENT_NAME
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install && npm cache clean --force
+
+COPY . .
+
+RUN npm run build
+
+# ===================================
+# STAGE 2: Production (Nginx)
+# ===================================
+FROM nginx:alpine
+
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 3004
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3004 || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]
