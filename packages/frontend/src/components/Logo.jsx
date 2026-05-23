@@ -59,7 +59,9 @@ export default function Logo({ size = "medium", collapsed = false }) {
   if (logoUrl) {
     return (
       <div className="flex flex-col items-center space-y-1">
-        <img src={logoUrl} alt={brandName || 'Logo'} className={`${classes.icon} object-contain`} />
+        <div className="bg-white p-1 rounded-md shadow-sm inline-block">
+          <img src={logoUrl} alt={brandName || 'Logo'} className={`${classes.icon} object-contain`} />
+        </div>
         {brandName && (
           <div className="w-full bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5 mt-1">
             <span className="text-xs font-bold text-orange-600 uppercase text-center block leading-tight" style={{letterSpacing: '0.05em'}}>
@@ -67,7 +69,7 @@ export default function Logo({ size = "medium", collapsed = false }) {
             </span>
           </div>
         )}
-        <div className="w-full text-center mt-2">
+        <div className="w-full text-center mt-12">
           <span className="text-xl font-extrabold tracking-tight" style={{ color: '#DAA520' }}>
             Kontrata.ai
           </span>
