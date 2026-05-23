@@ -389,7 +389,7 @@ export default function PermissionsSelector({ selectedPermissions, onChange }) {
             <div className="w-6 h-6 bg-orange-500 rounded-md flex items-center justify-center">
               <span className="text-white text-xs font-bold">P</span>
             </div>
-            <h4 className="text-sm font-bold text-orange-800 uppercase tracking-wide">Prevenção no Radar</h4>
+            <h4 className="text-sm font-bold text-orange-800 uppercase tracking-wide">Kontrata.ai</h4>
             <div className="flex-1 border-t border-orange-200"></div>
           </div>
           {prevencaoModules.map(module => renderModuleCard(module))}

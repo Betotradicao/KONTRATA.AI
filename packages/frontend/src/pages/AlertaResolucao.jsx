@@ -248,7 +248,7 @@ export default function AlertaResolucao() {
         )}
 
         <div className="text-center mt-6 text-[11px] text-gray-500">
-          Prevenção no Radar · Check List
+          Kontrata.ai · Check List
         </div>
       </div>
 

@@ -1410,7 +1410,7 @@ export default function CurriculoPublico() {
           </button>
         </form>
 
-        <p className="text-center text-[11px] text-gray-500 mt-4">Prevenção no Radar · Banco de Currículos</p>
+        <p className="text-center text-[11px] text-gray-500 mt-4">Kontrata.ai · Banco de Currículos</p>
       </div>
 
       {/* Modal de visualizacao de documentos LGPD */}
@@ -1513,7 +1513,7 @@ function DocumentoLgpd({ tipo }) {
           <h4 className="font-bold text-gray-800">📞 Como exercer seus direitos</h4>
           <ul className="list-disc list-inside space-y-0.5">
             <li>Por e-mail à empresa onde você se candidatou</li>
-            <li>Pelo Encarregado de Dados do Kontrata.ai: <strong>dpo@prevencaonoradar.com.br</strong></li>
+            <li>Pelo Encarregado de Dados do Kontrata.ai: <strong>dpo@kontrataai.com.br</strong></li>
             <li>ANPD: <strong>www.gov.br/anpd</strong></li>
           </ul>
         </div>

@@ -414,7 +414,7 @@ export default function LgpdTab() {
           Para questões sobre privacidade que envolvam o Kontrata.ai enquanto Operador, contate:
         </p>
         <div className="mt-2 text-sm">
-          <div><b>E-mail:</b> dpo@prevencaonoradar.com.br</div>
+          <div><b>E-mail:</b> dpo@kontrataai.com.br</div>
           <div><b>Atendimento:</b> dias úteis, das 9h às 18h</div>
           <div><b>Prazo:</b> até 15 dias corridos</div>
         </div>
