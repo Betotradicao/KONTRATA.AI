@@ -141,15 +141,15 @@ export default function PesquisaPublica() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-3">
+      <div className="max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-6 space-y-3">
         {agrupaPorSecao(data.perguntas).map(([secao, perguntas]) => (
           <div key={secao}>
-            {secao && <h2 className="text-lg font-bold text-rose-700 mt-4 mb-2 px-2">{secao}</h2>}
+            {secao && <h2 className="text-base sm:text-lg font-bold text-rose-700 mt-4 mb-2 px-2">{secao}</h2>}
             {perguntas.map((p, idx) => {
               const temErro = perguntaErroId === p.id;
               return (
                 <div key={p.id} id={`pergunta-${p.id}`}
-                  className={`bg-white rounded-lg shadow p-4 mb-3 border-l-4 transition-all scroll-mt-20 ${
+                  className={`bg-white rounded-lg shadow p-3 sm:p-4 mb-3 border-l-4 transition-all scroll-mt-20 overflow-hidden ${
                     temErro
                       ? 'border-red-500 ring-4 ring-red-300 animate-pulse'
                       : 'border-rose-400'
@@ -194,26 +194,22 @@ function PerguntaInput({ pergunta, valor, onChange }) {
       ? cfg.escala_labels
       : ['1', '2', '3', '4', '5'];
     return (
-      <div className="space-y-2">
-        {/* Header com labels da escala */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex-1 min-w-[150px]" />
-          <div className="flex gap-1">
-            {labels.map((lbl, i) => (
-              <div key={i} className="w-20 text-center text-[10px] font-bold uppercase text-gray-500 leading-tight">{lbl}</div>
-            ))}
-          </div>
-        </div>
+      <div className="space-y-4">
         {(cfg.criterios || []).map(c => (
-          <div key={c} className="flex flex-wrap items-center gap-2">
-            <div className="flex-1 min-w-[150px] text-sm">{c}</div>
-            <div className="flex gap-1">
+          <div key={c} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+            {/* Critério em cima (legível) */}
+            <div className="text-sm font-medium text-gray-800 mb-2">{c}</div>
+            {/* 5 botões em grid — sempre cabe na tela */}
+            <div className="grid grid-cols-5 gap-1 sm:gap-1.5">
               {[1, 2, 3, 4, 5].map(n => (
                 <button key={n}
+                  type="button"
                   onClick={() => onChange({ ...matriz, [c]: n })}
                   title={labels[n - 1]}
-                  className={`w-20 h-9 rounded-lg border-2 font-semibold text-xs transition ${
-                    matriz[c] === n ? 'bg-rose-500 text-white border-rose-500' : 'bg-gray-50 hover:bg-rose-50 border-gray-200 text-gray-700'
+                  className={`px-1 py-2 rounded border-2 font-bold text-[10px] sm:text-xs leading-tight transition uppercase ${
+                    matriz[c] === n
+                      ? 'bg-rose-500 text-white border-rose-500 shadow-sm'
+                      : 'bg-gray-50 hover:bg-rose-50 border-gray-200 text-gray-700'
                   }`}>{labels[n - 1]}</button>
               ))}
             </div>
@@ -226,18 +222,20 @@ function PerguntaInput({ pergunta, valor, onChange }) {
   if (pergunta.tipo === 'nps_0_10') {
     return (
       <div>
-        <div className="flex flex-wrap gap-1">
+        {/* 11 botoes em grid responsivo — sempre cabe na largura disponivel */}
+        <div className="grid grid-cols-11 gap-1">
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
             <button key={n}
+              type="button"
               onClick={() => onChange(n)}
-              className={`w-10 h-10 rounded-lg border-2 font-bold transition ${
+              className={`aspect-square rounded-lg border-2 font-bold text-xs sm:text-sm transition ${
                 valor === n
                   ? (n >= 9 ? 'bg-emerald-500 border-emerald-500 text-white' : n >= 7 ? 'bg-amber-500 border-amber-500 text-white' : 'bg-red-500 border-red-500 text-white')
-                  : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
+                  : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700'
               }`}>{n}</button>
           ))}
         </div>
-        <div className="flex justify-between text-xs text-gray-500 mt-1 px-1">
+        <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mt-1 px-1">
           <span>Não recomendaria</span>
           <span>Recomendaria muito</span>
         </div>
