@@ -38,8 +38,8 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
       const saved = localStorage.getItem('sidebar_expanded_items');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Garante que RH NO RADAR esteja sempre aberto por padrao
-        if (parsed['rh-radar'] === undefined) parsed['rh-radar'] = true;
+        // KONTRATA AI (rh-radar) SEMPRE aberto — ignora estado salvo
+        parsed['rh-radar'] = true;
         return parsed;
       }
     } catch {}
