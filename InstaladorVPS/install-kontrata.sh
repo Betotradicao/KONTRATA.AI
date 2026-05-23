@@ -423,7 +423,7 @@ services:
     ports:
       - "\${POSTGRES_PORT}:5432"
     networks:
-      - ${INSTANCE_ID}_network
+      - kontrata-${INSTANCE_ID}_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER} -d \${POSTGRES_DB}"]
       interval: 10s
@@ -445,7 +445,7 @@ services:
       - "\${MINIO_API_PORT}:9000"
       - "\${MINIO_CONSOLE_PORT}:9001"
     networks:
-      - ${INSTANCE_ID}_network
+      - kontrata-${INSTANCE_ID}_network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -493,7 +493,7 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - ${INSTANCE_ID}_network
+      - kontrata-${INSTANCE_ID}_network
 
   frontend:
     build:
@@ -511,11 +511,11 @@ services:
     depends_on:
       - backend
     networks:
-      - ${INSTANCE_ID}_network
+      - kontrata-${INSTANCE_ID}_network
 
 networks:
-  ${INSTANCE_ID}_network:
-    name: ${INSTANCE_ID}_network
+  kontrata-${INSTANCE_ID}_network:
+    name: kontrata-${INSTANCE_ID}_network
     driver: bridge
 
 volumes:
