@@ -404,6 +404,10 @@ echo ""
 echo "📦 Criando docker-compose.yml..."
 
 cat > docker-compose.yml << EOF
+# Project name explicito = evita colisao com Radar quando cliente tem
+# mesmo nome em ambos os sistemas (ex: tradicao no Radar e na Kontrata).
+name: kontrata-${INSTANCE_ID}
+
 services:
   postgres:
     image: pgvector/pgvector:pg15
