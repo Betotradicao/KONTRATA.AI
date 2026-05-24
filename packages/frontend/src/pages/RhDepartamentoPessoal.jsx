@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,6 +17,13 @@ export default function RhDepartamentoPessoal() {
 
   const [showNovaPasta, setShowNovaPasta] = useState(false);
   const [novaPastaNome, setNovaPastaNome] = useState('');
+  const [novaPastaSenhaProtegida, setNovaPastaSenhaProtegida] = useState(false);
+
+  // Pastas desbloqueadas nesta sessão (não persiste após refresh/logout)
+  const [pastasDesbloqueadas, setPastasDesbloqueadas] = useState(new Set());
+  const [pedirSenhaPasta, setPedirSenhaPasta] = useState(null); // { pasta }
+  const [senhaInput, setSenhaInput] = useState('');
+  const [verificandoSenha, setVerificandoSenha] = useState(false);
 
   const [novaSubpastaNome, setNovaSubpastaNome] = useState('');
   const [novaSubpastaObrig, setNovaSubpastaObrig] = useState(false);
@@ -24,6 +31,11 @@ export default function RhDepartamentoPessoal() {
   const [uploadModal, setUploadModal] = useState(null); // { subpastaId, label }
   const [arquivoUpload, setArquivoUpload] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadComVencimento, setUploadComVencimento] = useState(false);
+  const [uploadDataVencimento, setUploadDataVencimento] = useState('');
+  const [uploadDataAlerta, setUploadDataAlerta] = useState('');
+
+  const [visualizarDoc, setVisualizarDoc] = useState(null);
 
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
@@ -58,6 +70,11 @@ export default function RhDepartamentoPessoal() {
   };
 
   const abrirPasta = async (pasta) => {
+    if (pasta.senha_protegida && !pastasDesbloqueadas.has(pasta.id)) {
+      setPedirSenhaPasta(pasta);
+      setSenhaInput('');
+      return;
+    }
     setPastaAberta(pasta);
     try {
       const [docsR, subsR] = await Promise.all([
@@ -69,14 +86,46 @@ export default function RhDepartamentoPessoal() {
     } catch { setDocumentos([]); setSubpastas([]); }
   };
 
+  const validarSenhaPasta = async () => {
+    if (!pedirSenhaPasta || !senhaInput) return;
+    setVerificandoSenha(true);
+    try {
+      await api.post(`/rh/dp/pastas/${pedirSenhaPasta.id}/validar-senha`, { senha: senhaInput });
+      const novoSet = new Set(pastasDesbloqueadas);
+      novoSet.add(pedirSenhaPasta.id);
+      setPastasDesbloqueadas(novoSet);
+      const pasta = pedirSenhaPasta;
+      setPedirSenhaPasta(null);
+      setSenhaInput('');
+      setPastaAberta(pasta);
+      try {
+        const [docsR, subsR] = await Promise.all([
+          api.get(`/rh/dp/documentos?pasta_id=${pasta.id}`),
+          api.get(`/rh/dp/subpastas?pasta_id=${pasta.id}`),
+        ]);
+        setDocumentos(Array.isArray(docsR.data) ? docsR.data : []);
+        setSubpastas(Array.isArray(subsR.data) ? subsR.data : []);
+      } catch { setDocumentos([]); setSubpastas([]); }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Senha incorreta');
+    } finally {
+      setVerificandoSenha(false);
+    }
+  };
+
   const criarPasta = async (nome) => {
     if (!nome?.trim()) return;
     if (!companyId) { toast.error('Selecione uma empresa primeiro'); return; }
     try {
-      await api.post('/rh/dp/pastas', { nome: nome.trim(), company_id: companyId });
-      toast.success('Pasta criada');
+      await api.post('/rh/dp/pastas', {
+        nome: nome.trim(),
+        company_id: companyId,
+        senha_protegida: novaPastaSenhaProtegida,
+      });
+      toast.success(novaPastaSenhaProtegida ? 'Pasta criada (protegida 🔒)' : 'Pasta criada');
       setShowNovaPasta(false);
       setNovaPastaNome('');
+      setNovaPastaSenhaProtegida(false);
       await carregarPastas();
     } catch (err) { toast.error(err?.response?.data?.error || 'Erro ao criar'); }
   };
@@ -126,23 +175,69 @@ export default function RhDepartamentoPessoal() {
     } catch { toast.error('Erro'); }
   };
 
-  const abrirUploadSolto = () => { setUploadModal({ subpastaId: null, label: 'Arquivo solto' }); setArquivoUpload(null); };
-  const abrirUploadSub = (sub) => { setUploadModal({ subpastaId: sub.id, label: sub.nome }); setArquivoUpload(null); };
+  const abrirUploadSolto = () => {
+    setUploadModal({ subpastaId: null, label: 'Arquivo solto' });
+    setArquivoUpload(null);
+    setUploadComVencimento(false);
+    setUploadDataVencimento(''); setUploadDataAlerta('');
+  };
+  const abrirUploadSub = (sub) => {
+    setUploadModal({ subpastaId: sub.id, label: sub.nome });
+    setArquivoUpload(null);
+    setUploadComVencimento(false);
+    setUploadDataVencimento(''); setUploadDataAlerta('');
+  };
 
   const confirmarUpload = async () => {
     if (!arquivoUpload || !pastaAberta) return;
+    if (uploadComVencimento && (!uploadDataVencimento || !uploadDataAlerta)) {
+      toast.error('Informe a data de vencimento e a data de alerta');
+      return;
+    }
     setUploadingFile(true);
     try {
       const fd = new FormData();
       fd.append('arquivo', arquivoUpload);
       fd.append('pasta_id', pastaAberta.id);
       if (uploadModal?.subpastaId) fd.append('subpasta_id', String(uploadModal.subpastaId));
+      if (uploadComVencimento) {
+        fd.append('data_vencimento', uploadDataVencimento);
+        fd.append('data_alerta', uploadDataAlerta);
+      }
       await api.post('/rh/dp/documentos', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success('Arquivo enviado');
       setUploadModal(null); setArquivoUpload(null);
+      setUploadComVencimento(false);
+      setUploadDataVencimento(''); setUploadDataAlerta('');
       await abrirPasta(pastaAberta);
     } catch { toast.error('Erro no upload'); }
     finally { setUploadingFile(false); }
+  };
+
+  // Backend pode retornar 'YYYY-MM-DD' (string DATE) ou ISO completo. Normaliza pra Date local.
+  const parseDataDoc = (v) => {
+    if (!v) return null;
+    const s = typeof v === 'string' ? v : String(v);
+    // Pega só a parte YYYY-MM-DD (ignora hora/timezone) pra evitar shift de fuso
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const fmtDataDoc = (v) => {
+    const d = parseDataDoc(v);
+    return d ? d.toLocaleDateString('pt-BR') : '';
+  };
+
+  const statusVencimento = (doc) => {
+    const venc = parseDataDoc(doc.data_vencimento);
+    if (!venc) return null;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const alerta = parseDataDoc(doc.data_alerta);
+    if (venc < hoje) return { cor: 'red', label: 'VENCIDO', icone: '⛔' };
+    if (alerta && alerta <= hoje) return { cor: 'amber', label: 'VENCE EM BREVE', icone: '⚠️' };
+    return { cor: 'emerald', label: 'EM DIA', icone: '✅' };
   };
 
   const excluirDocumento = async (doc) => {
@@ -244,7 +339,14 @@ export default function RhDepartamentoPessoal() {
                       <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                     </svg>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-gray-800 truncate">{p.nome}</div>
+                      <div className="text-sm font-semibold text-gray-800 truncate flex items-center gap-1">
+                        {p.senha_protegida && (
+                          <span title={pastasDesbloqueadas.has(p.id) ? 'Pasta desbloqueada nesta sessão' : 'Pasta protegida por senha'}>
+                            {pastasDesbloqueadas.has(p.id) ? '🔓' : '🔒'}
+                          </span>
+                        )}
+                        <span className="truncate">{p.nome}</span>
+                      </div>
                       <div className="text-xs text-gray-500">{p.qtd_arquivos || 0} arquivo(s)</div>
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); renomearPasta(p); }}
@@ -325,10 +427,19 @@ export default function RhDepartamentoPessoal() {
                         const docsDessa = documentos.filter(d => d.subpasta_id === sub.id);
                         const temArquivo = docsDessa.length > 0;
                         return (
-                          <div key={sub.id} className={`rounded-lg border-2 p-3 ${sub.obrigatorio && !temArquivo ? 'border-red-300 bg-red-50' : temArquivo ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200 bg-white'}`}>
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <span className="text-lg">{temArquivo ? '✅' : (sub.obrigatorio ? '⚠️' : '📎')}</span>
-                              <span className="font-bold text-gray-800 flex-1 min-w-0 truncate">{sub.nome}</span>
+                          <div key={sub.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="p-3 flex items-center gap-2 hover:bg-gray-50 transition">
+                              <svg className="w-5 h-5 text-orange-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                              </svg>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-gray-800 truncate">{sub.nome}</div>
+                                <div className="text-xs text-gray-500">
+                                  {temArquivo
+                                    ? `${docsDessa.length} arquivo(s) enviado(s)`
+                                    : sub.obrigatorio ? 'Aguardando upload do arquivo obrigatório...' : 'Nenhum arquivo enviado.'}
+                                </div>
+                              </div>
                               <button onClick={() => toggleObrigatorio(sub)}
                                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${sub.obrigatorio ? 'text-red-700 bg-red-100 border-red-300' : 'text-gray-600 bg-gray-100 border-gray-300'}`}>
                                 {sub.obrigatorio ? 'OBRIGATÓRIO' : 'OPCIONAL'}
@@ -344,22 +455,34 @@ export default function RhDepartamentoPessoal() {
                                 </svg>
                               </button>
                             </div>
-                            {docsDessa.length === 0 ? (
-                              <div className="text-sm text-gray-500 italic ml-7">
-                                {sub.obrigatorio ? 'Aguardando upload do arquivo obrigatório...' : 'Nenhum arquivo enviado.'}
-                              </div>
-                            ) : (
-                              <div className="space-y-2 ml-7 mt-2">
-                                {docsDessa.map(doc => (
-                                  <div key={doc.id} className="flex items-center gap-3 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2">
-                                    <span className="text-xl shrink-0">{doc.mime_type?.startsWith('image/') ? '🖼️' : doc.mime_type?.includes('pdf') ? '📄' : '📎'}</span>
-                                    <span className="flex-1 truncate font-semibold text-gray-800">{doc.nome}</span>
-                                    <span className="text-sm text-gray-600 whitespace-nowrap">📅 {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</span>
-                                    <span className="text-sm text-gray-500 whitespace-nowrap">{fmtTamanho(doc.tamanho_bytes)}</span>
-                                    <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 font-bold text-sm">Abrir</a>
-                                    <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700">🗑️</button>
-                                  </div>
-                                ))}
+                            {docsDessa.length > 0 && (
+                              <div className="space-y-2 px-3 pb-3 pl-10">
+                                {docsDessa.map(doc => {
+                                  const st = statusVencimento(doc);
+                                  const corBg = st ? (st.cor === 'red' ? 'bg-red-50 border-red-200' : st.cor === 'amber' ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200') : 'bg-gray-50 border-gray-200';
+                                  return (
+                                    <div key={doc.id} className={`flex items-center gap-3 text-sm border rounded-lg px-3 py-2 flex-wrap ${corBg}`}>
+                                      <span className="text-xl shrink-0">{doc.mime_type?.startsWith('image/') ? '🖼️' : '📄'}</span>
+                                      <span className="flex-1 truncate font-semibold text-gray-800 min-w-0">{doc.nome}</span>
+                                      {st && (
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${st.cor === 'red' ? 'bg-red-200 text-red-800' : st.cor === 'amber' ? 'bg-amber-200 text-amber-800' : 'bg-emerald-200 text-emerald-800'}`}>
+                                          {st.icone} {st.label}
+                                        </span>
+                                      )}
+                                      {doc.data_vencimento && (
+                                        <span className="text-xs text-gray-700 whitespace-nowrap">
+                                          📅 Vence: <strong>{fmtDataDoc(doc.data_vencimento)}</strong>
+                                        </span>
+                                      )}
+                                      <span className="text-sm text-gray-500 whitespace-nowrap">{fmtTamanho(doc.tamanho_bytes)}</span>
+                                      <button onClick={() => setVisualizarDoc(doc)} className="text-purple-600 hover:text-purple-800 font-bold text-sm" title="Visualizar sem baixar">
+                                        👁️ Visualizar
+                                      </button>
+                                      <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 font-bold text-sm">⬇️ Baixar</a>
+                                      <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700">🗑️</button>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -375,12 +498,13 @@ export default function RhDepartamentoPessoal() {
                       <div className="space-y-2">
                         {documentos.filter(d => !d.subpasta_id).map(doc => (
                           <div key={doc.id} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                            <div className="text-3xl">{doc.mime_type?.startsWith('image/') ? '🖼️' : doc.mime_type?.includes('pdf') ? '📄' : '📎'}</div>
+                            <div className="text-3xl">{doc.mime_type?.startsWith('image/') ? '🖼️' : '📄'}</div>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-semibold text-gray-800 truncate">{doc.nome}</div>
                               <div className="text-xs text-gray-500">{fmtTamanho(doc.tamanho_bytes)} · {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</div>
                             </div>
-                            <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 font-semibold text-sm">Abrir</a>
+                            <button onClick={() => setVisualizarDoc(doc)} className="text-purple-600 hover:text-purple-800 font-semibold text-sm" title="Visualizar sem baixar">👁️ Visualizar</button>
+                            <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 font-semibold text-sm">⬇️ Baixar</a>
                             <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700">🗑️</button>
                           </div>
                         ))}
@@ -465,9 +589,39 @@ export default function RhDepartamentoPessoal() {
                   <button type="button" onClick={() => setArquivoUpload(null)} className="text-red-600 hover:text-red-800 font-bold">✖ Limpar</button>
                 </div>
               )}
+              <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-gray-50 border border-gray-200">
+                <input type="checkbox" checked={uploadComVencimento}
+                  onChange={e => setUploadComVencimento(e.target.checked)}
+                  className="mt-0.5" />
+                <div>
+                  <div className="text-sm font-semibold text-gray-800">📅 Este documento tem validade?</div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Marque pra registrar data de vencimento e receber alerta antes.
+                  </div>
+                </div>
+              </label>
+              {uploadComVencimento && (
+                <div className="border-2 border-amber-200 bg-amber-50 rounded-lg p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-gray-600">Data de vencimento</label>
+                      <input type="date" value={uploadDataVencimento}
+                        onChange={e => setUploadDataVencimento(e.target.value)}
+                        className="w-full mt-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-gray-600">Data de alerta</label>
+                      <input type="date" value={uploadDataAlerta}
+                        onChange={e => setUploadDataAlerta(e.target.value)}
+                        className="w-full mt-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-amber-700">A partir da data de alerta o sistema sinaliza o vencimento próximo.</p>
+                </div>
+              )}
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-              <button onClick={() => { setUploadModal(null); setArquivoUpload(null); }}
+              <button onClick={() => { setUploadModal(null); setArquivoUpload(null); setUploadComVencimento(false); setUploadDataVencimento(''); setUploadDataAlerta(''); }}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
                 Cancelar
               </button>
@@ -480,6 +634,41 @@ export default function RhDepartamentoPessoal() {
         </div>
       )}
 
+      {/* Modal Visualizar Documento */}
+      {visualizarDoc && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setVisualizarDoc(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="p-3 border-b border-gray-200 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-gray-800 truncate">👁️ {visualizarDoc.nome}</h3>
+                <p className="text-xs text-gray-500">{fmtTamanho(visualizarDoc.tamanho_bytes)}</p>
+              </div>
+              <a href={visualizarDoc.arquivo_url} target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold rounded">
+                ⬇️ Baixar
+              </a>
+              <button onClick={() => setVisualizarDoc(null)} className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold rounded">
+                ✖ Fechar
+              </button>
+            </div>
+            <div className="flex-1 bg-gray-100 overflow-hidden">
+              {visualizarDoc.mime_type?.startsWith('image/') ? (
+                <div className="w-full h-full flex items-center justify-center p-4">
+                  <img src={visualizarDoc.arquivo_url} alt={visualizarDoc.nome} className="max-w-full max-h-full object-contain" />
+                </div>
+              ) : visualizarDoc.mime_type?.includes('pdf') ? (
+                <iframe src={visualizarDoc.arquivo_url} className="w-full h-full border-0" title={visualizarDoc.nome} />
+              ) : (
+                <iframe
+                  src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(visualizarDoc.arquivo_url)}`}
+                  className="w-full h-full border-0"
+                  title={visualizarDoc.nome}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Nova Pasta */}
       {showNovaPasta && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -487,23 +676,69 @@ export default function RhDepartamentoPessoal() {
             <div className="p-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-800">Nova Pasta</h3>
             </div>
-            <div className="p-4">
-              <label className="text-xs font-semibold uppercase text-gray-600">Nome da pasta</label>
-              <input type="text" value={novaPastaNome}
-                onChange={e => setNovaPastaNome(e.target.value.toUpperCase())}
-                onKeyDown={e => e.key === 'Enter' && criarPasta(novaPastaNome)}
-                style={{ textTransform: 'uppercase' }}
-                placeholder="Ex: DOCS RESCISÕES"
-                className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold uppercase text-gray-600">Nome da pasta</label>
+                <input type="text" value={novaPastaNome}
+                  onChange={e => setNovaPastaNome(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === 'Enter' && criarPasta(novaPastaNome)}
+                  style={{ textTransform: 'uppercase' }}
+                  placeholder="Ex: DOCS RESCISÕES"
+                  className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-gray-50">
+                <input type="checkbox" checked={novaPastaSenhaProtegida}
+                  onChange={e => setNovaPastaSenhaProtegida(e.target.checked)}
+                  className="mt-0.5" />
+                <div>
+                  <div className="text-sm font-semibold text-gray-800">🔒 Proteger com senha</div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Só você (com sua senha de login) ou usuários master poderão abrir esta pasta.
+                  </div>
+                </div>
+              </label>
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-              <button onClick={() => { setShowNovaPasta(false); setNovaPastaNome(''); }}
+              <button onClick={() => { setShowNovaPasta(false); setNovaPastaNome(''); setNovaPastaSenhaProtegida(false); }}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
                 Cancelar
               </button>
               <button onClick={() => criarPasta(novaPastaNome)} disabled={!novaPastaNome.trim()}
                 className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:bg-gray-300">
                 Criar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pedir Senha (pasta protegida) */}
+      {pedirSenhaPasta && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">🔒 Pasta protegida</h3>
+              <p className="text-xs text-gray-500 mt-1">"{pedirSenhaPasta.nome}" — digite sua senha de login pra abrir</p>
+            </div>
+            <div className="p-4">
+              <label className="text-xs font-semibold uppercase text-gray-600">Senha</label>
+              <input type="password" value={senhaInput} autoFocus
+                onChange={e => setSenhaInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !verificandoSenha && validarSenhaPasta()}
+                className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              <p className="text-xs text-gray-400 mt-2">
+                💡 Use a senha do criador da pasta ou de qualquer usuário master.
+              </p>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+              <button onClick={() => { setPedirSenhaPasta(null); setSenhaInput(''); }}
+                disabled={verificandoSenha}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={validarSenhaPasta} disabled={!senhaInput || verificandoSenha}
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:bg-gray-300">
+                {verificandoSenha ? 'Verificando...' : 'Abrir pasta'}
               </button>
             </div>
           </div>

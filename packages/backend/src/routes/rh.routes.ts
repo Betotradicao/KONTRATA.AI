@@ -222,6 +222,7 @@ router.post('/dp/pastas', authenticateToken, RhDpController.criarPasta);
 router.post('/dp/pastas/reordenar', authenticateToken, RhDpController.reordenarPastas);
 router.post('/dp/seed/:companyId', authenticateToken, RhDpController.seedPadraoPorEmpresa);
 router.put('/dp/pastas/:id', authenticateToken, RhDpController.atualizarPasta);
+router.post('/dp/pastas/:id/validar-senha', authenticateToken, RhDpController.validarSenhaPasta);
 router.delete('/dp/pastas/:id', authenticateToken, RhDpController.deletarPasta);
 router.get('/dp/subpastas', authenticateToken, RhDpController.listarSubpastas);
 router.post('/dp/subpastas', authenticateToken, RhDpController.criarSubpasta);
@@ -229,6 +230,7 @@ router.put('/dp/subpastas/:id', authenticateToken, RhDpController.atualizarSubpa
 router.delete('/dp/subpastas/:id', authenticateToken, RhDpController.deletarSubpasta);
 router.get('/dp/documentos', authenticateToken, RhDpController.listarDocumentos);
 router.post('/dp/documentos', authenticateToken, uploadDoc.single('arquivo'), RhDpController.uploadDocumento);
+router.put('/dp/documentos/:id/datas', authenticateToken, RhDpController.atualizarDatasDocumento);
 router.delete('/dp/documentos/:id', authenticateToken, RhDpController.deletarDocumento);
 
 // Documentacao - Subpastas (itens de documento por pasta)
