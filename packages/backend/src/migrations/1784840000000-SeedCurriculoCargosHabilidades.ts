@@ -23,8 +23,8 @@ export class SeedCurriculoCargosHabilidades1784840000000 implements MigrationInt
     for (const nome of cargos) {
       await queryRunner.query(
         `INSERT INTO curriculo_cargos (nome, ativo, ordem)
-         SELECT $1, true, 0
-         WHERE NOT EXISTS (SELECT 1 FROM curriculo_cargos WHERE nome = $1)`,
+         SELECT $1::text, true, 0
+         WHERE NOT EXISTS (SELECT 1 FROM curriculo_cargos WHERE nome = $1::text)`,
         [nome]
       );
     }
@@ -38,8 +38,8 @@ export class SeedCurriculoCargosHabilidades1784840000000 implements MigrationInt
     for (const nome of habilidades) {
       await queryRunner.query(
         `INSERT INTO curriculo_habilidades (nome, ativo, ordem)
-         SELECT $1, true, 0
-         WHERE NOT EXISTS (SELECT 1 FROM curriculo_habilidades WHERE nome = $1)`,
+         SELECT $1::text, true, 0
+         WHERE NOT EXISTS (SELECT 1 FROM curriculo_habilidades WHERE nome = $1::text)`,
         [nome]
       );
     }
@@ -53,8 +53,8 @@ export class SeedCurriculoCargosHabilidades1784840000000 implements MigrationInt
     for (const t of tipos) {
       await queryRunner.query(
         `INSERT INTO curriculo_tipos_vaga (nome, ativo, ordem)
-         SELECT $1, true, $2
-         WHERE NOT EXISTS (SELECT 1 FROM curriculo_tipos_vaga WHERE nome = $1)`,
+         SELECT $1::text, true, $2::int
+         WHERE NOT EXISTS (SELECT 1 FROM curriculo_tipos_vaga WHERE nome = $1::text)`,
         [t.nome, t.ordem]
       );
     }

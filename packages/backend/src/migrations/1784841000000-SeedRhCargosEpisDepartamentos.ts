@@ -21,8 +21,8 @@ export class SeedRhCargosEpisDepartamentos1784841000000 implements MigrationInte
     for (const nome of departamentos) {
       await queryRunner.query(
         `INSERT INTO rh_departamentos (nome, ativo)
-         SELECT $1, true
-         WHERE NOT EXISTS (SELECT 1 FROM rh_departamentos WHERE nome = $1)`,
+         SELECT $1::text, true
+         WHERE NOT EXISTS (SELECT 1 FROM rh_departamentos WHERE nome = $1::text)`,
         [nome]
       );
     }
@@ -67,8 +67,8 @@ export class SeedRhCargosEpisDepartamentos1784841000000 implements MigrationInte
     for (const e of episEpcs) {
       await queryRunner.query(
         `INSERT INTO rh_epis_epcs (nome, tipo, descricao, ca, validade_meses, ativo)
-         SELECT $1, $2, $3, $4, $5, true
-         WHERE NOT EXISTS (SELECT 1 FROM rh_epis_epcs WHERE nome = $1)`,
+         SELECT $1::text, $2::text, $3::text, $4::text, $5::int, true
+         WHERE NOT EXISTS (SELECT 1 FROM rh_epis_epcs WHERE nome = $1::text)`,
         [e.nome, e.tipo, e.descricao, e.ca, e.validade_meses]
       );
     }
