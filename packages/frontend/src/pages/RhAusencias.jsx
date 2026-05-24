@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,7 +11,7 @@ export default function RhAusencias() {
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Ponto e Ausencias</h1>

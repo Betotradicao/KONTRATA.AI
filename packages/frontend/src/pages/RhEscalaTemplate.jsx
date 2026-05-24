@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -103,7 +103,7 @@ export default function RhEscalaTemplate() {
     <div className="flex h-screen bg-gray-100">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4 flex items-center gap-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4 flex items-center gap-4">
           <button onClick={() => navigate('/rh/escala')} className="bg-white/20 hover:bg-white/30 rounded px-2 py-1 text-sm">← Voltar</button>
           <div>
             <h1 className="text-2xl font-bold">Template Semanal</h1>

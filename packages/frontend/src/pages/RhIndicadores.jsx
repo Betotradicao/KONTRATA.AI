@@ -98,11 +98,11 @@ export default function RhIndicadores() {
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <h1 className="text-2xl font-bold">📊 Indicadores RH</h1>
-              <p className="text-pink-100 text-sm">Dashboards consolidados — todos os KPIs em uma única tela</p>
+              <p className="text-purple-100 text-sm">Dashboards consolidados — todos os KPIs em uma única tela</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-3 py-1.5">

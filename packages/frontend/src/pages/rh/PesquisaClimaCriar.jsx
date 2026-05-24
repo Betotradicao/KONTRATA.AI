@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../../components/Sidebar';
 import { api } from '../../utils/api';
@@ -143,9 +143,9 @@ export default function PesquisaClimaCriar() {
     <div className="flex h-screen bg-gray-100">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <h1 className="text-2xl font-bold">😊 Criar Pesquisas de Clima</h1>
-          <p className="text-pink-100 text-sm">Templates reutilizáveis. Cada pesquisa pode ter várias rodadas (comparativo no tempo).</p>
+          <p className="text-purple-100 text-sm">Templates reutilizáveis. Cada pesquisa pode ter várias rodadas (comparativo no tempo).</p>
         </div>
 
         <div className="p-4 md:p-6">

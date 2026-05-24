@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLoja } from '../../contexts/LojaContext';
 import Sidebar from '../../components/Sidebar';
@@ -129,7 +129,7 @@ export default function ModeloCurriculo() {
     <div className="flex h-screen bg-gray-50">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 min-w-0 overflow-auto overflow-x-hidden">
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 text-white p-4 shadow">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white p-4 shadow">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden bg-white/20 hover:bg-white/30 rounded-lg p-2 transition">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -170,7 +170,7 @@ export default function ModeloCurriculo() {
                     <input type="text" value={linkPublico} readOnly
                       className="flex-1 min-w-[160px] bg-transparent text-base font-mono text-gray-800 outline-none px-2 py-1" />
                     <button onClick={copiarLink}
-                      className="px-4 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg text-sm font-bold hover:shadow-md hover:scale-[1.02] transition">
+                      className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg text-sm font-bold hover:shadow-md hover:scale-[1.02] transition">
                       📋 Copiar
                     </button>
                     <a href={linkPublico} target="_blank" rel="noopener noreferrer"

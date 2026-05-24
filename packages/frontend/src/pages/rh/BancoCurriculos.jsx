@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLoja } from '../../contexts/LojaContext';
 import Sidebar from '../../components/Sidebar';
@@ -219,7 +219,7 @@ export default function BancoCurriculos() {
     <div className="flex h-screen bg-gray-50">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 min-w-0 overflow-auto overflow-x-hidden">
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 text-white p-4 shadow">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white p-4 shadow">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden bg-white/20 hover:bg-white/30 rounded-lg p-2 transition">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -652,7 +652,7 @@ export function DetalheCV({
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onFechar}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[95vh] min-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Barra de ações do RH */}
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 text-white p-4 flex items-center justify-between flex-wrap gap-2">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white p-4 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-sm px-3 py-1 rounded-full font-bold border-2 border-white/30 ${st.bg}`}>{st.emoji} {st.label}</span>
             {cv.interesse_vaga && (

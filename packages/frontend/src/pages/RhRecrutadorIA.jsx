@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Radar } from 'react-chartjs-2';
 import {
@@ -77,7 +77,7 @@ export default function RhRecrutadorIA() {
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <main className="flex-1 p-6">
-        <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl p-6 mb-6 text-white">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl p-6 mb-6 text-white">
           <div className="flex items-center gap-3">
             <span className="text-4xl">🤖</span>
             <div>

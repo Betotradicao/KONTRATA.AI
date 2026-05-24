@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import api from '../utils/api';
 
 export default function CurriculoPublico() {
@@ -307,7 +307,7 @@ export default function CurriculoPublico() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 py-6 px-4 overflow-x-hidden">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl shadow-lg p-6 mb-5">
+          <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-2xl shadow-lg p-6 mb-5">
             <div className="flex items-center gap-3">
               <div className="text-5xl">🏪</div>
               <div>
@@ -514,7 +514,7 @@ export default function CurriculoPublico() {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Faixa rosa superior — compacta, encostada no card de busca */}
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 h-20 md:h-24 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 h-20 md:h-24 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 30%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
         </div>
 
@@ -822,7 +822,7 @@ export default function CurriculoPublico() {
                 disabled={!aceitouLgpd}
                 className={`flex-1 px-4 py-3 rounded-xl font-bold text-base shadow-md transition ${
                   aceitouLgpd
-                    ? 'bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white'
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-500 hover:from-pink-600 hover:to-rose-700 text-white'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
               >
@@ -836,7 +836,7 @@ export default function CurriculoPublico() {
         {modalDoc && (
           <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setModalDoc(null)}>
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-              <div className="px-5 py-3 border-b bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-t-xl flex items-center justify-between">
+              <div className="px-5 py-3 border-b bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-t-xl flex items-center justify-between">
                 <h2 className="font-bold text-base">{modalDoc.titulo}</h2>
                 <button onClick={() => setModalDoc(null)} className="text-white text-xl hover:text-gray-200">✕</button>
               </div>
@@ -953,7 +953,7 @@ export default function CurriculoPublico() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 py-6 px-4 overflow-x-hidden">
       <div className="max-w-3xl mx-auto">
-        <div className="bg-gradient-to-r from-pink-500 to-rose-600 text-white rounded-2xl shadow-lg p-5 mb-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-2xl shadow-lg p-5 mb-4">
           <div className="flex items-center gap-3">
             <div className="text-4xl">📝</div>
             <div className="flex-1 min-w-0">
@@ -1404,7 +1404,7 @@ export default function CurriculoPublico() {
             className={`w-full py-4 rounded-xl font-bold text-white text-base shadow-md transition ${
               enviando ? 'bg-gray-400' :
               !aceitouTermoFinal ? 'bg-gray-300 cursor-not-allowed' :
-              'bg-gradient-to-r from-rose-500 to-pink-600 hover:shadow-lg hover:scale-[1.01]'
+              'bg-gradient-to-r from-purple-600 to-purple-500 hover:shadow-lg hover:scale-[1.01]'
             }`}>
             {enviando ? 'Enviando…' : (!aceitouTermoFinal ? '🔒 Marque o aceite acima para enviar' : '🚀 Enviar currículo')}
           </button>
@@ -1417,7 +1417,7 @@ export default function CurriculoPublico() {
       {modalDoc && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setModalDoc(null)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-3 border-b bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-t-xl flex items-center justify-between">
+            <div className="px-5 py-3 border-b bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-t-xl flex items-center justify-between">
               <h2 className="font-bold text-base">{modalDoc.titulo}</h2>
               <button onClick={() => setModalDoc(null)} className="text-white text-xl hover:text-gray-200">✕</button>
             </div>

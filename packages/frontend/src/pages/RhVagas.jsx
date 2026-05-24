@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -578,7 +578,7 @@ export default function RhVagas() {
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Vagas</h1>
@@ -1341,7 +1341,7 @@ export default function RhVagas() {
         {modalAberto && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className={`bg-white rounded-xl shadow-xl w-full ${formData.status === 'Em Selecao' ? 'max-w-6xl' : 'max-w-2xl'} max-h-[90vh] overflow-y-auto`}>
-              <div className="px-6 py-4 bg-gradient-to-r from-pink-500 to-rose-600 text-white flex items-center justify-between">
+              <div className="px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-bold flex items-center gap-2">
                     <span>{editando ? '✏️' : '🆕'}</span>

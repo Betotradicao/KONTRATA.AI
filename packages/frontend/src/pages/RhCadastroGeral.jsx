@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -537,7 +537,7 @@ export default function RhCadastroGeral() {
 
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Cadastro de Colaboradores</h1>
@@ -888,7 +888,7 @@ export default function RhCadastroGeral() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4 rounded-t-xl flex items-center justify-between flex-shrink-0">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4 rounded-t-xl flex items-center justify-between flex-shrink-0">
               <h3 className="text-lg font-bold">
                 {editando ? 'Editar Colaborador' : 'Novo Colaborador'}
               </h3>

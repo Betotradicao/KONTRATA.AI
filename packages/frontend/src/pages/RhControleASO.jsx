@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../utils/api';
@@ -205,7 +205,7 @@ export default function RhControleASO() {
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <h1 className="text-2xl font-bold">Controle de ASO</h1>
           <p className="text-orange-100 text-sm">Atestados de Saúde Ocupacional com alertas de vencimento</p>
         </div>

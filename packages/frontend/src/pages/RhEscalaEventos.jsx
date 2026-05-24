@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
 import { api } from '../utils/api';
@@ -74,7 +74,7 @@ export default function RhEscalaEventos() {
     <div className="flex h-screen bg-gray-100">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <h1 className="text-2xl font-bold">Eventos da Escala</h1>
           <p className="text-orange-100 text-sm">Férias, licenças/atestados e excessões — sobrepõem a escala automaticamente</p>
         </div>

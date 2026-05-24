@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -183,7 +183,7 @@ export default function RhConfiguracoes() {
 
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-pink-600 to-rose-500 text-white px-6 py-4">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
           <h1 className="text-2xl font-bold">Configuracoes RH</h1>
           <p className="text-orange-100 text-sm">Gerencie tabelas auxiliares do RH</p>
         </div>
