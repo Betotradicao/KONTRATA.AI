@@ -501,8 +501,8 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
         {/* Botão de Toggle removido — sidebar fica sempre aberto */}
       </div>
 
-      {/* Menu Items */}
-      <div className="flex-1 overflow-y-auto py-4">
+      {/* Menu Items — sem flex-1 pra footer ficar grudado logo após o último item */}
+      <div className="overflow-y-auto py-2">
         {(() => {
           // Em modo TOTALMENTE INVISIVEL: se a seção pai tiver todos os items primarios inativos
           // mas tiver nestedSections com items ativos, promove as nestedSections pra top-level
