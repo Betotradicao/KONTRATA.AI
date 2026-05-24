@@ -21,17 +21,21 @@ const CONFIGURACOES_REQUIRED_MODULES = [
 
 export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileMenuOpen }) {
   const [expandedSections, setExpandedSections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('sidebar_expanded_sections');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return {
+    // KONTRATA AI (rh-radar) eh SEMPRE true — usuario nao colapsa nem por engano
+    let initial = {
       'metas-radar': false,
       'gestao-radar': false,
       'marketing-radar': false,
       'ia-radar': false,
-      'vision-360': false
+      'vision-360': false,
+      'rh-radar': true,
     };
+    try {
+      const saved = localStorage.getItem('sidebar_expanded_sections');
+      if (saved) initial = { ...initial, ...JSON.parse(saved) };
+    } catch {}
+    initial['rh-radar'] = true; // forca true mesmo se localStorage tinha false
+    return initial;
   });
   const [expandedItems, setExpandedItems] = useState(() => {
     try {
@@ -132,6 +136,8 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
   };
 
   const toggleSection = (section) => {
+    // KONTRATA AI (rh-radar) nao pode ser colapsado — sempre aberto
+    if (section === 'rh-radar') return;
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
@@ -653,7 +659,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
                 <span className={moduleActive ? 'text-gray-500' : 'text-gray-400'}>{item.icon}</span>
                 {!isCollapsed && <span className="text-sm font-medium">{item.titleComponent || item.title}</span>}
               </div>
-              {!isCollapsed && item.expandable && (
+              {!isCollapsed && item.expandable && item.id !== 'rh-radar' && (
                 <svg
                   className={`w-4 h-4 text-gray-400 transform transition-transform ${
                     expandedSections[item.id] ? 'rotate-180' : ''
