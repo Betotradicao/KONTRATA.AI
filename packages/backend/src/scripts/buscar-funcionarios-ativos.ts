@@ -27,7 +27,7 @@ async function buscarFuncionariosAtivos() {
         `${String(idx + 1).padStart(4)} | ` +
         `${func.name.substring(0, 40).padEnd(40)} | ` +
         `${(func.sector?.name || 'SEM SETOR').substring(0, 25).padEnd(25)} | ` +
-        `${func.barcode.substring(0, 15).padEnd(15)} | ` +
+        `${(func.barcode || '').substring(0, 15).padEnd(15)} | ` +
         `${(func.active ? 'ATIVO' : 'INATIVO').padEnd(8)}`
       );
     });
