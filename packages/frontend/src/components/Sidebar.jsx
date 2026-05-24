@@ -501,8 +501,8 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
         {/* Botão de Toggle removido — sidebar fica sempre aberto */}
       </div>
 
-      {/* Menu Items — sem flex-1 pra footer ficar grudado logo após o último item */}
-      <div className="overflow-y-auto py-2">
+      {/* Menu Items */}
+      <div className="flex-1 overflow-y-auto py-4">
         {(() => {
           // Em modo TOTALMENTE INVISIVEL: se a seção pai tiver todos os items primarios inativos
           // mas tiver nestedSections com items ativos, promove as nestedSections pra top-level
@@ -861,8 +861,8 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
         })}
       </div>
 
-      {/* User Section at Bottom — flex-1 faz o roxo preencher todo o espaco sobrante (sem gap branco) */}
-      <div className={`flex-1 border-t border-purple-900 ${isCollapsed ? 'p-2' : 'p-4'}`} style={{ backgroundColor: '#6B21A8' }}>
+      {/* User Section at Bottom */}
+      <div className={`border-t border-purple-900 ${isCollapsed ? 'p-2' : 'p-4'}`} style={{ backgroundColor: '#6B21A8' }}>
         {isCollapsed ? (
           // Versão colapsada - só o avatar e logout
           <div className="flex flex-col items-center gap-2">

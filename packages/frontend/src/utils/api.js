@@ -37,8 +37,8 @@ function getApiBaseUrl() {
   if (hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
     const frontendPort = parseInt(currentPort) || 3000;
 
-    // Vite dev server na porta 3004-3006: usar proxy do Vite (backend na porta 3000)
-    if (frontendPort >= 3004 && frontendPort <= 3006) {
+    // Vite dev server na porta 3004-3010: usar proxy do Vite (backend Kontrata na 3010)
+    if (frontendPort >= 3004 && frontendPort <= 3010) {
       console.log('🔧 Vite dev server detectado (porta ' + frontendPort + ') - usando proxy /api');
       return '/api';
     }
