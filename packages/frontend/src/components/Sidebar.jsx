@@ -861,8 +861,8 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
         })}
       </div>
 
-      {/* User Section at Bottom */}
-      <div className={`border-t border-purple-900 ${isCollapsed ? 'p-2' : 'p-4'}`} style={{ backgroundColor: '#6B21A8' }}>
+      {/* User Section at Bottom — flex-1 faz o roxo preencher todo o espaco sobrante (sem gap branco) */}
+      <div className={`flex-1 border-t border-purple-900 ${isCollapsed ? 'p-2' : 'p-4'}`} style={{ backgroundColor: '#6B21A8' }}>
         {isCollapsed ? (
           // Versão colapsada - só o avatar e logout
           <div className="flex flex-col items-center gap-2">
