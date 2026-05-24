@@ -17,7 +17,9 @@ COPY src ./src
 
 RUN npx tsc && \
     find src -name "*.js" -exec sh -c 'mkdir -p dist/$(dirname ${1#src/}) && cp "$1" dist/${1#src/}' _ {} \; && \
-    mkdir -p dist/templates && cp -r src/templates/. dist/templates/ 2>/dev/null || true
+    mkdir -p dist/templates dist/migrations/data && \
+    (cp -r src/templates/. dist/templates/ || true) && \
+    (cp -r src/migrations/data/. dist/migrations/data/ || true)
 
 # ===================================
 # STAGE 2: Production
