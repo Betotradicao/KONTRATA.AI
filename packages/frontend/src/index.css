@@ -2,11 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Zoom global da Kontrata — interface compacta sem precisar Ctrl+- manual */
-html {
-  zoom: 0.9;
-}
-
 /* Custom checkbox styles for orange theme */
 input[type="checkbox"] {
   appearance: none;
