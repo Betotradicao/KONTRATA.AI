@@ -30,10 +30,12 @@ export class RhAsoController {
     }
   }
 
-  /** Estatisticas globais: total, validos, a vencer 30d, vencidos */
+  /** Estatisticas globais: total, validos, a vencer 30d, vencidos
+   *  Ciclo: o "ASO vigente" do colaborador eh o ultimo Periodico. Se nao houver
+   *  Periodico, usa o ultimo Admissional. Demissional/Retorno/Mudanca de funcao
+   *  sao eventos pontuais e nao definem vencimento. */
   static async stats(req: AuthRequest, res: Response) {
     try {
-      // Considera apenas o ASO MAIS RECENTE de cada colaborador (por tipo periodico) pro status
       const totalColabAtivos = await AppDataSource.query(`SELECT COUNT(*)::int AS n FROM rh_colaboradores WHERE status='ativo'`);
       const total = await AppDataSource.query(`SELECT COUNT(*)::int AS n FROM rh_asos`);
 
@@ -42,7 +44,10 @@ export class RhAsoController {
           a.id, a.colaborador_id, a.data_vencimento, a.resultado, a.tipo, a.data_exame
         FROM rh_asos a
         INNER JOIN rh_colaboradores c ON c.id = a.colaborador_id AND c.status='ativo'
-        ORDER BY a.colaborador_id, a.data_exame DESC
+        WHERE a.tipo IN ('admissional','periodico')
+        ORDER BY a.colaborador_id,
+                 CASE WHEN a.tipo='periodico' THEN 0 ELSE 1 END,
+                 a.data_exame DESC
       `);
 
       const hoje = new Date();
@@ -87,22 +92,36 @@ export class RhAsoController {
         params.push(companyId);
         whereExtra = ` AND c.company_id = $${params.length}`;
       }
+      // "vigente" = ultimo Periodico; se nao tem, ultimo Admissional.
+      // Demissional/Retorno/Mudanca nao entram no calculo do status (eventos pontuais).
+      // "counts" sao usados pra renderizar a trilha de fases na lista lateral.
       const rows = await AppDataSource.query(`
         SELECT c.id, c.nome, c.matricula, c.foto_url, c.status AS colab_status, c.company_id,
                ca.nome AS cargo_nome,
                COALESCE(comp.apelido, comp.nome_fantasia) AS empresa_nome,
                comp.cod_loja AS empresa_cod_loja,
-               ult.id AS aso_id, ult.data_exame, ult.data_vencimento, ult.tipo, ult.resultado
+               vig.id AS aso_id, vig.data_exame, vig.data_vencimento, vig.tipo, vig.resultado,
+               counts.cnt_admissional, counts.cnt_periodico, counts.cnt_demissional,
+               counts.cnt_retorno, counts.cnt_mudanca_funcao
         FROM rh_colaboradores c
         LEFT JOIN rh_cargos ca ON ca.id = c.cargo_id
         LEFT JOIN companies comp ON comp.id = c.company_id
         LEFT JOIN LATERAL (
           SELECT a.id, a.data_exame, a.data_vencimento, a.tipo, a.resultado
           FROM rh_asos a
-          WHERE a.colaborador_id = c.id
-          ORDER BY a.data_exame DESC
+          WHERE a.colaborador_id = c.id AND a.tipo IN ('admissional','periodico')
+          ORDER BY CASE WHEN a.tipo='periodico' THEN 0 ELSE 1 END, a.data_exame DESC
           LIMIT 1
-        ) ult ON true
+        ) vig ON true
+        LEFT JOIN LATERAL (
+          SELECT
+            SUM(CASE WHEN tipo='admissional' THEN 1 ELSE 0 END)::int AS cnt_admissional,
+            SUM(CASE WHEN tipo='periodico' THEN 1 ELSE 0 END)::int AS cnt_periodico,
+            SUM(CASE WHEN tipo='demissional' THEN 1 ELSE 0 END)::int AS cnt_demissional,
+            SUM(CASE WHEN tipo='retorno' THEN 1 ELSE 0 END)::int AS cnt_retorno,
+            SUM(CASE WHEN tipo='mudanca_funcao' THEN 1 ELSE 0 END)::int AS cnt_mudanca_funcao
+          FROM rh_asos WHERE colaborador_id = c.id
+        ) counts ON true
         WHERE c.status = 'ativo'${whereExtra}
         ORDER BY c.nome ASC
       `, params);

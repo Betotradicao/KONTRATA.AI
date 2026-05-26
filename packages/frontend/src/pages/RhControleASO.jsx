@@ -30,6 +30,37 @@ function classificarStatus(aso) {
   return { label: `Válido (${diff}d)`, color: 'emerald', dias: diff };
 }
 
+// Status com regra de CICLO: ASO antigo nao fica "vencido" indefinidamente.
+// - Periodico antigo (com outro Periodico mais recente) -> "Substituido" (cinza)
+// - Admissional com Periodico depois dele -> "Concluido" (cinza)
+// - Retorno / Mudanca de funcao / Demissional -> sempre "Realizado" (cinza, evento pontual)
+// - Caso contrario, classificacao normal por data_vencimento
+function classificarStatusCiclo(aso, todosAsos) {
+  if (!aso) return { label: 'Sem ASO', color: 'gray', dias: null };
+  if (aso.tipo === 'retorno' || aso.tipo === 'mudanca_funcao' || aso.tipo === 'demissional') {
+    return { label: 'Realizado', color: 'gray', dias: null };
+  }
+  if (aso.tipo === 'periodico') {
+    const maisRecentePeriodico = todosAsos
+      .filter(a => a.tipo === 'periodico')
+      .sort((a, b) => new Date(b.data_exame) - new Date(a.data_exame))[0];
+    if (maisRecentePeriodico && maisRecentePeriodico.id !== aso.id) {
+      return { label: 'Substituído', color: 'gray', dias: null };
+    }
+    return classificarStatus(aso);
+  }
+  if (aso.tipo === 'admissional') {
+    const houvePeriodicoDepois = todosAsos.some(a =>
+      a.tipo === 'periodico' && new Date(a.data_exame) >= new Date(aso.data_exame)
+    );
+    if (houvePeriodicoDepois) {
+      return { label: 'Concluído', color: 'gray', dias: null };
+    }
+    return classificarStatus(aso);
+  }
+  return classificarStatus(aso);
+}
+
 function fmtData(iso) {
   if (!iso) return '-';
   const d = new Date(iso);
@@ -262,6 +293,7 @@ export default function RhControleASO() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-gray-800 truncate">{c.nome}</div>
                       <div className="text-xs text-gray-500 truncate">{c.matricula || '-'} · {c.cargo_nome || 'Sem cargo'}</div>
+                      <FasesTrilha colab={c} />
                     </div>
                     <StatusPill status={st} />
                   </button>
@@ -361,13 +393,14 @@ export default function RhControleASO() {
                   ) : (
                     <div className="space-y-3">
                       {asosDoTipo.sort((a, b) => new Date(b.data_exame) - new Date(a.data_exame)).map(aso => {
-                        const st = classificarStatus(aso);
+                        const st = classificarStatusCiclo(aso, asos);
                         const res = RESULTADOS.find(r => r.key === aso.resultado);
                         return (
                           <div key={aso.id} className={`rounded-lg border-2 p-4 ${
                             st.color === 'red' ? 'border-red-200 bg-red-50/30' :
                             st.color === 'amber' ? 'border-amber-200 bg-amber-50/30' :
-                            'border-emerald-200 bg-emerald-50/30'
+                            st.color === 'emerald' ? 'border-emerald-200 bg-emerald-50/30' :
+                            'border-gray-200 bg-gray-50/40 opacity-80'
                           }`}>
                             <div className="flex items-start gap-3">
                               <div className="flex-1">
@@ -641,6 +674,32 @@ function StatCard({ emoji, label, value, color, active, onClick }) {
       </div>
       <div className={`w-1.5 ${colors[color] || 'bg-gray-400'}`} />
     </button>
+  );
+}
+
+// Trilha visual das fases do ciclo de ASO do colaborador.
+// Mostra um icone por tipo, com contador se for >1 (Periodico).
+// Cinza claro quando count=0, colorido quando >=1. Tooltip indica a fase.
+function FasesTrilha({ colab }) {
+  const fases = [
+    { key: 'admissional',    emoji: '🆕', count: colab.cnt_admissional    || 0, title: 'Admissional' },
+    { key: 'periodico',      emoji: '🔄', count: colab.cnt_periodico      || 0, title: 'Periódico' },
+    { key: 'mudanca_funcao', emoji: '🔀', count: colab.cnt_mudanca_funcao || 0, title: 'Mudança de função' },
+    { key: 'retorno',        emoji: '↩️', count: colab.cnt_retorno        || 0, title: 'Retorno ao trabalho' },
+    { key: 'demissional',    emoji: '🚪', count: colab.cnt_demissional    || 0, title: 'Demissional' },
+  ];
+  const algumaFase = fases.some(f => f.count > 0);
+  if (!algumaFase) return null;
+  return (
+    <div className="flex items-center gap-1 mt-1">
+      {fases.filter(f => f.count > 0).map(f => (
+        <span key={f.key} title={`${f.title} (${f.count})`}
+          className="inline-flex items-center text-[10px] bg-orange-50 border border-orange-200 text-orange-700 rounded-full px-1.5 py-0.5 font-semibold">
+          <span className="text-xs leading-none">{f.emoji}</span>
+          {f.count > 1 && <span className="ml-0.5">×{f.count}</span>}
+        </span>
+      ))}
+    </div>
   );
 }
 
