@@ -112,16 +112,64 @@ export function resetModulesCache() {
 }
 
 /**
+ * Mapeamento subitem -> modulo pai (do Sidebar).
+ * Se o pai estiver inativo, o sub TAMBEM e considerado inativo (mesmo
+ * que o JSON do banco tenha sub: true ainda). Evita bug onde rota usa
+ * moduleId do sub e libera acesso mesmo com pai desabilitado.
+ */
+const PARENT_OF = {
+  'rh-cadastro-geral':       'rh-colaboradores',
+  'rh-documentacao':         'rh-colaboradores',
+  'rh-saude':                'rh-colaboradores',
+  'rh-jornadas':             'rh-ponto',
+  'rh-ausencias':            'rh-ponto',
+  'rh-ferias':               'rh-ponto',
+  'rh-absenteismo':          'rh-ponto',
+  'rh-recrutador-ia':        'rh-recrutamento',
+  'rh-vagas':                'rh-recrutamento',
+  'rh-metodo-disc':          'rh-recrutamento',
+  'rh-curriculo-modelo':     'rh-recrutamento',
+  'rh-curriculo-banco':      'rh-recrutamento',
+  'rh-clima-analise':        'rh-pesquisa-clima',
+  'rh-clima-criar':          'rh-pesquisa-clima',
+  'rh-cadastro-treinamento': 'rh-treinamentos',
+  'rh-presenca':             'rh-treinamentos',
+  'rh-certificados':         'rh-treinamentos',
+  'rh-lancamentos':          'rh-financeiro',
+  'rh-folha':                'rh-financeiro',
+  'rh-escala-grid':          'rh-escala',
+  'rh-escala-eventos':       'rh-escala',
+};
+
+/**
  * Verifica se um modulo (rh-indicadores, rh-recrutamento, etc) esta ativo
  * pro cliente atual. Usa cache do localStorage pra resposta sincrona.
- * Master sempre tem acesso (caso queira chamar com user role).
+ *
+ * Considera HIERARQUIA: se modulo for um subitem (ex: rh-cadastro-geral)
+ * e o pai (rh-colaboradores) estiver inativo, retorna false mesmo que o
+ * sub esteja true no JSON.
+ *
+ * Master sempre tem acesso.
  */
 export function isModuleActive(moduleId, { isMaster = false } = {}) {
   if (isMaster) return true;
   const { config } = readCachedModulesConfig();
   if (!Array.isArray(config) || config.length === 0) return true; // default: todos ativos
+
+  // 1. Checa o proprio modulo
   const m = config.find(x => x.id === moduleId);
-  return m ? m.active !== false : true;
+  const selfActive = m ? m.active !== false : true;
+  if (!selfActive) return false;
+
+  // 2. Se for subitem, checa o pai
+  const parentId = PARENT_OF[moduleId];
+  if (parentId) {
+    const parent = config.find(x => x.id === parentId);
+    const parentActive = parent ? parent.active !== false : true;
+    if (!parentActive) return false;
+  }
+
+  return true;
 }
 
 /**

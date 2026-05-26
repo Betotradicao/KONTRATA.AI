@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { isModuleActive, findFirstAllowedPath, loadModulesConfig } from '../utils/modulesConfig';
+import { isModuleActive } from '../utils/modulesConfig';
 
 /**
  * Protege rota por:
@@ -42,46 +41,17 @@ export default function ProtectedRoute({ children, moduleId }) {
 }
 
 /**
- * Redireciona pra primeira rota permitida do usuario.
+ * Redireciona TODOS pra Configuracoes de RH (tela padrao acessivel a todos).
  * Usado em '/', '/dashboard', '*' (catch-all).
  *
- * IMPORTANTE: aguarda carregar modules_config do backend antes de decidir,
- * pra evitar redirect indevido em login fresh (quando localStorage vazio
- * fazia o sistema assumir "todos ativos" e mandar pra Indicadores).
+ * Decisao: simplificar — antes tentava achar "primeira tela permitida"
+ * dinamicamente, mas isso causava bugs com cache de localStorage + lentidao
+ * de fetch. Configuracoes de RH sempre esta liberada pra todos os usuarios
+ * (master e employees), entao serve como landing page neutra e previsivel.
  */
 export function RedirectToFirstAllowed() {
-  const { isAuthenticated, loading, user } = useAuth();
-  const [configReady, setConfigReady] = useState(false);
-  const [destination, setDestination] = useState(null);
-
-  useEffect(() => {
-    if (!isAuthenticated || loading) return;
-    let mounted = true;
-    (async () => {
-      // Forca recarregar do banco — nao confia em localStorage stale
-      await loadModulesConfig({ force: true }).catch(() => {});
-      if (!mounted) return;
-      const isMaster = user?.isMaster || user?.role === 'master';
-      setDestination(findFirstAllowedPath({ isMaster }));
-      setConfigReady(true);
-    })();
-    return () => { mounted = false; };
-  }, [isAuthenticated, loading, user]);
-
+  const { isAuthenticated, loading } = useAuth();
   if (loading) return null;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (!configReady) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex items-center space-x-3">
-          <svg className="animate-spin h-8 w-8 text-purple-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-          </svg>
-          <span className="text-lg text-gray-600">Carregando suas permissões...</span>
-        </div>
-      </div>
-    );
-  }
-  return <Navigate to={destination || '/perfil'} replace />;
+  return <Navigate to="/rh/configuracoes" replace />;
 }
