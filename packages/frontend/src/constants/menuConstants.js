@@ -26,25 +26,25 @@ export const MENU_SUBMENUS = {
   RH_ADMISSOES: 'rh-admissoes',
   RH_DESLIGAMENTOS: 'rh-desligamentos',
   RH_RESULTADOS: 'rh-resultados',
-  RH_CURRICULOS: 'rh-curriculos',
-  RH_MODELO_CURRICULO: 'rh-modelo-curriculo',
+  RH_CURRICULOS: 'rh-curriculo-banco',
+  RH_MODELO_CURRICULO: 'rh-curriculo-modelo',
 
   // Ponto e Ausencias
   RH_AUSENCIAS: 'rh-ausencias',
-  RH_ASO: 'rh-aso',
+  RH_ASO: 'rh-saude',
 
   // Recrutamento
   RH_VAGAS: 'rh-vagas',
-  RH_RECRUTADOR_IA: 'rh-recrutador',
+  RH_RECRUTADOR_IA: 'rh-recrutador-ia',
   RH_METODO_DISC: 'rh-metodo-disc',
   RH_METODO_DISC_RESULTADOS: 'rh-metodo-disc-resultados',
 
   // Pesquisa de Clima
-  RH_PESQUISA_CLIMA_CRIAR: 'rh-pesquisa-clima-criar',
-  RH_PESQUISA_CLIMA_ANALISE: 'rh-pesquisa-clima-analise',
+  RH_PESQUISA_CLIMA_CRIAR: 'rh-clima-criar',
+  RH_PESQUISA_CLIMA_ANALISE: 'rh-clima-analise',
 
   // Treinamentos
-  RH_TREINAMENTOS_LISTA: 'rh-treinamentos-lista',
+  RH_TREINAMENTOS_LISTA: 'rh-cadastro-treinamento',
 
   // Financeiro
   RH_LANCAMENTOS: 'rh-lancamentos',
