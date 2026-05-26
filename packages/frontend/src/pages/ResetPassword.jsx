@@ -40,13 +40,23 @@ export default function ResetPassword() {
     }
   };
 
+  // Regras de senha forte
+  const rules = [
+    { id: 'len',   label: 'Pelo menos 8 caracteres',          test: (p) => p.length >= 8 },
+    { id: 'upper', label: '1 letra maiúscula (A-Z)',           test: (p) => /[A-Z]/.test(p) },
+    { id: 'lower', label: '1 letra minúscula (a-z)',           test: (p) => /[a-z]/.test(p) },
+    { id: 'num',   label: '1 número (0-9)',                    test: (p) => /[0-9]/.test(p) },
+    { id: 'spec',  label: '1 caractere especial (!@#$%&*…)',   test: (p) => /[!@#$%^&*(),.?":{}|<>_\-+=\/\\[\]~`'`]/.test(p) },
+  ];
+  const allRulesOk = rules.every(r => r.test(newPassword));
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     // Validações
-    if (newPassword.length < 6) {
-      setError('A senha deve ter no mínimo 6 caracteres');
+    if (!allRulesOk) {
+      setError('A senha não atende todos os requisitos abaixo');
       return;
     }
 
@@ -117,7 +127,7 @@ export default function ResetPassword() {
               <div className="mt-6">
                 <Link
                   to="/login"
-                  className="text-orange-600 hover:text-orange-700 font-medium"
+                  className="text-purple-700 hover:text-purple-800 font-medium"
                 >
                   Ir para o login agora →
                 </Link>
@@ -153,7 +163,7 @@ export default function ResetPassword() {
               <div className="space-y-3">
                 <Link
                   to="/forgot-password"
-                  className="block w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                  className="block w-full bg-purple-700 text-white py-3 px-4 rounded-lg hover:bg-purple-800 transition-colors font-medium"
                 >
                   Solicitar Novo Link
                 </Link>
@@ -219,8 +229,8 @@ export default function ResetPassword() {
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
-                  placeholder="Mínimo 6 caracteres"
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                  placeholder="Digite sua nova senha"
                 />
                 <button
                   type="button"
@@ -239,9 +249,20 @@ export default function ResetPassword() {
                   )}
                 </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Mínimo de 6 caracteres
-              </p>
+              {/* Checklist de requisitos de senha forte */}
+              <ul className="mt-2 space-y-1">
+                {rules.map(r => {
+                  const ok = r.test(newPassword);
+                  return (
+                    <li key={r.id} className={`text-xs flex items-center gap-2 ${ok ? 'text-emerald-600' : 'text-gray-500'}`}>
+                      <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${ok ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                        {ok ? '✓' : '○'}
+                      </span>
+                      {r.label}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
 
             <div>
@@ -255,15 +276,18 @@ export default function ResetPassword() {
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                 placeholder="Digite a senha novamente"
               />
+              {confirmPassword && confirmPassword !== newPassword && (
+                <p className="mt-1 text-xs text-red-600">As senhas não coincidem</p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors font-medium disabled:opacity-50"
+              disabled={loading || !allRulesOk || newPassword !== confirmPassword}
+              className="w-full bg-purple-700 text-white py-3 px-4 rounded-lg hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-700 focus:ring-offset-2 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Redefinindo...' : 'Redefinir Senha'}
             </button>
@@ -273,7 +297,7 @@ export default function ResetPassword() {
           <div className="mt-6 text-center">
             <Link
               to="/login"
-              className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+              className="text-sm text-purple-700 hover:text-purple-800 font-medium"
             >
               ← Voltar para o login
             </Link>

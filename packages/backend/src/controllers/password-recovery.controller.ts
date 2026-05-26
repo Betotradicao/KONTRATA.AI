@@ -166,8 +166,17 @@ export class PasswordRecoveryController {
         return res.status(400).json({ error: 'Token e nova senha são obrigatórios' });
       }
 
-      if (newPassword.length < 6) {
-        return res.status(400).json({ error: 'A senha deve ter no mínimo 6 caracteres' });
+      // Validacao de senha forte: 8+ chars, maiuscula, minuscula, numero, especial
+      const validations = [
+        { ok: newPassword.length >= 8,           msg: 'A senha deve ter pelo menos 8 caracteres' },
+        { ok: /[A-Z]/.test(newPassword),          msg: 'A senha deve ter pelo menos 1 letra maiúscula' },
+        { ok: /[a-z]/.test(newPassword),          msg: 'A senha deve ter pelo menos 1 letra minúscula' },
+        { ok: /[0-9]/.test(newPassword),          msg: 'A senha deve ter pelo menos 1 número' },
+        { ok: /[!@#$%^&*(),.?":{}|<>_\-+=\/\\\[\]~`']/.test(newPassword), msg: 'A senha deve ter pelo menos 1 caractere especial' },
+      ];
+      const failed = validations.find(v => !v.ok);
+      if (failed) {
+        return res.status(400).json({ error: failed.msg });
       }
 
       const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
