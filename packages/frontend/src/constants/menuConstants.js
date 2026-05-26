@@ -78,8 +78,6 @@ export const MENU_STRUCTURE = [
       { id: MENU_SUBMENUS.RH_DOCUMENTACAO, title: 'Documentação', path: '/rh/documentacao' },
       { id: MENU_SUBMENUS.RH_ADMISSOES, title: 'Admissões', path: '/rh/admissoes' },
       { id: MENU_SUBMENUS.RH_DESLIGAMENTOS, title: 'Desligamentos', path: '/rh/desligamentos' },
-      { id: MENU_SUBMENUS.RH_CURRICULOS, title: 'Banco de Currículos', path: '/rh/curriculos' },
-      { id: MENU_SUBMENUS.RH_MODELO_CURRICULO, title: 'Modelo de Currículo', path: '/rh/modelo-curriculo' },
     ],
   },
   {
@@ -98,10 +96,11 @@ export const MENU_STRUCTURE = [
     icon: 'briefcase',
     section: 'rh',
     submenus: [
+      { id: MENU_SUBMENUS.RH_RECRUTADOR_IA, title: 'Recrutador(a) Inteligente', path: '/rh/recrutador/vagas' },
       { id: MENU_SUBMENUS.RH_VAGAS, title: 'Vagas Abertas', path: '/rh/vagas' },
-      { id: MENU_SUBMENUS.RH_RECRUTADOR_IA, title: 'Recrutador(a) Digital', path: '/rh/recrutador' },
       { id: MENU_SUBMENUS.RH_METODO_DISC, title: 'Método DISC', path: '/rh/metodo-disc' },
-      { id: MENU_SUBMENUS.RH_METODO_DISC_RESULTADOS, title: 'Resultados DISC', path: '/rh/metodo-disc/resultados' },
+      { id: MENU_SUBMENUS.RH_MODELO_CURRICULO, title: 'Modelo de Currículo', path: '/rh/modelo-curriculo' },
+      { id: MENU_SUBMENUS.RH_CURRICULOS, title: 'Banco de Currículos', path: '/rh/curriculos' },
     ],
   },
   {
