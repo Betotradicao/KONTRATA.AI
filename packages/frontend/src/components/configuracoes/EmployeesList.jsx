@@ -49,6 +49,9 @@ export default function EmployeesList({ employees, onEdit, onToggle, onDelete, p
                 Apelido
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Email
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Código de Barras
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -102,6 +105,9 @@ export default function EmployeesList({ employees, onEdit, onToggle, onDelete, p
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {getApelidoLoja(employee.cod_loja)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {employee.email_recuperacao || <span className="text-gray-300 italic">—</span>}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
                   {employee.barcode}

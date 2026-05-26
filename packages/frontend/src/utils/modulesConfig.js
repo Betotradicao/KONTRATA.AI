@@ -110,3 +110,42 @@ export function resetModulesCache() {
   _memoryCache = null;
   _loadPromise = null;
 }
+
+/**
+ * Verifica se um modulo (rh-indicadores, rh-recrutamento, etc) esta ativo
+ * pro cliente atual. Usa cache do localStorage pra resposta sincrona.
+ * Master sempre tem acesso (caso queira chamar com user role).
+ */
+export function isModuleActive(moduleId, { isMaster = false } = {}) {
+  if (isMaster) return true;
+  const { config } = readCachedModulesConfig();
+  if (!Array.isArray(config) || config.length === 0) return true; // default: todos ativos
+  const m = config.find(x => x.id === moduleId);
+  return m ? m.active !== false : true;
+}
+
+/**
+ * Lista ordenada de rotas e o moduleId que governa cada uma.
+ * Usado pra decidir a "primeira tela permitida" no redirect raiz.
+ * Ordem = prioridade (primeiro item ativo = destino).
+ */
+const ROUTE_MODULE_MAP = [
+  { path: '/rh/indicadores', moduleId: 'rh-indicadores' },
+  { path: '/rh/cadastro', moduleId: 'rh-colaboradores' },
+  { path: '/rh/ausencias', moduleId: 'rh-ponto' },
+  { path: '/rh/recrutador/vagas', moduleId: 'rh-recrutamento' },
+  { path: '/rh/pesquisa-clima/analise', moduleId: 'rh-pesquisa-clima' },
+  { path: '/rh/treinamentos', moduleId: 'rh-treinamentos' },
+  { path: '/rh/lancamentos', moduleId: 'rh-financeiro' },
+  { path: '/rh/escala', moduleId: 'rh-escala' },
+  { path: '/rh/departamento-pessoal', moduleId: 'rh-dp' },
+];
+
+/** Retorna a primeira rota permitida pro usuario, ou '/perfil' como fallback. */
+export function findFirstAllowedPath({ isMaster = false } = {}) {
+  if (isMaster) return '/rh/indicadores';
+  for (const r of ROUTE_MODULE_MAP) {
+    if (isModuleActive(r.moduleId)) return r.path;
+  }
+  return '/perfil';
+}

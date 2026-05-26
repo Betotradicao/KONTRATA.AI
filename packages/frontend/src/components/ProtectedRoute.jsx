@@ -1,8 +1,17 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { isModuleActive, findFirstAllowedPath } from '../utils/modulesConfig';
 
-export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+/**
+ * Protege rota por:
+ *   1. Autenticacao (sempre)
+ *   2. Modulo ativo (opcional, via prop moduleId)
+ *
+ * Se modulo nao esta ativo pro cliente, redireciona pra primeira tela permitida.
+ * Master sempre passa.
+ */
+export default function ProtectedRoute({ children, moduleId }) {
+  const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -22,5 +31,23 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
+  // Verifica autorizacao por modulo (se moduleId foi passado)
+  const isMaster = user?.isMaster || user?.role === 'master';
+  if (moduleId && !isModuleActive(moduleId, { isMaster })) {
+    return <Navigate to={findFirstAllowedPath({ isMaster })} replace />;
+  }
+
   return children;
+}
+
+/**
+ * Redireciona pra primeira rota permitida do usuario.
+ * Usado em '/', '/dashboard', '*' (catch-all).
+ */
+export function RedirectToFirstAllowed() {
+  const { isAuthenticated, loading, user } = useAuth();
+  if (loading) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const isMaster = user?.isMaster || user?.role === 'master';
+  return <Navigate to={findFirstAllowedPath({ isMaster })} replace />;
 }
