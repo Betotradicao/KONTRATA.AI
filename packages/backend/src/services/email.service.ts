@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { AppDataSource } from '../config/database';
 
 interface SendEmailOptions {
   to: string;
@@ -9,67 +10,96 @@ interface SendEmailOptions {
 
 class EmailService {
   private transporter: nodemailer.Transporter | null = null;
+  private fromEmail: string | null = null;
 
   constructor() {
-    this.initializeTransporter();
+    // Inicializa com fallback no .env. Sera re-inicializado quando alguem
+    // chamar reinitialize() apos salvar credenciais no banco.
+    this.initializeTransporter().catch(() => {});
   }
 
-  private initializeTransporter() {
-    // Verificar se as credenciais de email estão configuradas
-    const emailUser = process.env.EMAIL_USER;
-    const emailPass = process.env.EMAIL_PASS;
+  /** Le credenciais do banco (tabela configurations) com fallback .env */
+  private async loadCredentials(): Promise<{ user: string; pass: string } | null> {
+    let user = process.env.EMAIL_USER || '';
+    let pass = process.env.EMAIL_PASS || '';
 
-    if (!emailUser || !emailPass) {
-      console.warn('⚠️ Email não configurado. Defina EMAIL_USER e EMAIL_PASS no arquivo .env');
+    // Tenta sobrescrever com config do banco
+    try {
+      if (AppDataSource.isInitialized) {
+        const rows = await AppDataSource.query(
+          `SELECT key, value FROM configurations WHERE key IN ('email_user', 'email_pass')`
+        );
+        for (const r of rows) {
+          if (r.key === 'email_user' && r.value) user = r.value;
+          if (r.key === 'email_pass' && r.value) pass = r.value;
+        }
+      }
+    } catch (err: any) {
+      console.warn('[email.service] erro lendo credenciais do banco:', err?.message);
+    }
+
+    if (!user || !pass) return null;
+    return { user, pass };
+  }
+
+  /** Inicializa/reinicializa o transporter. Pode ser chamado em runtime apos salvar email. */
+  async initializeTransporter(): Promise<void> {
+    const creds = await this.loadCredentials();
+
+    if (!creds) {
+      console.warn('⚠️ Email não configurado (sem EMAIL_USER/EMAIL_PASS no .env nem em configurations)');
+      this.transporter = null;
+      this.fromEmail = null;
       return;
     }
 
+    this.fromEmail = creds.user;
+
     try {
-      // Detecta se é Gmail ou Yahoo baseado no domínio do email
-      const isGmail = emailUser.includes('@gmail.com');
-      const isYahoo = emailUser.includes('@yahoo.com');
+      const isGmail = creds.user.includes('@gmail.com');
+      const isYahoo = creds.user.includes('@yahoo.com');
 
       if (isGmail) {
-        // Configuração para Gmail
         this.transporter = nodemailer.createTransport({
           service: 'gmail',
-          auth: {
-            user: emailUser,
-            pass: emailPass
-          }
+          auth: { user: creds.user, pass: creds.pass }
         });
-        console.log('✅ Serviço de email inicializado (Gmail)');
+        console.log(`✅ Email service initialized (Gmail): ${creds.user}`);
       } else if (isYahoo) {
-        // Configuração para Yahoo
         this.transporter = nodemailer.createTransport({
           host: 'smtp.mail.yahoo.com',
           port: 465,
           secure: true,
-          auth: {
-            user: emailUser,
-            pass: emailPass
-          }
+          auth: { user: creds.user, pass: creds.pass }
         });
-        console.log('✅ Serviço de email inicializado (Yahoo)');
+        console.log(`✅ Email service initialized (Yahoo): ${creds.user}`);
       } else {
-        // Configuração genérica SMTP (pode configurar manualmente no .env)
         this.transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST || 'smtp.gmail.com',
           port: parseInt(process.env.SMTP_PORT || '587'),
           secure: process.env.SMTP_SECURE === 'true',
-          auth: {
-            user: emailUser,
-            pass: emailPass
-          }
+          auth: { user: creds.user, pass: creds.pass }
         });
-        console.log('✅ Serviço de email inicializado (SMTP customizado)');
+        console.log(`✅ Email service initialized (SMTP custom): ${creds.user}`);
       }
     } catch (error) {
       console.error('❌ Erro ao inicializar serviço de email:', error);
+      this.transporter = null;
     }
   }
 
+  /** Atalho publico pro controller chamar apos salvar email no banco */
+  async reinitialize(): Promise<void> {
+    await this.initializeTransporter();
+  }
+
   async sendEmail(options: SendEmailOptions): Promise<boolean> {
+    // Se transporter caiu / nao foi inicializado, tenta reinicializar uma vez
+    if (!this.transporter) {
+      console.warn('⚠️ Transporter null, tentando reinicializar do banco...');
+      await this.initializeTransporter();
+    }
+
     if (!this.transporter) {
       console.error('❌ Transporter de email não está configurado');
       return false;
@@ -77,7 +107,7 @@ class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: `"Kontrata.ai" <${process.env.EMAIL_USER}>`,
+        from: `"Kontrata.ai" <${this.fromEmail || process.env.EMAIL_USER}>`,
         to: options.to,
         subject: options.subject,
         text: options.text || '',

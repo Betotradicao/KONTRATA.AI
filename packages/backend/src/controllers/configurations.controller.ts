@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { Configuration } from '../entities/Configuration';
 import { ConfigurationService } from '../services/configuration.service';
+import { emailService } from '../services/email.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -211,6 +212,13 @@ export class ConfigurationsController {
       await this.updateEnvFile(email_user, email_pass);
 
       console.log(`✅ Configurações de email atualizadas: ${email_user}`);
+
+      // Reinicializa o emailService com as novas credenciais (sem precisar reiniciar backend)
+      try {
+        await emailService.reinitialize();
+      } catch (err: any) {
+        console.warn('[configurations] erro ao reinicializar emailService:', err?.message);
+      }
 
       return res.json({
         message: 'Configurações de email atualizadas com sucesso',
