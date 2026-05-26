@@ -99,8 +99,17 @@ export default function PesquisaClimaAnalise() {
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
-          <h1 className="text-2xl font-bold">📊 Análise de Pesquisas</h1>
-          <p className="text-purple-100 text-sm">Acompanhe rodadas, evolução temporal e dashboards comparativos.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">📊 Análise de Pesquisas</h1>
+              <p className="text-purple-100 text-sm">Acompanhe rodadas, evolução temporal e dashboards comparativos.</p>
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-purple-700">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-4 md:p-6">

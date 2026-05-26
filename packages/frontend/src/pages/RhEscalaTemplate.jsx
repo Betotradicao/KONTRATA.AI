@@ -104,7 +104,12 @@ export default function RhEscalaTemplate() {
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4 flex items-center gap-4">
-          <button onClick={() => navigate('/rh/escala')} className="bg-white/20 hover:bg-white/30 rounded px-2 py-1 text-sm">← Voltar</button>
+          <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-purple-700 shrink-0">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <button onClick={() => navigate('/rh/escala')} className="bg-white/20 hover:bg-white/30 rounded px-2 py-1 text-sm shrink-0">← Voltar</button>
           <div>
             <h1 className="text-2xl font-bold">Template Semanal</h1>
             <p className="text-orange-100 text-sm">

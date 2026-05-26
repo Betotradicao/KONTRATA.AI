@@ -79,6 +79,11 @@ export default function RhRecrutadorIA() {
       <main className="flex-1 p-6">
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl p-6 mb-6 text-white">
           <div className="flex items-center gap-3">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-purple-700 shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             <span className="text-4xl">🤖</span>
             <div>
               <h1 className="text-2xl font-bold">Entrevistador Digital</h1>
