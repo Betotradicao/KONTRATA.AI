@@ -77,46 +77,46 @@ function App() {
               <Route path="/rh/indicadores" element={<ProtectedRoute moduleId="rh-indicadores"><RhIndicadores /></ProtectedRoute>} />
               <Route path="/rh/dashboard" element={<ProtectedRoute moduleId="rh-indicadores"><RhDashboard /></ProtectedRoute>} />
 
-              {/* RH — Colaboradores */}
-              <Route path="/rh/cadastro" element={<ProtectedRoute moduleId="rh-colaboradores"><RhCadastroGeral /></ProtectedRoute>} />
-              <Route path="/rh/resultados" element={<ProtectedRoute moduleId="rh-colaboradores"><RhResultados /></ProtectedRoute>} />
-              <Route path="/rh/admissoes" element={<ProtectedRoute moduleId="rh-colaboradores"><RhAdmissoes /></ProtectedRoute>} />
-              <Route path="/rh/desligamentos" element={<ProtectedRoute moduleId="rh-colaboradores"><RhDesligamentos /></ProtectedRoute>} />
-              <Route path="/rh/documentacao" element={<ProtectedRoute moduleId="rh-colaboradores"><RhDocumentacao /></ProtectedRoute>} />
+              {/* RH — Colaboradores (cada submenu tem moduleId proprio) */}
+              <Route path="/rh/cadastro" element={<ProtectedRoute moduleId="rh-cadastro-geral"><RhCadastroGeral /></ProtectedRoute>} />
+              <Route path="/rh/resultados" element={<ProtectedRoute moduleId="rh-cadastro-geral"><RhResultados /></ProtectedRoute>} />
+              <Route path="/rh/admissoes" element={<ProtectedRoute moduleId="rh-cadastro-geral"><RhAdmissoes /></ProtectedRoute>} />
+              <Route path="/rh/desligamentos" element={<ProtectedRoute moduleId="rh-cadastro-geral"><RhDesligamentos /></ProtectedRoute>} />
+              <Route path="/rh/documentacao" element={<ProtectedRoute moduleId="rh-documentacao"><RhDocumentacao /></ProtectedRoute>} />
 
               {/* RH — Ponto e Ausencias */}
-              <Route path="/rh/ausencias" element={<ProtectedRoute moduleId="rh-ponto"><RhAusencias /></ProtectedRoute>} />
-              <Route path="/rh/aso" element={<ProtectedRoute moduleId="rh-colaboradores"><RhControleASO /></ProtectedRoute>} />
+              <Route path="/rh/ausencias" element={<ProtectedRoute moduleId="rh-ausencias"><RhAusencias /></ProtectedRoute>} />
+              <Route path="/rh/aso" element={<ProtectedRoute moduleId="rh-saude"><RhControleASO /></ProtectedRoute>} />
 
-              {/* RH — Curriculos / Recrutamento */}
-              <Route path="/rh/curriculos" element={<ProtectedRoute moduleId="rh-recrutamento"><BancoCurriculos /></ProtectedRoute>} />
-              <Route path="/rh/modelo-curriculo" element={<ProtectedRoute moduleId="rh-recrutamento"><ModeloCurriculo /></ProtectedRoute>} />
-              <Route path="/rh/vagas" element={<ProtectedRoute moduleId="rh-recrutamento"><RhVagas /></ProtectedRoute>} />
-              <Route path="/rh/recrutador" element={<ProtectedRoute moduleId="rh-recrutamento"><RhRecrutadorIA /></ProtectedRoute>} />
-              <Route path="/rh/recrutador/:tab" element={<ProtectedRoute moduleId="rh-recrutamento"><RhRecrutadorIA /></ProtectedRoute>} />
+              {/* RH — Curriculos / Recrutamento (cada subitem tem moduleId especifico) */}
+              <Route path="/rh/curriculos" element={<ProtectedRoute moduleId="rh-curriculo-banco"><BancoCurriculos /></ProtectedRoute>} />
+              <Route path="/rh/modelo-curriculo" element={<ProtectedRoute moduleId="rh-curriculo-modelo"><ModeloCurriculo /></ProtectedRoute>} />
+              <Route path="/rh/vagas" element={<ProtectedRoute moduleId="rh-vagas"><RhVagas /></ProtectedRoute>} />
+              <Route path="/rh/recrutador" element={<ProtectedRoute moduleId="rh-recrutador-ia"><RhRecrutadorIA /></ProtectedRoute>} />
+              <Route path="/rh/recrutador/:tab" element={<ProtectedRoute moduleId="rh-recrutador-ia"><RhRecrutadorIA /></ProtectedRoute>} />
 
               {/* RH — Pesquisa de Clima */}
-              <Route path="/rh/pesquisa-clima/criar" element={<ProtectedRoute moduleId="rh-pesquisa-clima"><PesquisaClimaCriar /></ProtectedRoute>} />
-              <Route path="/rh/pesquisa-clima/analise" element={<ProtectedRoute moduleId="rh-pesquisa-clima"><PesquisaClimaAnalise /></ProtectedRoute>} />
+              <Route path="/rh/pesquisa-clima/criar" element={<ProtectedRoute moduleId="rh-clima-criar"><PesquisaClimaCriar /></ProtectedRoute>} />
+              <Route path="/rh/pesquisa-clima/analise" element={<ProtectedRoute moduleId="rh-clima-analise"><PesquisaClimaAnalise /></ProtectedRoute>} />
 
               {/* RH — Treinamentos */}
-              <Route path="/rh/treinamentos" element={<ProtectedRoute moduleId="rh-treinamentos"><RhTreinamentos /></ProtectedRoute>} />
+              <Route path="/rh/treinamentos" element={<ProtectedRoute moduleId="rh-cadastro-treinamento"><RhTreinamentos /></ProtectedRoute>} />
 
               {/* RH — Financeiro */}
-              <Route path="/rh/lancamentos" element={<ProtectedRoute moduleId="rh-financeiro"><RhLancamentos /></ProtectedRoute>} />
-              <Route path="/rh/folha" element={<ProtectedRoute moduleId="rh-financeiro"><RhFolhaPagamento /></ProtectedRoute>} />
+              <Route path="/rh/lancamentos" element={<ProtectedRoute moduleId="rh-lancamentos"><RhLancamentos /></ProtectedRoute>} />
+              <Route path="/rh/folha" element={<ProtectedRoute moduleId="rh-folha"><RhFolhaPagamento /></ProtectedRoute>} />
 
               {/* RH — Escala de Trabalho */}
-              <Route path="/rh/escala" element={<ProtectedRoute moduleId="rh-escala"><RhEscala /></ProtectedRoute>} />
-              <Route path="/rh/escala/template" element={<ProtectedRoute moduleId="rh-escala"><RhEscalaTemplate /></ProtectedRoute>} />
-              <Route path="/rh/escala/eventos" element={<ProtectedRoute moduleId="rh-escala"><RhEscalaEventos /></ProtectedRoute>} />
+              <Route path="/rh/escala" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscala /></ProtectedRoute>} />
+              <Route path="/rh/escala/template" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscalaTemplate /></ProtectedRoute>} />
+              <Route path="/rh/escala/eventos" element={<ProtectedRoute moduleId="rh-escala-eventos"><RhEscalaEventos /></ProtectedRoute>} />
 
               {/* RH — Departamento Pessoal */}
               <Route path="/rh/departamento-pessoal" element={<ProtectedRoute moduleId="rh-dp"><RhDepartamentoPessoal /></ProtectedRoute>} />
 
-              {/* RH — Metodo DISC (parte de Recrutamento) */}
-              <Route path="/rh/metodo-disc" element={<ProtectedRoute moduleId="rh-recrutamento"><RhMetodoDisc /></ProtectedRoute>} />
-              <Route path="/rh/metodo-disc/resultados" element={<ProtectedRoute moduleId="rh-recrutamento"><RhMetodoDiscResultados /></ProtectedRoute>} />
+              {/* RH — Metodo DISC (parte de Recrutamento, subitem proprio) */}
+              <Route path="/rh/metodo-disc" element={<ProtectedRoute moduleId="rh-metodo-disc"><RhMetodoDisc /></ProtectedRoute>} />
+              <Route path="/rh/metodo-disc/resultados" element={<ProtectedRoute moduleId="rh-metodo-disc"><RhMetodoDiscResultados /></ProtectedRoute>} />
 
               {/* RH — Configuracoes */}
               <Route path="/rh/configuracoes" element={<ProtectedRoute><RhConfiguracoes /></ProtectedRoute>} />

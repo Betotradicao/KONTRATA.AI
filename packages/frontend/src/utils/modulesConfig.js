@@ -130,15 +130,24 @@ export function isModuleActive(moduleId, { isMaster = false } = {}) {
  * Ordem = prioridade (primeiro item ativo = destino).
  */
 const ROUTE_MODULE_MAP = [
-  { path: '/rh/indicadores', moduleId: 'rh-indicadores' },
-  { path: '/rh/cadastro', moduleId: 'rh-colaboradores' },
-  { path: '/rh/ausencias', moduleId: 'rh-ponto' },
-  { path: '/rh/recrutador/vagas', moduleId: 'rh-recrutamento' },
-  { path: '/rh/pesquisa-clima/analise', moduleId: 'rh-pesquisa-clima' },
-  { path: '/rh/treinamentos', moduleId: 'rh-treinamentos' },
-  { path: '/rh/lancamentos', moduleId: 'rh-financeiro' },
-  { path: '/rh/escala', moduleId: 'rh-escala' },
-  { path: '/rh/departamento-pessoal', moduleId: 'rh-dp' },
+  { path: '/rh/indicadores',           moduleId: 'rh-indicadores' },
+  { path: '/rh/cadastro',              moduleId: 'rh-cadastro-geral' },
+  { path: '/rh/documentacao',          moduleId: 'rh-documentacao' },
+  { path: '/rh/aso',                   moduleId: 'rh-saude' },
+  { path: '/rh/ausencias',             moduleId: 'rh-ausencias' },
+  { path: '/rh/vagas',                 moduleId: 'rh-vagas' },
+  { path: '/rh/recrutador/vagas',      moduleId: 'rh-recrutador-ia' },
+  { path: '/rh/modelo-curriculo',      moduleId: 'rh-curriculo-modelo' },
+  { path: '/rh/curriculos',            moduleId: 'rh-curriculo-banco' },
+  { path: '/rh/metodo-disc',           moduleId: 'rh-metodo-disc' },
+  { path: '/rh/pesquisa-clima/analise',moduleId: 'rh-clima-analise' },
+  { path: '/rh/pesquisa-clima/criar',  moduleId: 'rh-clima-criar' },
+  { path: '/rh/treinamentos',          moduleId: 'rh-cadastro-treinamento' },
+  { path: '/rh/lancamentos',           moduleId: 'rh-lancamentos' },
+  { path: '/rh/folha',                 moduleId: 'rh-folha' },
+  { path: '/rh/escala',                moduleId: 'rh-escala-grid' },
+  { path: '/rh/escala/eventos',        moduleId: 'rh-escala-eventos' },
+  { path: '/rh/departamento-pessoal',  moduleId: 'rh-dp' },
 ];
 
 /** Retorna a primeira rota permitida pro usuario, ou '/perfil' como fallback. */
