@@ -139,7 +139,7 @@ class EmailService {
             padding: 20px;
           }
           .header {
-            background-color: #ea580c;
+            background-color: #6B21A8;
             color: white;
             padding: 20px;
             text-align: center;
@@ -153,7 +153,7 @@ class EmailService {
           .button {
             display: inline-block;
             padding: 12px 30px;
-            background-color: #ea580c;
+            background-color: #6B21A8;
             color: white;
             text-decoration: none;
             border-radius: 5px;
