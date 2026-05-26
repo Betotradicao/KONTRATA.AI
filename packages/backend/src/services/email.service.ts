@@ -140,10 +140,14 @@ class EmailService {
           }
           .header {
             background-color: #7E22CE;
-            color: white;
             padding: 20px;
             text-align: center;
             border-radius: 5px 5px 0 0;
+          }
+          .header h1 {
+            color: #FFD60A;
+            margin: 0;
+            font-weight: bold;
           }
           .content {
             background-color: #f9f9f9;
@@ -153,11 +157,12 @@ class EmailService {
           .button {
             display: inline-block;
             padding: 12px 30px;
-            background-color: #7E22CE;
-            color: white;
+            background-color: #7E22CE !important;
+            color: #ffffff !important;
             text-decoration: none;
             border-radius: 5px;
             margin: 20px 0;
+            font-weight: bold;
           }
           .footer {
             text-align: center;
@@ -178,7 +183,7 @@ class EmailService {
             <p>Você solicitou a recuperação de senha para sua conta no sistema Kontrata.ai.</p>
             <p>Clique no botão abaixo para redefinir sua senha:</p>
             <p style="text-align: center;">
-              <a href="${resetUrl}" class="button">Redefinir Senha</a>
+              <a href="${resetUrl}" class="button" style="background-color:#7E22CE;color:#ffffff;display:inline-block;padding:12px 30px;text-decoration:none;border-radius:5px;font-weight:bold;">Redefinir Senha</a>
             </p>
             <p>Ou copie e cole este link no seu navegador:</p>
             <p style="word-break: break-all; background-color: #eee; padding: 10px; border-radius: 3px;">
