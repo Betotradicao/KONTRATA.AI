@@ -31,8 +31,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       // Limpar TUDO antes de fazer novo login (evita dados de usuário anterior)
+      // Inclui modules_config e modules_visibility_mode pra nao vazar
+      // permissoes do usuario anterior pro novo (bug: BETO via menu de master)
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('modules_config');
+      localStorage.removeItem('modules_visibility_mode');
 
       const response = await api.post('/auth/login', { email, password });
       const { token: newToken, user: userData } = response.data;
@@ -57,6 +61,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Limpa cache de modulos tambem pra nao vazar permissoes pro proximo user
+    localStorage.removeItem('modules_config');
+    localStorage.removeItem('modules_visibility_mode');
   };
 
   const updateUser = (updatedData) => {
