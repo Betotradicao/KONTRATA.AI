@@ -19,6 +19,15 @@ router.put('/modelos/:id', PesquisaClimaController.atualizarModelo);
 router.delete('/modelos/:id', PesquisaClimaController.deletarModelo);
 router.put('/modelos/:id/perguntas', PesquisaClimaController.salvarPerguntas);
 router.get('/modelos/:id/comparativo', PesquisaClimaController.comparativoEvolucao);
+router.get('/nr1/diagnostico/:modeloId', PesquisaClimaController.diagnosticoNr1);
+
+// NR-1 — Sugestoes e Planos de acao
+import { Nr1Controller } from '../controllers/nr1.controller';
+router.get('/nr1/sugestoes',        Nr1Controller.listarSugestoes);
+router.get('/nr1/planos',           Nr1Controller.listarPlanos);
+router.post('/nr1/planos',          Nr1Controller.criarPlano);
+router.put('/nr1/planos/:id',       Nr1Controller.atualizarPlano);
+router.delete('/nr1/planos/:id',    Nr1Controller.deletarPlano);
 
 // Rodadas
 router.get('/rodadas', PesquisaClimaController.listarRodadas);

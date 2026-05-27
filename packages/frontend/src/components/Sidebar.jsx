@@ -407,6 +407,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           icon: (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>),
           expandable: true,
           subItems: [
+            { id: 'rh-clima-nr1', submenuId: 'rh-clima-nr1', title: '🧠 ANÁLISE NR-1', path: '/rh/pesquisa-clima/nr1' },
             { id: 'rh-clima-analise', submenuId: 'rh-clima-analise', title: 'ANÁLISE PESQUISAS', path: '/rh/pesquisa-clima/analise' },
             { id: 'rh-clima-criar', submenuId: 'rh-clima-criar', title: 'CRIAR PESQUISAS', path: '/rh/pesquisa-clima/criar' }
           ]

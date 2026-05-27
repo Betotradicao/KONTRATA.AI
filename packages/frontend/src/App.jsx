@@ -49,6 +49,7 @@ import ModeloCurriculo from './pages/rh/ModeloCurriculo';
 import BancoCurriculos from './pages/rh/BancoCurriculos';
 import PesquisaClimaCriar from './pages/rh/PesquisaClimaCriar';
 import PesquisaClimaAnalise from './pages/rh/PesquisaClimaAnalise';
+import AnaliseNr1 from './pages/rh/AnaliseNr1';
 
 function App() {
   return (
@@ -98,6 +99,7 @@ function App() {
               {/* RH — Pesquisa de Clima */}
               <Route path="/rh/pesquisa-clima/criar" element={<ProtectedRoute moduleId="rh-clima-criar"><PesquisaClimaCriar /></ProtectedRoute>} />
               <Route path="/rh/pesquisa-clima/analise" element={<ProtectedRoute moduleId="rh-clima-analise"><PesquisaClimaAnalise /></ProtectedRoute>} />
+              <Route path="/rh/pesquisa-clima/nr1" element={<ProtectedRoute moduleId="rh-clima-nr1"><AnaliseNr1 /></ProtectedRoute>} />
 
               {/* RH — Treinamentos */}
               <Route path="/rh/treinamentos" element={<ProtectedRoute moduleId="rh-cadastro-treinamento"><RhTreinamentos /></ProtectedRoute>} />

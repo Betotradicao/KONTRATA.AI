@@ -487,4 +487,115 @@ export class PesquisaClimaController {
       res.status(500).json({ error: e.message });
     }
   }
+
+  // ===========================================================================
+  // NR-1: DIAGNOSTICO FAROL
+  // Agrega respostas de UM modelo NR-1 por (rodada x dimensao_nr1).
+  // Cada pergunta tem na configuracao.dimensao_nr1 e configuracao.inverter_escala.
+  // Score 0-100: 100 = melhor; 0 = pior. Inverter aplicado quando "Sempre"=ruim.
+  // ===========================================================================
+  static async diagnosticoNr1(req: AuthRequest, res: Response) {
+    try {
+      const modeloId = parseInt(req.params.modeloId);
+      const escalaFreq = ['Sempre', 'Muitas vezes', 'Às vezes', 'Raramente', 'Nunca'];
+      const escalaSaude = ['Excelente', 'Muito boa', 'Boa', 'Razoável', 'Ruim'];
+
+      // Carrega perguntas com mapeamento de dimensao
+      const perguntas = await AppDataSource.query(
+        `SELECT id, secao, enunciado, tipo, configuracao FROM pesquisa_perguntas WHERE modelo_id = $1 ORDER BY ordem`,
+        [modeloId]
+      );
+
+      // Rodadas abertas/fechadas do modelo
+      const rodadas = await AppDataSource.query(
+        `SELECT r.id, r.nome, r.aberta, r.created_at,
+                (SELECT COUNT(*)::int FROM pesquisa_respostas WHERE rodada_id = r.id) AS total_respostas
+         FROM pesquisa_rodadas r WHERE r.modelo_id = $1 ORDER BY r.created_at DESC`,
+        [modeloId]
+      );
+
+      // Todas as respostas + itens de uma vez (mais eficiente)
+      const itens = await AppDataSource.query(
+        `SELECT ri.pergunta_id, ri.valor_texto, resp.rodada_id
+         FROM pesquisa_resp_itens ri
+         JOIN pesquisa_respostas resp ON resp.id = ri.resposta_id
+         JOIN pesquisa_rodadas r ON r.id = resp.rodada_id
+         WHERE r.modelo_id = $1 AND ri.valor_texto IS NOT NULL`,
+        [modeloId]
+      );
+
+      // Mapa pergunta_id -> {dimensao, inverter, escala}
+      const pmap = new Map<number, { dimensao: string; bloco: string; inverter: boolean; escala: string[] }>();
+      for (const p of perguntas) {
+        const cfg = typeof p.configuracao === 'string' ? JSON.parse(p.configuracao) : (p.configuracao || {});
+        if (!cfg.dimensao_nr1) continue;
+        const escala = Array.isArray(cfg.opcoes) ? cfg.opcoes : (cfg.dimensao_nr1 === 'saude_geral' ? escalaSaude : escalaFreq);
+        pmap.set(p.id, {
+          dimensao: cfg.dimensao_nr1,
+          bloco: cfg.bloco_nr1 || 'outros',
+          inverter: !!cfg.inverter_escala,
+          escala,
+        });
+      }
+
+      // Agrega: { [rodadaId]: { [dimensao]: { soma, count, bloco } } }
+      const agg: Record<string, Record<string, { soma: number; count: number; bloco: string }>> = {};
+      for (const it of itens) {
+        const p = pmap.get(it.pergunta_id);
+        if (!p) continue;
+        const idx = p.escala.indexOf(it.valor_texto);
+        if (idx < 0) continue;
+        // Score por resposta: idx vai de 0..4 (5 opcoes). Normaliza pra 0..100.
+        // Se inverter=true, "Sempre" (idx 0) = pior = score 0.
+        // Se inverter=false, "Sempre" (idx 0) = melhor = score 100.
+        // Formula: inverter ? idx*25 : (4-idx)*25  (com escala de 5 niveis)
+        const niveis = p.escala.length - 1;
+        const scoreItem = p.inverter ? (idx / niveis) * 100 : ((niveis - idx) / niveis) * 100;
+        const rk = String(it.rodada_id);
+        if (!agg[rk]) agg[rk] = {};
+        if (!agg[rk][p.dimensao]) agg[rk][p.dimensao] = { soma: 0, count: 0, bloco: p.bloco };
+        agg[rk][p.dimensao].soma += scoreItem;
+        agg[rk][p.dimensao].count += 1;
+      }
+
+      // Monta saida: lista de { rodada_id, rodada_nome, total_respostas, dimensoes: [{dimensao, bloco, score, classificacao}] }
+      const classificar = (score: number) => {
+        // Score representa "qualidade" 0-100 (100=otimo). Risco e o inverso.
+        // Verde: score >= 67 (risco baixo)
+        // Amarelo: 34-66 (risco medio)
+        // Vermelho: < 34 (risco alto)
+        if (score >= 67) return 'verde';
+        if (score >= 34) return 'amarelo';
+        return 'vermelho';
+      };
+
+      const setores = rodadas.map((r: any) => {
+        const dims = agg[String(r.id)] || {};
+        const dimensoes = Object.entries(dims).map(([dimensao, v]) => {
+          const score = v.count > 0 ? Math.round(v.soma / v.count) : null;
+          return {
+            dimensao,
+            bloco: v.bloco,
+            score,
+            classificacao: score !== null ? classificar(score) : null,
+            n_respostas: v.count,
+          };
+        });
+        return {
+          rodada_id: r.id,
+          rodada_nome: r.nome,
+          total_respostas: r.total_respostas,
+          dimensoes,
+        };
+      });
+
+      // Lista de TODAS as dimensoes possiveis (pra montar header do heatmap)
+      const todasDimensoes = Array.from(new Set(Array.from(pmap.values()).map(v => v.dimensao)));
+
+      res.json({ setores, todasDimensoes });
+    } catch (e: any) {
+      console.error('[PesquisaClima] diagnosticoNr1:', e);
+      res.status(500).json({ error: e.message });
+    }
+  }
 }

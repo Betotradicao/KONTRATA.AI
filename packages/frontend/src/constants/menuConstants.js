@@ -42,6 +42,7 @@ export const MENU_SUBMENUS = {
   // Pesquisa de Clima
   RH_PESQUISA_CLIMA_CRIAR: 'rh-clima-criar',
   RH_PESQUISA_CLIMA_ANALISE: 'rh-clima-analise',
+  RH_PESQUISA_CLIMA_NR1: 'rh-clima-nr1',
 
   // Treinamentos
   RH_TREINAMENTOS_LISTA: 'rh-cadastro-treinamento',
@@ -109,6 +110,7 @@ export const MENU_STRUCTURE = [
     icon: 'smile',
     section: 'rh',
     submenus: [
+      { id: MENU_SUBMENUS.RH_PESQUISA_CLIMA_NR1, title: 'Análise NR-1', path: '/rh/pesquisa-clima/nr1' },
       { id: MENU_SUBMENUS.RH_PESQUISA_CLIMA_ANALISE, title: 'Análise Pesquisas', path: '/rh/pesquisa-clima/analise' },
       { id: MENU_SUBMENUS.RH_PESQUISA_CLIMA_CRIAR, title: 'Criar Pesquisas', path: '/rh/pesquisa-clima/criar' },
     ],
