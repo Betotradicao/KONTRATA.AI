@@ -139,6 +139,19 @@ export default function PesquisaClimaCriar() {
     setEdit(e => ({ ...e, perguntas: e.perguntas.filter((_, i) => i !== idx) }));
   };
 
+  // Clona uma pergunta — deep copy via JSON, insere LOGO APÓS o original
+  const clonarPerg = (idx) => {
+    setEdit(e => {
+      const original = e.perguntas[idx];
+      const clone = JSON.parse(JSON.stringify(original));
+      delete clone.id; // pra nao colidir se vier salva do backend
+      clone.enunciado = (clone.enunciado || '') + ' (cópia)';
+      const novas = [...e.perguntas];
+      novas.splice(idx + 1, 0, clone);
+      return { ...e, perguntas: novas };
+    });
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
@@ -241,7 +254,7 @@ export default function PesquisaClimaCriar() {
               </div>
             </>
           ) : (
-            <EditorPesquisa edit={edit} setEdit={setEdit} salvando={salvando}
+            <EditorPesquisa edit={edit} setEdit={setEdit} salvando={salvando} clonarPerg={clonarPerg}
               salvarEdicao={salvarEdicao}
               voltar={() => setEdit(null)}
               addPergunta={addPergunta} updatePerg={updatePerg} updateConfig={updateConfig}
@@ -255,7 +268,7 @@ export default function PesquisaClimaCriar() {
   );
 }
 
-function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPergunta, updatePerg, updateConfig, reordenarPerg, removerPerg, dragIdx, setDragIdx, dragOverIdx, setDragOverIdx }) {
+function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPergunta, updatePerg, updateConfig, reordenarPerg, removerPerg, clonarPerg, dragIdx, setDragIdx, dragOverIdx, setDragOverIdx }) {
   return (
     <>
       <div className="flex items-center gap-2 mb-4">
@@ -317,6 +330,11 @@ function EditorPesquisa({ edit, setEdit, salvando, salvarEdicao, voltar, addPerg
               <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold text-xs">#{idx + 1}</span>
               <span className="text-xs uppercase font-bold text-gray-500">{TIPOS.find(t => t.id === p.tipo)?.label || p.tipo}</span>
               <div className="flex-1"></div>
+              <button onClick={() => clonarPerg(idx)}
+                className="px-2 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded font-bold"
+                title="Clonar esta pergunta (cria uma cópia logo abaixo)">
+                ⎘ Clonar
+              </button>
               <button onClick={() => removerPerg(idx)} className="px-2 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded">🗑️</button>
             </div>
             <input type="text" value={p.secao || ''} onChange={e => updatePerg(idx, { secao: e.target.value })}

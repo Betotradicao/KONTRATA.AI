@@ -28,6 +28,7 @@ const TABS = [
   { key: 'beneficios', label: 'Benefícios', endpoint: '/rh/configuracoes/beneficios', fields: ['nome', 'descricao', 'valor'] },
   { key: 'feriados', label: 'Feriados', custom: true },
   { key: 'epis_epcs', label: 'EPIs e EPCs', custom: true },
+  { key: 'docs_padronizados', label: '📄 Docs Padronizados', custom: true },
   { key: 'mensagens', label: '💬 Mensagens', custom: true },
 ];
 
@@ -197,9 +198,9 @@ export default function RhConfiguracoes() {
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — 2 linhas (flex-wrap) pra evitar scroll horizontal */}
         <div className="bg-white border-b shadow-sm">
-          <div className="flex overflow-x-auto px-4">
+          <div className="flex flex-wrap px-4 gap-x-1 py-1">
             {TABS.filter(tab => {
               // Liberacao de Acesso so para ADMIN ou Master
               if (tab.key === 'liberacao_acesso') {
@@ -212,7 +213,7 @@ export default function RhConfiguracoes() {
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                className={`px-3 py-2 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
                   activeTab === tab.key
                     ? 'border-orange-500 text-orange-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -240,6 +241,8 @@ export default function RhConfiguracoes() {
             <CargosTab />
           ) : currentTab?.custom && activeTab === 'epis_epcs' ? (
             <EpisEpcsTab />
+          ) : currentTab?.custom && activeTab === 'docs_padronizados' ? (
+            <DocsPadronizadosTab />
           ) : (
           <div className="bg-white rounded-lg shadow">
             {/* Toolbar */}
@@ -1855,6 +1858,322 @@ function CargosTab() {
                 className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm font-semibold disabled:opacity-50">
                 {salvando ? 'Salvando...' : 'Salvar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Tab: Documentos Padronizados — cada doc vira uma aba horizontal,
+// conteudo em tela cheia no estilo "abrir e editar"
+// ============================================================
+function DocsPadronizadosTab() {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [abaAtiva, setAbaAtiva] = useState(null); // id do doc selecionado ou 'novo'
+  const [docEditado, setDocEditado] = useState(null); // doc com edicoes em andamento
+  const [salvando, setSalvando] = useState(false);
+  const [colaboradores, setColaboradores] = useState([]);
+  const [gerando, setGerando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+
+  const VARIAVEIS = [
+    { tag: '$NOME$',         desc: 'Nome completo' },
+    { tag: '$CPF$',          desc: 'CPF formatado' },
+    { tag: '$RG$',           desc: 'RG' },
+    { tag: '$MATRICULA$',    desc: 'Matrícula' },
+    { tag: '$CARGO$',        desc: 'Nome do cargo' },
+    { tag: '$DATA_HOJE$',    desc: 'dd/mm/yyyy' },
+    { tag: '$DATA_EXTENSO$', desc: '"24 de julho de 2025"' },
+    { tag: '$EMPRESA_NOME$', desc: 'Nome da empresa' },
+    { tag: '$EMPRESA_CNPJ$', desc: 'CNPJ' },
+    { tag: '$CIDADE$',       desc: 'Cidade da empresa' },
+    { tag: '$ESTADO$',       desc: 'UF' },
+  ];
+
+  const carregar = async () => {
+    try {
+      const r = await api.get('/rh/docs-padronizados');
+      const list = Array.isArray(r.data) ? r.data : [];
+      setDocs(list);
+      // Seleciona a primeira aba automaticamente
+      if (list.length > 0 && abaAtiva === null) setAbaAtiva(list[0].id);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { carregar(); }, []);
+
+  // Quando troca de aba, carrega doc completo
+  useEffect(() => {
+    if (abaAtiva === 'novo') {
+      setDocEditado({ nome: '', titulo: '', conteudo: '', descricao: '' });
+      return;
+    }
+    const d = docs.find(x => x.id === abaAtiva);
+    if (d) setDocEditado({ ...d });
+  }, [abaAtiva, docs.length]);
+
+  // Carrega colaboradores quando precisar gerar
+  useEffect(() => {
+    if (!gerando) return;
+    (async () => {
+      try {
+        const r = await api.get('/rh/colaboradores?limit=500');
+        const list = r.data?.data || r.data?.colaboradores || r.data || [];
+        setColaboradores(Array.isArray(list) ? list : []);
+      } catch (e) { console.error(e); }
+    })();
+  }, [gerando]);
+
+  const salvar = async () => {
+    if (!docEditado?.nome?.trim() || !docEditado?.titulo?.trim() || !docEditado?.conteudo?.trim()) {
+      toast.error('Nome, título e conteúdo são obrigatórios');
+      return;
+    }
+    setSalvando(true);
+    try {
+      if (docEditado.id) {
+        await api.put(`/rh/docs-padronizados/${docEditado.id}`, docEditado);
+        toast.success('Documento atualizado');
+      } else {
+        const r = await api.post('/rh/docs-padronizados', docEditado);
+        toast.success('Documento criado');
+        // Atualiza estado pra cair na aba do novo
+        await carregar();
+        setAbaAtiva(r.data?.id);
+        setSalvando(false);
+        return;
+      }
+      await carregar();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao salvar');
+    } finally { setSalvando(false); }
+  };
+
+  const excluir = async () => {
+    if (!docEditado?.id || docEditado.protegido) return;
+    if (!window.confirm(`Excluir "${docEditado.nome}"?`)) return;
+    try {
+      await api.delete(`/rh/docs-padronizados/${docEditado.id}`);
+      toast.success('Excluído');
+      setAbaAtiva(null);
+      setDocEditado(null);
+      carregar();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao excluir');
+    }
+  };
+
+  const gerarPdf = async (colaboradorId) => {
+    if (!docEditado?.id) return;
+    try {
+      const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${colaboradorId}`);
+      setResultado(r.data);
+      setGerando(false);
+    } catch (e) {
+      toast.error('Erro ao gerar documento');
+    }
+  };
+
+  const imprimirResultado = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const paragrafos = resultado.conteudo.split('\n\n').map(p =>
+      `<p>${p.replace(/\n/g, '<br>')}</p>`
+    ).join('');
+    const logoTag = resultado.logo_url
+      ? `<div class="logo-wrap"><img src="${resultado.logo_url}" alt="Logo" /></div>`
+      : '';
+    w.document.write('<!DOCTYPE html><html><head><title>' + resultado.titulo + '</title>' +
+      '<style>@page{size:A4;margin:25mm}body{font-family:Times New Roman,serif;font-size:12pt;line-height:1.5;color:#000}' +
+      '.logo-wrap{text-align:center;margin:0 0 20px}.logo-wrap img{max-height:80px;max-width:200px;object-fit:contain}' +
+      'h1{font-size:16pt;text-align:center;margin:0 0 30px;line-height:1.3}' +
+      'p{margin:0 0 12px;text-align:justify;white-space:pre-wrap}</style></head><body>' +
+      logoTag + '<h1>' + resultado.titulo + '</h1><div>' + paragrafos + '</div>' +
+      '<script>window.onload=()=>{window.print()}</script></body></html>');
+    w.document.close();
+  };
+
+  if (loading) return <div className="p-8 text-center text-gray-400">Carregando...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
+        📄 <strong>Modelos de documentos da empresa.</strong> Use variáveis tipo <code className="bg-blue-100 px-1 rounded">$NOME$</code>, <code className="bg-blue-100 px-1 rounded">$CPF$</code>, <code className="bg-blue-100 px-1 rounded">$DATA_EXTENSO$</code> — serão substituídas automaticamente ao gerar pro colaborador.
+      </div>
+
+      {/* Abas horizontais com cada documento + botão Novo */}
+      <div className="bg-white border border-gray-200 rounded-t-lg overflow-hidden">
+        <div className="flex flex-wrap gap-px bg-gray-100 border-b border-gray-200">
+          {docs.map(d => (
+            <button key={d.id} onClick={() => setAbaAtiva(d.id)}
+              className={`px-4 py-2.5 text-sm font-semibold transition flex items-center gap-2 ${
+                abaAtiva === d.id
+                  ? 'bg-white text-orange-600 border-b-2 border-orange-500'
+                  : 'bg-gray-50 text-gray-600 hover:bg-white hover:text-gray-800'
+              }`}>
+              📄 {d.nome}
+              {d.protegido && <span className="text-gray-400 text-xs">🔒</span>}
+            </button>
+          ))}
+          <button onClick={() => setAbaAtiva('novo')}
+            className={`px-4 py-2.5 text-sm font-bold transition ${
+              abaAtiva === 'novo'
+                ? 'bg-white text-emerald-700 border-b-2 border-emerald-500'
+                : 'bg-emerald-50 text-emerald-700 hover:bg-white'
+            }`}>
+            + Novo Documento
+          </button>
+        </div>
+
+        {/* Conteúdo da aba ativa */}
+        {!docEditado ? (
+          <div className="p-12 text-center text-gray-400">
+            <div className="text-5xl mb-3">📄</div>
+            <p>Selecione um documento na aba acima ou clique em <strong>+ Novo Documento</strong></p>
+          </div>
+        ) : (
+          <div className="p-4 md:p-6">
+            {/* Toolbar do documento */}
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 flex-wrap gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  {docEditado.id ? docEditado.nome : 'Novo Documento'}
+                  {docEditado.protegido && <span title="Modelo do sistema" className="text-gray-400 text-sm">🔒</span>}
+                </h2>
+                {docEditado.descricao && <p className="text-xs text-gray-500 mt-0.5">{docEditado.descricao}</p>}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {docEditado.id && (
+                  <button onClick={() => setGerando(true)}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded text-sm">
+                    🖨️ Gerar pra colaborador
+                  </button>
+                )}
+                <button onClick={salvar} disabled={salvando}
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-2 rounded text-sm disabled:opacity-50">
+                  {salvando ? 'Salvando...' : (docEditado.id ? '💾 Salvar' : '➕ Criar')}
+                </button>
+                {docEditado.id && !docEditado.protegido && (
+                  <button onClick={excluir}
+                    className="bg-red-100 hover:bg-red-200 text-red-700 font-bold px-3 py-2 rounded text-sm">
+                    🗑️ Excluir
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Editor — grid 2/3 + 1/3 */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <div className="lg:col-span-3 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase text-gray-600">Nome interno *</label>
+                    <input type="text" value={docEditado.nome || ''}
+                      onChange={e => setDocEditado({ ...docEditado, nome: e.target.value })}
+                      placeholder="Ex: Autorização de Uso de Imagem"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold uppercase text-gray-600">Descrição (opcional)</label>
+                    <input type="text" value={docEditado.descricao || ''}
+                      onChange={e => setDocEditado({ ...docEditado, descricao: e.target.value })}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase text-gray-600">Título do documento *</label>
+                  <input type="text" value={docEditado.titulo || ''}
+                    onChange={e => setDocEditado({ ...docEditado, titulo: e.target.value })}
+                    placeholder="Título que aparece no topo quando impresso"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase text-gray-600">Conteúdo *</label>
+                  <textarea value={docEditado.conteudo || ''}
+                    onChange={e => setDocEditado({ ...docEditado, conteudo: e.target.value })}
+                    rows={22}
+                    placeholder="Use $NOME$, $CPF$, $DATA_EXTENSO$, etc..."
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600 mb-2 block">Variáveis disponíveis</label>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 space-y-1 sticky top-2">
+                  {VARIAVEIS.map(v => (
+                    <button key={v.tag} type="button"
+                      onClick={() => setDocEditado({ ...docEditado, conteudo: (docEditado.conteudo || '') + v.tag })}
+                      className="w-full text-left p-2 hover:bg-orange-50 rounded text-xs border border-transparent hover:border-orange-200">
+                      <code className="font-bold text-orange-700">{v.tag}</code>
+                      <div className="text-gray-500 mt-0.5">{v.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal Gerar pra colaborador */}
+      {gerando && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-bold">Gerar "{docEditado?.nome}"</h3>
+              <p className="text-xs text-gray-500">Selecione o colaborador</p>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 space-y-1">
+              {colaboradores.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">Carregando colaboradores...</p>
+              ) : colaboradores.map(c => (
+                <button key={c.id} onClick={() => gerarPdf(c.id)}
+                  className="w-full text-left p-2 hover:bg-emerald-50 rounded border border-transparent hover:border-emerald-300">
+                  <div className="font-semibold text-sm text-gray-800">{c.nome}</div>
+                  <div className="text-xs text-gray-500">Mat. {c.matricula || '-'} · {c.cargo_nome || '-'}</div>
+                </button>
+              ))}
+            </div>
+            <div className="p-4 border-t flex justify-end">
+              <button onClick={() => setGerando(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview gerado */}
+      {resultado && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold">Preview — {resultado.colaborador?.nome}</h3>
+                <p className="text-xs text-gray-500">Confira antes de imprimir</p>
+              </div>
+              <button onClick={imprimirResultado}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded text-sm">
+                🖨️ Imprimir
+              </button>
+            </div>
+            <div className="p-8 overflow-y-auto flex-1 bg-gray-50">
+              <div className="bg-white shadow-md mx-auto max-w-2xl p-12" style={{ fontFamily: 'Times New Roman, serif' }}>
+                {resultado.logo_url && (
+                  <div className="text-center mb-6">
+                    <img src={resultado.logo_url} alt="Logo" className="inline-block max-h-20 max-w-[200px] object-contain" />
+                  </div>
+                )}
+                <h1 className="text-xl font-bold text-center mb-8 leading-tight">{resultado.titulo}</h1>
+                <div className="text-sm leading-relaxed text-justify whitespace-pre-wrap">{resultado.conteudo}</div>
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-end">
+              <button onClick={() => setResultado(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Fechar</button>
             </div>
           </div>
         </div>

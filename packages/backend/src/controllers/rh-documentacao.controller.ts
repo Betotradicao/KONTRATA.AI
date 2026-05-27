@@ -254,20 +254,31 @@ export class RhDocumentacaoController {
     }
   }
 
-  /** Reordena pastas: recebe array de ids na nova ordem */
+  /** Reordena pastas: recebe array de ids na nova ordem.
+   *  Pastas protegidas (sistema) tem ordem fixa 1-8 — sao IGNORADAS pelo
+   *  reorder. So pastas user-defined (protegida=false) podem ser
+   *  movidas, e ficam com ordem >= 100. */
   static async reordenarPastas(req: AuthRequest, res: Response) {
     try {
       const { pasta_ids } = req.body;
       if (!Array.isArray(pasta_ids) || pasta_ids.length === 0) {
         return res.status(400).json({ error: 'pasta_ids (array) obrigatorio' });
       }
-      for (let i = 0; i < pasta_ids.length; i++) {
+      // Filtra apenas as user-defined (protegida=false)
+      const userDefined = await AppDataSource.query(
+        `SELECT id FROM rh_documento_pastas WHERE id = ANY($1::int[]) AND protegida = false`,
+        [pasta_ids]
+      );
+      const userDefinedIds = new Set(userDefined.map((r: any) => r.id));
+      let ordem = 100;
+      for (const pid of pasta_ids) {
+        if (!userDefinedIds.has(pid)) continue; // pula pastas protegidas
         await AppDataSource.query(
-          `UPDATE rh_documento_pastas SET ordem = $1, updated_at = NOW() WHERE id = $2`,
-          [i + 1, pasta_ids[i]]
+          `UPDATE rh_documento_pastas SET ordem = $1, updated_at = NOW() WHERE id = $2 AND protegida = false`,
+          [ordem++, pid]
         );
       }
-      return res.json({ success: true });
+      return res.json({ success: true, reordenadas: ordem - 100 });
     } catch (err: any) {
       console.error('[RH-DOC] reordenarPastas:', err);
       return res.status(500).json({ error: err.message });

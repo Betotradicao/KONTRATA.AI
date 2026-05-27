@@ -204,6 +204,15 @@ router.delete('/documentacao/pastas/:id', authenticateToken, RhDocumentacaoContr
 // CID-10 (busca autocomplete pra tela de ATESTADO)
 router.get('/documentacao/cid10/buscar', authenticateToken, RhDocumentacaoController.buscarCid10);
 
+// Documentos Padronizados (autorizacao de imagem, etc)
+import { DocsPadronizadosController } from '../controllers/docs-padronizados.controller';
+router.get('/docs-padronizados',                                authenticateToken, DocsPadronizadosController.listar);
+router.get('/docs-padronizados/:id',                            authenticateToken, DocsPadronizadosController.obter);
+router.post('/docs-padronizados',                               authenticateToken, DocsPadronizadosController.criar);
+router.put('/docs-padronizados/:id',                            authenticateToken, DocsPadronizadosController.atualizar);
+router.delete('/docs-padronizados/:id',                         authenticateToken, DocsPadronizadosController.deletar);
+router.get('/docs-padronizados/:id/gerar/:colaboradorId',       authenticateToken, DocsPadronizadosController.gerarParaColaborador);
+
 // Apontamentos (Lancamentos Financeiros)
 router.get('/apontamentos', authenticateToken, RhApontamentosController.listar);
 router.get('/apontamentos/periodos', authenticateToken, RhApontamentosController.listarPeriodos);

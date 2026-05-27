@@ -197,17 +197,20 @@ export class RhController {
         ]
       );
 
-      // Cria automaticamente as 6 pastas obrigatorias do sistema pra esse colaborador.
-      // Ficam marcadas como protegida=true (nao podem ser deletadas/renomeadas).
+      // Cria automaticamente as 8 pastas obrigatorias do sistema pra esse colaborador.
+      // Ficam marcadas como protegida=true (nao podem ser deletadas/renomeadas/reordenadas).
+      // Ordem fixa pedida pelo cliente — pastas customizadas vao pra ordem >= 100.
       const novoColabId = result[0]?.id;
       if (novoColabId) {
         const PASTAS_OBRIGATORIAS: Array<[string, number]> = [
-          ['ATESTADO', 1],
-          ['DOCS CONTRATAÇÃO', 2],
-          ['FÉRIAS', 3],
-          ['HOLERITES', 4],
-          ['TREINAMENTOS', 5],
-          ['ADVERTÊNCIAS', 6],
+          ['DOCS CONTRATAÇÃO', 1],
+          ['HOLERITES',        2],
+          ['ESPELHO DE PONTO', 3],
+          ['FÉRIAS',           4],
+          ['ATESTADO',         5],
+          ['ADVERTÊNCIAS',     6],
+          ['TREINAMENTOS',     7],
+          ['ABERTURA DE CAT',  8],
         ];
         for (const [nome, ordem] of PASTAS_OBRIGATORIAS) {
           try {

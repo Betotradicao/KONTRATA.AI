@@ -605,19 +605,26 @@ export default function RhDocumentacao() {
                     ) : (
                       pastas.map(p => (
                         <div key={p.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, p.id)}
-                          onDragOver={(e) => handleDragOver(e, p.id)}
+                          draggable={!p.protegida}
+                          onDragStart={(e) => !p.protegida && handleDragStart(e, p.id)}
+                          onDragOver={(e) => !p.protegida && handleDragOver(e, p.id)}
                           onDragEnd={handleDragEnd}
-                          onDrop={(e) => handleDrop(e, p.id)}
+                          onDrop={(e) => !p.protegida && handleDrop(e, p.id)}
                           onClick={() => abrirPasta(p)}
-                          className={`p-3 flex items-center gap-2 cursor-move border-b border-gray-100 hover:bg-gray-50 transition
+                          className={`p-3 flex items-center gap-2 border-b border-gray-100 hover:bg-gray-50 transition
+                            ${p.protegida ? 'cursor-pointer' : 'cursor-move'}
                             ${pastaAberta?.id === p.id ? 'bg-orange-50' : ''}
                             ${draggingId === p.id ? 'opacity-40' : ''}
                             ${dragOverId === p.id && draggingId !== p.id ? 'border-t-2 border-t-orange-500' : ''}`}>
-                          <svg className="w-4 h-4 text-gray-300 shrink-0" fill="currentColor" viewBox="0 0 20 20" title="Arraste para reordenar">
-                            <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 10a1 1 0 11-2 0 1 1 0 012 0zM7 16a1 1 0 11-2 0 1 1 0 012 0zM15 4a1 1 0 11-2 0 1 1 0 012 0zM15 10a1 1 0 11-2 0 1 1 0 012 0zM15 16a1 1 0 11-2 0 1 1 0 012 0z" />
-                          </svg>
+                          {p.protegida ? (
+                            <span className="w-4 h-4 shrink-0 text-gray-300" title="Pasta fixa do sistema">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" /></svg>
+                            </span>
+                          ) : (
+                            <svg className="w-4 h-4 text-gray-300 shrink-0" fill="currentColor" viewBox="0 0 20 20" title="Arraste para reordenar">
+                              <path d="M7 4a1 1 0 11-2 0 1 1 0 012 0zM7 10a1 1 0 11-2 0 1 1 0 012 0zM7 16a1 1 0 11-2 0 1 1 0 012 0zM15 4a1 1 0 11-2 0 1 1 0 012 0zM15 10a1 1 0 11-2 0 1 1 0 012 0zM15 16a1 1 0 11-2 0 1 1 0 012 0z" />
+                            </svg>
+                          )}
                           <svg className="w-5 h-5 text-orange-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                           </svg>
