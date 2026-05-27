@@ -1879,6 +1879,9 @@ function DocsPadronizadosTab() {
   const [colaboradores, setColaboradores] = useState([]);
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState(null);
+  const [empresas, setEmpresas] = useState([]);
+  const [empresaSel, setEmpresaSel] = useState(null); // empresa escolhida (objeto) antes de listar colaboradores
+  const [loadingColabs, setLoadingColabs] = useState(false);
 
   const VARIAVEIS = [
     { tag: '$NOME$',         desc: 'Nome completo' },
@@ -1886,12 +1889,17 @@ function DocsPadronizadosTab() {
     { tag: '$RG$',           desc: 'RG' },
     { tag: '$MATRICULA$',    desc: 'Matrícula' },
     { tag: '$CARGO$',        desc: 'Nome do cargo' },
+    { tag: '$CTPS$',         desc: 'Nº da CTPS' },
+    { tag: '$SERIE_CTPS$',   desc: 'Série da CTPS' },
+    { tag: '$ADMISSAO$',     desc: 'Data de admissão (dd/mm/yyyy)' },
+    { tag: '$ENDERECO$',     desc: 'Endereço do colaborador' },
     { tag: '$DATA_HOJE$',    desc: 'dd/mm/yyyy' },
     { tag: '$DATA_EXTENSO$', desc: '"24 de julho de 2025"' },
-    { tag: '$EMPRESA_NOME$', desc: 'Nome da empresa' },
-    { tag: '$EMPRESA_CNPJ$', desc: 'CNPJ' },
-    { tag: '$CIDADE$',       desc: 'Cidade da empresa' },
-    { tag: '$ESTADO$',       desc: 'UF' },
+    { tag: '$EMPRESA_NOME$',     desc: 'Nome da empresa' },
+    { tag: '$EMPRESA_CNPJ$',     desc: 'CNPJ da empresa' },
+    { tag: '$EMPRESA_ENDERECO$', desc: 'Endereço da empresa' },
+    { tag: '$CIDADE$',           desc: 'Cidade da empresa' },
+    { tag: '$ESTADO$',           desc: 'UF da empresa' },
   ];
 
   const carregar = async () => {
@@ -1916,17 +1924,35 @@ function DocsPadronizadosTab() {
     if (d) setDocEditado({ ...d });
   }, [abaAtiva, docs.length]);
 
-  // Carrega colaboradores quando precisar gerar
+  // Ao abrir o modal de gerar: carrega as empresas pra escolher primeiro.
+  // Se só existir uma empresa, seleciona ela automaticamente.
   useEffect(() => {
     if (!gerando) return;
+    setEmpresaSel(null);
+    setColaboradores([]);
     (async () => {
       try {
-        const r = await api.get('/rh/colaboradores?limit=500');
-        const list = r.data?.data || r.data?.colaboradores || r.data || [];
-        setColaboradores(Array.isArray(list) ? list : []);
+        const r = await api.get('/rh/empresas');
+        const list = Array.isArray(r.data) ? r.data : (r.data?.empresas || []);
+        setEmpresas(list);
+        if (list.length === 1) setEmpresaSel(list[0]);
       } catch (e) { console.error(e); }
     })();
   }, [gerando]);
+
+  // Depois que a empresa é escolhida, lista só os colaboradores dela.
+  useEffect(() => {
+    if (!gerando || !empresaSel) return;
+    setLoadingColabs(true);
+    (async () => {
+      try {
+        const r = await api.get(`/rh/colaboradores?company_id=${empresaSel.id}&limit=500`);
+        const list = r.data?.data || r.data?.colaboradores || r.data || [];
+        setColaboradores(Array.isArray(list) ? list : []);
+      } catch (e) { console.error(e); }
+      finally { setLoadingColabs(false); }
+    })();
+  }, [gerando, empresaSel]);
 
   const salvar = async () => {
     if (!docEditado?.nome?.trim() || !docEditado?.titulo?.trim() || !docEditado?.conteudo?.trim()) {
@@ -2107,9 +2133,9 @@ function DocsPadronizadosTab() {
                   {VARIAVEIS.map(v => (
                     <button key={v.tag} type="button"
                       onClick={() => setDocEditado({ ...docEditado, conteudo: (docEditado.conteudo || '') + v.tag })}
-                      className="w-full text-left p-2 hover:bg-orange-50 rounded text-xs border border-transparent hover:border-orange-200">
-                      <code className="font-bold text-orange-700">{v.tag}</code>
-                      <div className="text-gray-500 mt-0.5">{v.desc}</div>
+                      className="w-full text-left p-2 hover:bg-orange-50 rounded border border-transparent hover:border-orange-200">
+                      <span className="inline-block bg-orange-100 text-orange-800 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded tracking-normal">{v.tag}</span>
+                      <div className="text-gray-600 mt-1 text-xs leading-snug">{v.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -2119,25 +2145,65 @@ function DocsPadronizadosTab() {
         )}
       </div>
 
-      {/* Modal Gerar pra colaborador */}
+      {/* Modal Gerar pra colaborador — passo 1: empresa, passo 2: colaborador */}
       {gerando && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b">
               <h3 className="text-lg font-bold">Gerar "{docEditado?.nome}"</h3>
-              <p className="text-xs text-gray-500">Selecione o colaborador</p>
+              {!empresaSel ? (
+                <p className="text-xs text-gray-500">Passo 1 de 2 · Selecione a empresa</p>
+              ) : (
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <p className="text-xs text-gray-500">
+                    Passo 2 de 2 · Colaboradores de{' '}
+                    <span className="font-semibold text-gray-700">
+                      {empresaSel.apelido || empresaSel.nome_fantasia || empresaSel.razao_social}
+                    </span>
+                  </p>
+                  {empresas.length > 1 && (
+                    <button onClick={() => setEmpresaSel(null)}
+                      className="text-xs text-orange-600 hover:underline whitespace-nowrap">↩ trocar empresa</button>
+                  )}
+                </div>
+              )}
             </div>
+
             <div className="p-4 overflow-y-auto flex-1 space-y-1">
-              {colaboradores.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">Carregando colaboradores...</p>
-              ) : colaboradores.map(c => (
-                <button key={c.id} onClick={() => gerarPdf(c.id)}
-                  className="w-full text-left p-2 hover:bg-emerald-50 rounded border border-transparent hover:border-emerald-300">
-                  <div className="font-semibold text-sm text-gray-800">{c.nome}</div>
-                  <div className="text-xs text-gray-500">Mat. {c.matricula || '-'} · {c.cargo_nome || '-'}</div>
-                </button>
-              ))}
+              {/* Passo 1: lista de empresas */}
+              {!empresaSel ? (
+                empresas.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">Carregando empresas...</p>
+                ) : empresas.map(e => (
+                  <button key={e.id} onClick={() => setEmpresaSel(e)}
+                    className="w-full text-left p-3 hover:bg-orange-50 rounded border border-transparent hover:border-orange-300 flex items-center gap-3">
+                    <span className="text-xl">🏢</span>
+                    <div>
+                      <div className="font-semibold text-sm text-gray-800">
+                        {e.apelido || e.nome_fantasia || e.razao_social || 'Empresa'}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {[e.cnpj, e.cidade].filter(Boolean).join(' · ') || '—'}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                /* Passo 2: colaboradores da empresa */
+                loadingColabs ? (
+                  <p className="text-sm text-gray-400 text-center py-4">Carregando colaboradores...</p>
+                ) : colaboradores.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">Nenhum colaborador nesta empresa.</p>
+                ) : colaboradores.map(c => (
+                  <button key={c.id} onClick={() => gerarPdf(c.id)}
+                    className="w-full text-left p-2 hover:bg-emerald-50 rounded border border-transparent hover:border-emerald-300">
+                    <div className="font-semibold text-sm text-gray-800">{c.nome}</div>
+                    <div className="text-xs text-gray-500">Mat. {c.matricula || '-'} · {c.cargo_nome || '-'}</div>
+                  </button>
+                ))
+              )}
             </div>
+
             <div className="p-4 border-t flex justify-end">
               <button onClick={() => setGerando(false)}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>

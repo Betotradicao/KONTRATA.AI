@@ -109,16 +109,20 @@ export class DocsPadronizadosController {
 
       const [colab] = await AppDataSource.query(
         `SELECT c.id, c.nome, c.cpf, c.rg, c.matricula,
+                c.ctps, c.serie_ctps, c.data_admissao, c.endereco,
                 ca.nome AS cargo_nome,
-                COALESCE(comp.apelido, comp.nome_fantasia) AS empresa_nome,
-                comp.nome_fantasia AS empresa_nome_fantasia,
+                COALESCE(comp.apelido, comp.nome_fantasia, comp.razao_social) AS empresa_nome,
+                comp.razao_social AS empresa_razao_social,
                 comp.cnpj AS empresa_cnpj,
                 comp.cidade AS empresa_cidade,
                 comp.estado AS empresa_estado,
+                comp.rua AS empresa_rua,
+                comp.numero AS empresa_numero,
+                comp.bairro AS empresa_bairro,
                 comp.foto_fachada_url AS empresa_foto_fachada
          FROM rh_colaboradores c
          LEFT JOIN rh_cargos ca ON ca.id = c.cargo_id
-         LEFT JOIN companies comp ON comp.id = c.company_id
+         LEFT JOIN rh_empresas comp ON comp.id = c.company_id
          WHERE c.id = $1`,
         [colaboradorId]
       );
@@ -151,16 +155,35 @@ export class DocsPadronizadosController {
         return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
       };
 
+      // Formata data (DATE do banco) para dd/mm/yyyy
+      const formatData = (d: any) => {
+        if (!d) return '';
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return '';
+        return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+      };
+
+      // Endereço da empresa (rua, nº - bairro) montado a partir do rh_empresas
+      const partesEnd: string[] = [];
+      if (colab.empresa_rua) partesEnd.push(colab.empresa_rua + (colab.empresa_numero ? `, ${colab.empresa_numero}` : ''));
+      if (colab.empresa_bairro) partesEnd.push(colab.empresa_bairro);
+      const empresaEndereco = partesEnd.join(' - ');
+
       const vars: Record<string, string> = {
         '$NOME$':         colab.nome || '',
         '$CPF$':          formatCpf(colab.cpf),
         '$RG$':           colab.rg || '',
         '$MATRICULA$':    colab.matricula || '',
         '$CARGO$':        colab.cargo_nome || '',
+        '$CTPS$':         colab.ctps || '',
+        '$SERIE_CTPS$':   colab.serie_ctps || '',
+        '$ADMISSAO$':     formatData(colab.data_admissao),
+        '$ENDERECO$':     colab.endereco || '',
         '$DATA_HOJE$':    `${dd}/${mm}/${yyyy}`,
         '$DATA_EXTENSO$': dataExtenso,
         '$EMPRESA_NOME$': colab.empresa_nome || '',
         '$EMPRESA_CNPJ$': colab.empresa_cnpj || '',
+        '$EMPRESA_ENDERECO$': empresaEndereco,
         '$CIDADE$':       colab.empresa_cidade || '',
         '$ESTADO$':       colab.empresa_estado || '',
       };
