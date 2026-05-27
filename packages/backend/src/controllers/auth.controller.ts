@@ -480,46 +480,47 @@ export class AuthController {
 
       if (user) {
         console.log('✅ Usuário admin encontrado:', user.email);
-        // User found - validate password
         const isValidPassword = await user.validatePassword(password);
-        if (!isValidPassword) {
-          console.log('❌ Senha inválida para admin');
-          return res.status(401).json({ error: 'Invalid credentials' });
+        if (isValidPassword) {
+          console.log('✅ Login admin bem-sucedido!');
+          const token = jwt.sign(
+            {
+              id: user.id,
+              email: user.email,
+              username: user.username,
+              name: user.name,
+              type: 'admin',
+              role: user.role,
+              isMaster: user.isMaster,
+              companyId: user.companyId
+            },
+            process.env.JWT_SECRET || 'development-secret',
+            { expiresIn: '24h' }
+          );
+
+          return res.json({
+            message: 'Login successful',
+            token,
+            user: {
+              id: user.id,
+              email: user.email,
+              type: 'admin',
+              role: user.role,
+              isMaster: user.isMaster,
+              company: user.company ? {
+                id: user.company.id,
+                nomeFantasia: user.company.nomeFantasia,
+                razaoSocial: user.company.razaoSocial,
+                cnpj: user.company.cnpj
+              } : null
+            }
+          });
         }
-
-        console.log('✅ Login admin bem-sucedido!');
-        const token = jwt.sign(
-          {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            name: user.name,
-            type: 'admin',
-            role: user.role,
-            isMaster: user.isMaster,
-            companyId: user.companyId
-          },
-          process.env.JWT_SECRET || 'development-secret',
-          { expiresIn: '24h' }
-        );
-
-        return res.json({
-          message: 'Login successful',
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-            type: 'admin',
-            role: user.role,
-            isMaster: user.isMaster,
-            company: user.company ? {
-              id: user.company.id,
-              nomeFantasia: user.company.nomeFantasia,
-              razaoSocial: user.company.razaoSocial,
-              cnpj: user.company.cnpj
-            } : null
-          }
-        });
+        // FALLTHROUGH: master existe mas senha nao bate. Pode ser que o
+        // username/email tambem exista em employees com senha diferente
+        // (colaborador criado via setup). Continua pra tentar employee
+        // antes de desistir com Invalid credentials.
+        console.log('⚠️  Senha invalida pra master — tentando employee como fallback');
       }
 
       // If not found as user, try to find as employee by username
