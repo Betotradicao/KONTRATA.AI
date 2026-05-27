@@ -21,22 +21,17 @@ async function seedMasterUser() {
 
     const userRepository = AppDataSource.getRepository(User);
 
-    // Verificar se usuário MASTER já existe
-    const existingMaster = await userRepository.findOne({
-      where: { username: 'Roberto' }
-    });
+    // Verificar se JA existe QUALQUER usuario master (independente do nome).
+    // O auto-seed do startup cria 'ROBERTO' (maiusculo), enquanto este script
+    // antes criava 'Roberto' (capitalizado) — gerando 2 masters. Agora se ja
+    // tem master, simplesmente retorna idempotente.
+    const existingMasters = await userRepository.find({ where: { isMaster: true } });
 
-    if (existingMaster) {
-      console.log('✅ Usuário MASTER já existe');
-
-      // Garantir que tem role MASTER
-      if (existingMaster.role !== UserRole.MASTER) {
-        existingMaster.role = UserRole.MASTER;
-        existingMaster.isMaster = true;
-        await userRepository.save(existingMaster);
-        console.log('✅ Role atualizado para MASTER');
+    if (existingMasters.length > 0) {
+      console.log(`✅ Ja existe ${existingMasters.length} usuario(s) MASTER no banco. Skip.`);
+      for (const m of existingMasters) {
+        console.log(`   - ${m.username} (${m.email})`);
       }
-
       return;
     }
 
