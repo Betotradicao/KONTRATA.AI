@@ -356,10 +356,12 @@ export default function RhVagas() {
           let novoStatusVaga = vaga.status;
           let novosSels = selsAtual;
 
-          // 'selecionado' -> vaga vira 'Em Selecao' (se ainda estiver Aberta) +
+          // 'selecionado' / 'aprovado' -> vaga vira 'Em Selecao' (se Aberta) +
           //                  adiciona o candidato no array de selecionados da vaga
-          //                  (se ainda nao estiver) pra agendar entrevistas etc
-          if (novoStatus === 'selecionado') {
+          //                  (se ainda nao estiver) pra agendar entrevistas etc.
+          //                  Aceita ambos status porque o badge "✓ Selecionado"
+          //                  do frontend considera os 2 iguais.
+          if (novoStatus === 'selecionado' || novoStatus === 'aprovado') {
             if (vaga.status === 'Aberta') novoStatusVaga = 'Em Selecao';
             const jaTem = selsAtual.some(s => Number(s.curriculo_id) === Number(curriculoId));
             if (!jaTem) {
