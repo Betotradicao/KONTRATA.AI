@@ -235,8 +235,11 @@ export class RhDocumentacaoController {
       const id = parseInt(req.params.id);
       const { nome } = req.body;
       if (!nome?.trim()) return res.status(400).json({ error: 'nome obrigatorio' });
-      const [origem] = await AppDataSource.query(`SELECT nome FROM rh_documento_pastas WHERE id = $1`, [id]);
+      const [origem] = await AppDataSource.query(`SELECT nome, protegida FROM rh_documento_pastas WHERE id = $1`, [id]);
       if (!origem) return res.status(404).json({ error: 'Pasta nao encontrada' });
+      if (origem.protegida) {
+        return res.status(403).json({ error: 'Pasta obrigatória do sistema não pode ser renomeada.' });
+      }
       const novoNome = nome.trim().toUpperCase();
       // Atualiza todas as pastas com mesmo nome antigo (template global)
       await AppDataSource.query(
@@ -347,10 +350,13 @@ export class RhDocumentacaoController {
   static async deletarPasta(req: AuthRequest, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const [origem] = await AppDataSource.query(`SELECT nome FROM rh_documento_pastas WHERE id = $1`, [id]);
+      const [origem] = await AppDataSource.query(`SELECT nome, protegida FROM rh_documento_pastas WHERE id = $1`, [id]);
       if (!origem) return res.status(404).json({ error: 'Pasta nao encontrada' });
+      if (origem.protegida) {
+        return res.status(403).json({ error: 'Pasta obrigatória do sistema não pode ser excluída.' });
+      }
       await AppDataSource.query(
-        `DELETE FROM rh_documento_pastas WHERE UPPER(TRIM(nome)) = UPPER(TRIM($1))`,
+        `DELETE FROM rh_documento_pastas WHERE UPPER(TRIM(nome)) = UPPER(TRIM($1)) AND protegida = false`,
         [origem.nome]
       );
       return res.json({ success: true });

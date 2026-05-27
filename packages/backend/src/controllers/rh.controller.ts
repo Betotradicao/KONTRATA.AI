@@ -197,6 +197,32 @@ export class RhController {
         ]
       );
 
+      // Cria automaticamente as 6 pastas obrigatorias do sistema pra esse colaborador.
+      // Ficam marcadas como protegida=true (nao podem ser deletadas/renomeadas).
+      const novoColabId = result[0]?.id;
+      if (novoColabId) {
+        const PASTAS_OBRIGATORIAS: Array<[string, number]> = [
+          ['ATESTADO', 1],
+          ['DOCS CONTRATAÇÃO', 2],
+          ['FÉRIAS', 3],
+          ['HOLERITES', 4],
+          ['TREINAMENTOS', 5],
+          ['ADVERTÊNCIAS', 6],
+        ];
+        for (const [nome, ordem] of PASTAS_OBRIGATORIAS) {
+          try {
+            await AppDataSource.query(
+              `INSERT INTO rh_documento_pastas (colaborador_id, nome, ordem, protegida)
+               VALUES ($1::int, $2::text, $3::int, true)
+               ON CONFLICT (colaborador_id, nome) DO UPDATE SET protegida = true, ordem = EXCLUDED.ordem`,
+              [novoColabId, nome, ordem]
+            );
+          } catch (e) {
+            console.warn(`[colab ${novoColabId}] falha ao criar pasta obrigatoria ${nome}:`, (e as Error).message);
+          }
+        }
+      }
+
       res.status(201).json(result[0]);
     } catch (error: any) {
       console.error('Create colaborador error:', error);
