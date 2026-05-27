@@ -88,8 +88,16 @@ export class PesquisaClimaController {
   static async deletarModelo(req: AuthRequest, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const r = await AppDataSource.query(`DELETE FROM pesquisa_modelos WHERE id = $1 RETURNING id`, [id]);
-      if (!r[0]) return res.status(404).json({ error: 'Modelo nao encontrado' });
+      // Templates do sistema (protegida=true, ex: NR-1) nao podem ser deletados.
+      const [m] = await AppDataSource.query(
+        `SELECT protegida FROM pesquisa_modelos WHERE id = $1`,
+        [id]
+      );
+      if (!m) return res.status(404).json({ error: 'Modelo nao encontrado' });
+      if (m.protegida) {
+        return res.status(403).json({ error: 'Esta pesquisa é obrigatória do sistema e não pode ser excluída.' });
+      }
+      await AppDataSource.query(`DELETE FROM pesquisa_modelos WHERE id = $1`, [id]);
       res.json({ success: true });
     } catch (e: any) {
       console.error('[PesquisaClima] deletarModelo:', e);

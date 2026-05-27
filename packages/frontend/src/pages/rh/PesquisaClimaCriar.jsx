@@ -224,10 +224,17 @@ export default function PesquisaClimaCriar() {
                         className="flex-1 bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded text-sm font-bold">
                         ✏️ Editar
                       </button>
-                      <button onClick={() => excluirModelo(m)}
-                        className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded text-sm">
-                        🗑️
-                      </button>
+                      {m.protegida ? (
+                        <span title="Template do sistema — não pode ser excluído"
+                          className="bg-gray-100 text-gray-400 px-3 py-1.5 rounded text-sm cursor-not-allowed">
+                          🔒
+                        </span>
+                      ) : (
+                        <button onClick={() => excluirModelo(m)}
+                          className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded text-sm">
+                          🗑️
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
