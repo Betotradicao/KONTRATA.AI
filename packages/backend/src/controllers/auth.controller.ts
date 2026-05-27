@@ -523,12 +523,19 @@ export class AuthController {
         console.log('⚠️  Senha invalida pra master — tentando employee como fallback');
       }
 
-      // If not found as user, try to find as employee by username
+      // If not found as user, try to find as employee.
+      // Aceita login tanto por USERNAME quanto pelo EMAIL_RECUPERACAO.
       const employeeRepository = AppDataSource.getRepository(Employee);
-      const employee = await employeeRepository.findOne({
+      let employee = await employeeRepository.findOne({
         where: { username: email },
         relations: ['sector']
       });
+      if (!employee && email.includes('@')) {
+        employee = await employeeRepository.findOne({
+          where: { email_recuperacao: email.toLowerCase() },
+          relations: ['sector']
+        });
+      }
 
       if (!employee) {
         return res.status(401).json({ error: 'Invalid credentials' });
