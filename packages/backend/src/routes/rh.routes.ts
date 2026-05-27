@@ -201,6 +201,9 @@ router.get('/documentacao/pastas/:id/pdf', authenticateToken, RhDocumentacaoCont
 router.put('/documentacao/pastas/:id', authenticateToken, RhDocumentacaoController.atualizarPasta);
 router.delete('/documentacao/pastas/:id', authenticateToken, RhDocumentacaoController.deletarPasta);
 
+// CID-10 (busca autocomplete pra tela de ATESTADO)
+router.get('/documentacao/cid10/buscar', authenticateToken, RhDocumentacaoController.buscarCid10);
+
 // Apontamentos (Lancamentos Financeiros)
 router.get('/apontamentos', authenticateToken, RhApontamentosController.listar);
 router.get('/apontamentos/periodos', authenticateToken, RhApontamentosController.listarPeriodos);

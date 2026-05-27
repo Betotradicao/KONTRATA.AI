@@ -483,6 +483,35 @@ export class RhDocumentacaoController {
     }
   }
 
+  // --- CID-10 ---
+
+  /** Busca CIDs por codigo ou descricao (autocomplete na tela ATESTADO).
+   *  Match: codigo prefix OR codigo_formatado prefix OR descricao ilike %q% */
+  static async buscarCid10(req: AuthRequest, res: Response) {
+    try {
+      const q = String(req.query.q || '').trim();
+      if (!q || q.length < 2) return res.json([]);
+      const qUp = q.toUpperCase();
+      const qLike = `%${q.toLowerCase()}%`;
+      const rows = await AppDataSource.query(
+        `SELECT codigo_formatado AS codigo, descricao
+         FROM cid10
+         WHERE codigo LIKE $1 || '%'
+            OR codigo_formatado LIKE $1 || '%'
+            OR LOWER(descricao) LIKE $2
+         ORDER BY
+           CASE WHEN codigo_formatado LIKE $1 || '%' THEN 0 ELSE 1 END,
+           codigo
+         LIMIT 30`,
+        [qUp, qLike]
+      );
+      return res.json(rows);
+    } catch (err: any) {
+      console.error('[RH-DOC] buscarCid10:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   // --- DOCUMENTOS ---
 
   /** Lista arquivos de uma pasta */
@@ -503,11 +532,17 @@ export class RhDocumentacaoController {
     }
   }
 
-  /** Upload de arquivo para uma pasta (e opcionalmente subpasta) */
+  /** Upload de arquivo para uma pasta (e opcionalmente subpasta).
+   *  Aceita tambem campos extras (medico_nome, cid_*, periodo_*) usados
+   *  pela pasta ATESTADO — ficam null quando nao enviados. */
   static async uploadDocumento(req: AuthRequest, res: Response) {
     try {
       const file = (req as any).file;
-      const { pasta_id, subpasta_id, observacao } = req.body;
+      const {
+        pasta_id, subpasta_id, observacao,
+        medico_nome, cid_codigo, cid_descricao,
+        periodo_tipo, periodo_inicio, periodo_fim, periodo_total,
+      } = req.body;
       if (!file) return res.status(400).json({ error: 'Arquivo obrigatorio' });
       if (!pasta_id) return res.status(400).json({ error: 'pasta_id obrigatorio' });
 
@@ -518,9 +553,21 @@ export class RhDocumentacaoController {
       const subpastaIdNum = subpasta_id && subpasta_id !== '' ? parseInt(subpasta_id) : null;
 
       const [doc] = await AppDataSource.query(
-        `INSERT INTO rh_documentos (pasta_id, subpasta_id, nome, arquivo_url, mime_type, tamanho_bytes, observacao)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [pasta_id, subpastaIdNum, file.originalname, url, file.mimetype, file.size, observacao || null]
+        `INSERT INTO rh_documentos (
+            pasta_id, subpasta_id, nome, arquivo_url, mime_type, tamanho_bytes, observacao,
+            medico_nome, cid_codigo, cid_descricao, periodo_tipo, periodo_inicio, periodo_fim, periodo_total
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::timestamp, $13::timestamp, $14::numeric) RETURNING *`,
+        [
+          pasta_id, subpastaIdNum, file.originalname, url, file.mimetype, file.size, observacao || null,
+          medico_nome || null,
+          cid_codigo || null,
+          cid_descricao || null,
+          periodo_tipo || null,
+          periodo_inicio || null,
+          periodo_fim || null,
+          periodo_total ? Number(periodo_total) : null,
+        ]
       );
       return res.status(201).json(doc);
     } catch (err: any) {

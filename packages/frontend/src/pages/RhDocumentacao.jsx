@@ -47,6 +47,14 @@ export default function RhDocumentacao() {
   // Modal de upload com paste (Ctrl+V)
   const [uploadModal, setUploadModal] = useState(null); // null | { subpastaId: number | null, label }
   const [arquivoUpload, setArquivoUpload] = useState(null);
+  // Form de atestado (so usado quando pasta = ATESTADO)
+  const [atestadoForm, setAtestadoForm] = useState({
+    medico_nome: '', cid_codigo: '', cid_descricao: '',
+    periodo_tipo: 'dias', periodo_inicio: '', periodo_fim: '',
+  });
+  const [cidBusca, setCidBusca] = useState('');
+  const [cidResultados, setCidResultados] = useState([]);
+  const [cidLoading, setCidLoading] = useState(false);
 
   // Subpastas (itens de documento por pasta)
   const [subpastas, setSubpastas] = useState([]);
@@ -302,6 +310,35 @@ export default function RhDocumentacao() {
   const abrirUploadSolto = () => {
     setUploadModal({ subpastaId: null, label: 'Arquivo solto' });
     setArquivoUpload(null);
+    setAtestadoForm(novoAtestadoForm());
+  };
+
+  // Atestado: campos extras quando pasta = ATESTADO
+  const novoAtestadoForm = () => ({
+    medico_nome: '',
+    cid_codigo: '',
+    cid_descricao: '',
+    periodo_tipo: 'dias', // 'dias' | 'horas'
+    periodo_inicio: '',
+    periodo_fim: '',
+  });
+
+  const calcularPeriodoTotal = (form) => {
+    if (!form.periodo_inicio || !form.periodo_fim) return null;
+    const ini = new Date(form.periodo_inicio);
+    const fim = new Date(form.periodo_fim);
+    if (isNaN(ini) || isNaN(fim) || fim < ini) return null;
+    const msDiff = fim - ini;
+    if (form.periodo_tipo === 'horas') {
+      return Math.round((msDiff / 3600000) * 100) / 100; // horas com 2 casas
+    }
+    // dias: inclui o dia inicial (período de 27/05 a 27/05 = 1 dia)
+    return Math.floor(msDiff / 86400000) + 1;
+  };
+
+  const isPastaAtestado = () => {
+    if (!pastaAberta?.nome) return false;
+    return /atestado/i.test(pastaAberta.nome);
   };
 
   const confirmarUpload = async () => {
@@ -312,10 +349,26 @@ export default function RhDocumentacao() {
       fd.append('arquivo', arquivoUpload);
       fd.append('pasta_id', pastaAberta.id);
       if (uploadModal?.subpastaId) fd.append('subpasta_id', String(uploadModal.subpastaId));
+
+      // Campos extras quando for ATESTADO
+      if (isPastaAtestado() && atestadoForm) {
+        if (atestadoForm.medico_nome) fd.append('medico_nome', atestadoForm.medico_nome);
+        if (atestadoForm.cid_codigo) fd.append('cid_codigo', atestadoForm.cid_codigo);
+        if (atestadoForm.cid_descricao) fd.append('cid_descricao', atestadoForm.cid_descricao);
+        if (atestadoForm.periodo_inicio && atestadoForm.periodo_fim) {
+          fd.append('periodo_tipo', atestadoForm.periodo_tipo);
+          fd.append('periodo_inicio', atestadoForm.periodo_inicio);
+          fd.append('periodo_fim', atestadoForm.periodo_fim);
+          const total = calcularPeriodoTotal(atestadoForm);
+          if (total !== null) fd.append('periodo_total', String(total));
+        }
+      }
+
       await api.post('/rh/documentacao/documentos', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       toast.success('Arquivo enviado');
       setUploadModal(null);
       setArquivoUpload(null);
+      setAtestadoForm(novoAtestadoForm());
       await abrirPasta(pastaAberta);
       await carregarPastas(selecionado.id);
       await carregarStats();
@@ -711,8 +764,12 @@ export default function RhDocumentacao() {
                               return (
                                 <div key={sub.id} className={`rounded-lg border-2 p-3 ${sub.obrigatorio && !temArquivo ? 'border-red-300 bg-red-50' : temArquivo ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200 bg-white'}`}>
                                   <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-lg">{temArquivo ? '✅' : (sub.obrigatorio ? '⚠️' : '📎')}</span>
+                                    <svg className="w-5 h-5 text-orange-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                      <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+                                    </svg>
                                     <span className="font-bold text-gray-800 flex-1">{sub.nome}</span>
+                                    {temArquivo && <span className="text-emerald-600 text-sm" title="Documentos enviados">✓</span>}
+                                    {!temArquivo && sub.obrigatorio && <span className="text-red-600 text-sm" title="Obrigatório - sem arquivo">!</span>}
                                     {sub.obrigatorio ? (
                                       <button onClick={() => toggleObrigatorio(sub)}
                                         className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-300 hover:bg-red-200"
@@ -744,17 +801,43 @@ export default function RhDocumentacao() {
                                   ) : (
                                     <div className="space-y-2 ml-7 mt-2">
                                       {docsDessa.map(doc => (
-                                        <div key={doc.id} className="flex items-center gap-3 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 hover:shadow-sm transition">
-                                          <span className="text-xl shrink-0">{doc.mime_type?.startsWith('image/') ? '🖼️' : doc.mime_type?.includes('pdf') ? '📄' : '📎'}</span>
-                                          <span className="flex-1 truncate font-semibold text-gray-800">{doc.nome}</span>
-                                          <span className="text-sm text-gray-600 whitespace-nowrap font-medium">📅 {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</span>
-                                          <span className="text-sm text-gray-500 whitespace-nowrap">{fmtTamanho(doc.tamanho_bytes)}</span>
-                                          <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 font-bold text-sm px-2">Abrir</a>
-                                          <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700 p-1" title="Excluir">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                          </button>
+                                        <div key={doc.id} className="bg-white border border-gray-200 rounded-lg px-3 py-2 hover:shadow-sm transition">
+                                          <div className="flex items-center gap-3 text-sm">
+                                            <span className="text-xl shrink-0">{doc.mime_type?.startsWith('image/') ? '🖼️' : doc.mime_type?.includes('pdf') ? '📄' : '📎'}</span>
+                                            <span className="flex-1 truncate font-semibold text-gray-800">{doc.nome}</span>
+                                            <span className="text-sm text-gray-600 whitespace-nowrap font-medium">📅 {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</span>
+                                            <span className="text-sm text-gray-500 whitespace-nowrap">{fmtTamanho(doc.tamanho_bytes)}</span>
+                                            <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 font-bold text-sm px-2">Abrir</a>
+                                            <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700 p-1" title="Excluir">
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                              </svg>
+                                            </button>
+                                          </div>
+                                          {(doc.medico_nome || doc.cid_codigo || doc.periodo_total) && (
+                                            <div className="mt-1.5 ml-7 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+                                              {doc.medico_nome && (
+                                                <span className="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-800 px-2 py-0.5 rounded-full">
+                                                  👨‍⚕️ <strong>{doc.medico_nome}</strong>
+                                                </span>
+                                              )}
+                                              {doc.cid_codigo && (
+                                                <span className="inline-flex items-center gap-1 bg-purple-50 border border-purple-200 text-purple-800 px-2 py-0.5 rounded-full" title={doc.cid_descricao}>
+                                                  🩺 <strong>{doc.cid_codigo}</strong> · {doc.cid_descricao}
+                                                </span>
+                                              )}
+                                              {doc.periodo_total != null && (
+                                                <span className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded-full">
+                                                  {doc.periodo_tipo === 'horas' ? '⏰' : '📅'} <strong>{doc.periodo_total} {doc.periodo_tipo === 'horas' ? 'h' : 'dia(s)'}</strong>
+                                                  {doc.periodo_inicio && doc.periodo_fim && (
+                                                    <span className="opacity-70 ml-1">
+                                                      ({new Date(doc.periodo_inicio).toLocaleDateString('pt-BR')} → {new Date(doc.periodo_fim).toLocaleDateString('pt-BR')})
+                                                    </span>
+                                                  )}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
                                         </div>
                                       ))}
                                     </div>
@@ -811,7 +894,7 @@ export default function RhDocumentacao() {
       {/* Modal Upload com Paste (Ctrl+V) */}
       {uploadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
             <div className="p-4 border-b border-gray-200">
               <h3 className="text-lg font-bold text-gray-800">📤 Enviar Arquivo</h3>
               <p className="text-xs text-gray-500">Para: <strong>{pastaAberta?.nome}</strong> {uploadModal.subpastaId && `→ ${uploadModal.label}`}</p>
@@ -881,6 +964,107 @@ export default function RhDocumentacao() {
                   </span>
                   <button type="button" onClick={() => setArquivoUpload(null)}
                     className="text-red-600 hover:text-red-800 font-bold">✖ Limpar</button>
+                </div>
+              )}
+
+              {/* Campos especiais ATESTADO */}
+              {isPastaAtestado() && (
+                <div className="mt-4 pt-4 border-t-2 border-orange-200 space-y-3">
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 text-xs text-orange-800">
+                    📋 <strong>Atestado médico</strong> — preencha os dados abaixo pra registrar.
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase text-gray-600">Nome do Médico</label>
+                    <input type="text" value={atestadoForm.medico_nome}
+                      onChange={e => setAtestadoForm({ ...atestadoForm, medico_nome: e.target.value.toUpperCase() })}
+                      placeholder="DR. JOÃO DA SILVA"
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase text-gray-600">CID</label>
+                    <input type="text" value={cidBusca}
+                      onChange={async e => {
+                        const q = e.target.value;
+                        setCidBusca(q);
+                        if (q.length < 2) { setCidResultados([]); return; }
+                        setCidLoading(true);
+                        try {
+                          const r = await api.get(`/rh/documentacao/cid10/buscar?q=${encodeURIComponent(q)}`);
+                          setCidResultados(Array.isArray(r.data) ? r.data : []);
+                        } catch {} finally { setCidLoading(false); }
+                      }}
+                      placeholder="Digite código (J11) ou nome da doença (gripe)..."
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+                    {cidLoading && <div className="text-[10px] text-gray-400 mt-1">Buscando...</div>}
+                    {cidResultados.length > 0 && (
+                      <div className="mt-1 border border-gray-200 rounded max-h-40 overflow-y-auto bg-white shadow-sm">
+                        {cidResultados.map(c => (
+                          <button key={c.codigo} type="button"
+                            onClick={() => {
+                              setAtestadoForm({ ...atestadoForm, cid_codigo: c.codigo, cid_descricao: c.descricao });
+                              setCidBusca(`${c.codigo} — ${c.descricao}`);
+                              setCidResultados([]);
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs hover:bg-orange-50 border-b border-gray-100 last:border-0">
+                            <span className="font-bold text-orange-700">{c.codigo}</span> {c.descricao}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {atestadoForm.cid_codigo && !cidResultados.length && (
+                      <div className="mt-1 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                        ✓ CID selecionado: <strong>{atestadoForm.cid_codigo}</strong> — {atestadoForm.cid_descricao}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase text-gray-600">Tipo de Afastamento</label>
+                    <div className="flex gap-2 mt-1">
+                      <button type="button"
+                        onClick={() => setAtestadoForm({ ...atestadoForm, periodo_tipo: 'dias', periodo_inicio: '', periodo_fim: '' })}
+                        className={`flex-1 px-3 py-2 rounded text-sm font-semibold border-2 ${atestadoForm.periodo_tipo === 'dias' ? 'bg-orange-500 border-orange-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}>
+                        📅 Por Dias
+                      </button>
+                      <button type="button"
+                        onClick={() => setAtestadoForm({ ...atestadoForm, periodo_tipo: 'horas', periodo_inicio: '', periodo_fim: '' })}
+                        className={`flex-1 px-3 py-2 rounded text-sm font-semibold border-2 ${atestadoForm.periodo_tipo === 'horas' ? 'bg-orange-500 border-orange-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}>
+                        ⏰ Por Horas
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs font-bold uppercase text-gray-600">De</label>
+                      <input type={atestadoForm.periodo_tipo === 'horas' ? 'datetime-local' : 'date'}
+                        value={atestadoForm.periodo_inicio}
+                        onChange={e => setAtestadoForm({ ...atestadoForm, periodo_inicio: e.target.value })}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold uppercase text-gray-600">Até</label>
+                      <input type={atestadoForm.periodo_tipo === 'horas' ? 'datetime-local' : 'date'}
+                        value={atestadoForm.periodo_fim}
+                        onChange={e => setAtestadoForm({ ...atestadoForm, periodo_fim: e.target.value })}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const total = calcularPeriodoTotal(atestadoForm);
+                    if (total === null) return null;
+                    return (
+                      <div className="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-3 text-center">
+                        <div className="text-xs uppercase font-bold text-emerald-700">Total do afastamento</div>
+                        <div className="text-2xl font-bold text-emerald-800 mt-1">
+                          {total} {atestadoForm.periodo_tipo === 'horas' ? 'hora(s)' : 'dia(s)'}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
