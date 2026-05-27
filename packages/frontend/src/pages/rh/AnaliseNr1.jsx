@@ -52,10 +52,10 @@ const BLOCO_LABEL = {
 };
 
 const COR_CLASS = {
-  verde:    { bg: 'bg-emerald-100',  border: 'border-emerald-300',  text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  amarelo:  { bg: 'bg-amber-100',    border: 'border-amber-300',    text: 'text-amber-700',   dot: 'bg-amber-500' },
-  vermelho: { bg: 'bg-red-100',      border: 'border-red-300',      text: 'text-red-700',     dot: 'bg-red-500' },
-  cinza:    { bg: 'bg-gray-100',     border: 'border-gray-300',     text: 'text-gray-500',    dot: 'bg-gray-400' },
+  verde:    { bg: 'bg-emerald-500', border: 'border-emerald-700', text: 'text-white', dot: 'bg-emerald-500', label: 'Baixo' },
+  amarelo:  { bg: 'bg-amber-500',   border: 'border-amber-700',   text: 'text-white', dot: 'bg-amber-500',   label: 'Moderado' },
+  vermelho: { bg: 'bg-red-600',     border: 'border-red-800',     text: 'text-white', dot: 'bg-red-500',     label: 'Alto' },
+  cinza:    { bg: 'bg-gray-100',    border: 'border-gray-300',    text: 'text-gray-500', dot: 'bg-gray-400', label: '—' },
 };
 
 export default function AnaliseNr1() {
@@ -208,12 +208,10 @@ function AbaDiagnostico() {
 
       {/* Heatmap setor × dimensão, agrupado por bloco */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-gray-800">Heatmap por Setor × Dimensão</h2>
-            <p className="text-xs text-gray-500">Score 0-100: verde = bom · amarelo = atenção · vermelho = ação urgente</p>
-          </div>
-          <Legenda />
+        <div className="px-4 py-3 border-b border-gray-200">
+          <h2 className="text-lg font-bold text-gray-800">Heatmap por Setor × Dimensão</h2>
+          <p className="text-xs text-gray-500">Score 0-100: quanto menor, mais grave. Plano de ação obrigatório pros itens em risco alto.</p>
+          <LegendaRiscos />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -245,9 +243,11 @@ function AbaDiagnostico() {
                         }
                         const c = COR_CLASS[cell.classificacao] || COR_CLASS.cinza;
                         return (
-                          <td key={s.rodada_id} className="px-2 py-1 text-center">
-                            <div className={`inline-flex items-center justify-center w-16 py-1.5 rounded-md border ${c.bg} ${c.border} ${c.text} font-bold`}>
-                              {cell.score}
+                          <td key={s.rodada_id} className="px-2 py-1.5 text-center">
+                            <div className={`inline-flex flex-col items-center justify-center w-20 py-1.5 rounded-md border-2 ${c.bg} ${c.border} ${c.text} font-bold shadow-sm`}
+                                 title={`Score ${cell.score}/100 — Risco ${c.label}`}>
+                              <span className="text-lg leading-none">{cell.score}</span>
+                              <span className="text-[9px] font-bold uppercase tracking-wide opacity-90">{c.label}</span>
                             </div>
                           </td>
                         );
@@ -280,12 +280,30 @@ function StatCard({ emoji, label, value, color }) {
   );
 }
 
-function Legenda() {
+function LegendaRiscos() {
   return (
-    <div className="flex items-center gap-3 text-xs">
-      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-emerald-500 rounded"></span> 67-100</span>
-      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-amber-500 rounded"></span> 34-66</span>
-      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded"></span> &lt; 34</span>
+    <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="flex items-center gap-3 bg-red-50 border-2 border-red-300 rounded-lg px-3 py-2">
+        <span className="w-5 h-5 bg-red-500 rounded-full shrink-0"></span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold text-red-800">🚨 Risco Alto</div>
+          <div className="text-[11px] text-red-700">Score 0-33 · ação urgente exigida</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 bg-amber-50 border-2 border-amber-300 rounded-lg px-3 py-2">
+        <span className="w-5 h-5 bg-amber-500 rounded-full shrink-0"></span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold text-amber-800">⚠️ Risco Moderado</div>
+          <div className="text-[11px] text-amber-700">Score 34-66 · monitorar e prevenir</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 bg-emerald-50 border-2 border-emerald-300 rounded-lg px-3 py-2">
+        <span className="w-5 h-5 bg-emerald-500 rounded-full shrink-0"></span>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold text-emerald-800">✅ Risco Baixo</div>
+          <div className="text-[11px] text-emerald-700">Score 67-100 · situação saudável</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -308,16 +326,16 @@ function AbaSugestoes() {
   const [filtroDim, setFiltroDim] = useState('');
   const [busca, setBusca] = useState('');
   const [sugSelec, setSugSelec] = useState(null); // sugestao escolhida pra criar plano
+  const [novaSug, setNovaSug] = useState(null); // dimensao pra criar nova sugestao
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const r = await api.get('/pesquisa-clima/nr1/sugestoes');
-        setSugestoes(Array.isArray(r.data) ? r.data : []);
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    })();
-  }, []);
+  const carregar = async () => {
+    try {
+      const r = await api.get('/pesquisa-clima/nr1/sugestoes');
+      setSugestoes(Array.isArray(r.data) ? r.data : []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { carregar(); }, []);
 
   const dimensoes = Array.from(new Set(sugestoes.map(s => s.dimensao_nr1)));
   const filtradas = sugestoes.filter(s => {
@@ -358,6 +376,9 @@ function AbaSugestoes() {
         💡 <strong>{sugestoes.length} sugestões</strong> pré-cadastradas baseadas no Manual GRO/PGR do MTE. Clique em <strong>"+ Adicionar ao Plano"</strong> pra criar um plano de ação a partir de uma sugestão.
       </div>
 
+      <BibliotecaMateriais />
+
+
       {Object.keys(grupos).length === 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400">
           Nenhuma sugestão encontrada com os filtros aplicados.
@@ -366,8 +387,12 @@ function AbaSugestoes() {
 
       {Object.entries(grupos).map(([dim, lista]) => (
         <div key={dim} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between gap-2">
             <h3 className="font-bold text-gray-700">{DIMENSAO_LABEL[dim] || dim} <span className="text-xs font-normal text-gray-400">({lista.length})</span></h3>
+            <button onClick={() => setNovaSug({ dimensao_nr1: dim })}
+              className="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 font-bold px-3 py-1 rounded-lg shrink-0">
+              + Nova sugestão
+            </button>
           </div>
           <div className="divide-y divide-gray-100">
             {lista.map(s => {
@@ -401,6 +426,290 @@ function AbaSugestoes() {
       {sugSelec && (
         <ModalNovoPlano sugestao={sugSelec} onClose={() => setSugSelec(null)} onSaved={() => setSugSelec(null)} />
       )}
+      {novaSug && (
+        <ModalNovaSugestao
+          dimensaoInicial={novaSug.dimensao_nr1}
+          onClose={() => setNovaSug(null)}
+          onSaved={() => { setNovaSug(null); carregar(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// BIBLIOTECA DE MATERIAIS PRA CONSCIENTIZACAO
+// ============================================================
+
+const MATERIAIS_GERADOS = [
+  {
+    tipo: 'canal-denuncia',
+    icone: '🚫',
+    titulo: 'Cartaz "Assédio Zero"',
+    descricao: 'Canal de denúncia da empresa em destaque, lista os 4 tipos de assédio, formato A4 pra mural.',
+    cor: 'red',
+  },
+  {
+    tipo: 'saude-mental',
+    icone: '🧠',
+    titulo: 'Cartaz "Sua Saúde Mental Importa"',
+    descricao: '5 sinais de alerta + CVV 188 em destaque. A4 pra refeitório, vestiário ou sala de descanso.',
+    cor: 'purple',
+  },
+  {
+    tipo: 'a-quem-recorrer',
+    icone: '🆘',
+    titulo: 'Folder "A Quem Recorrer"',
+    descricao: 'Lista de contatos importantes (CVV, polícia, RH interno, CIPA). Pra recortar e levar.',
+    cor: 'cyan',
+  },
+  {
+    tipo: 'direitos-nr1',
+    icone: '📋',
+    titulo: 'Pôster "Seus Direitos — NR-1"',
+    descricao: '7 direitos garantidos pela NR-1, com canal de reporte. A4 pra mural e área comum.',
+    cor: 'emerald',
+  },
+];
+
+// 12 cartazes mensais — em ordem cronologica Jan → Dez
+const CARTAZES_MENSAIS = [
+  { mes: 1,  tipo: 'janeiro-branco',    titulo: 'Janeiro Branco',     subtitulo: 'Saúde Mental',              cor: 'gray' },
+  { mes: 2,  tipo: 'fevereiro-roxo',    titulo: 'Fevereiro Roxo',     subtitulo: 'Alzheimer · Lúpus · Fibro', cor: 'purple' },
+  { mes: 3,  tipo: 'marco-lilas',       titulo: 'Março Lilás',        subtitulo: 'Câncer de Colo do Útero',   cor: 'fuchsia' },
+  { mes: 4,  tipo: 'abril-azul',        titulo: 'Abril Azul',         subtitulo: 'Autismo',                   cor: 'blue' },
+  { mes: 5,  tipo: 'maio-amarelo',      titulo: 'Maio Amarelo',       subtitulo: 'Segurança no Trânsito',     cor: 'yellow' },
+  { mes: 6,  tipo: 'junho-vermelho',    titulo: 'Junho Vermelho',     subtitulo: 'Doação de Sangue',          cor: 'red' },
+  { mes: 7,  tipo: 'julho-amarelo',     titulo: 'Julho Amarelo',      subtitulo: 'Hepatites Virais',          cor: 'amber' },
+  { mes: 8,  tipo: 'agosto-dourado',    titulo: 'Agosto Dourado',     subtitulo: 'Aleitamento Materno',       cor: 'yellow' },
+  { mes: 9,  tipo: 'setembro-amarelo',  titulo: 'Setembro Amarelo',   subtitulo: 'Prevenção ao Suicídio',     cor: 'yellow' },
+  { mes: 10, tipo: 'outubro-rosa',      titulo: 'Outubro Rosa',       subtitulo: 'Câncer de Mama',            cor: 'pink' },
+  { mes: 11, tipo: 'novembro-azul',     titulo: 'Novembro Azul',      subtitulo: 'Saúde do Homem',            cor: 'blue' },
+  { mes: 12, tipo: 'dezembro-vermelho', titulo: 'Dezembro Vermelho',  subtitulo: 'HIV/AIDS · ISTs',           cor: 'red' },
+];
+
+const MATERIAIS_NR1_OFICIAIS = [
+  {
+    icone: '📕',
+    titulo: 'Cartilha Assédio Moral e Sexual',
+    descricao: 'Material oficial do Tribunal Superior do Trabalho (TST).',
+    fonte: 'TST',
+    url: 'https://www.tst.jus.br/documents/10157/26144164/Campanha+ass%C3%A9dio+moral+e+sexual+-+a5+-+12092022.pdf/f10d0579-f70f-2a1e-42ae-c9dcfcc1fd47',
+  },
+  {
+    icone: '🤍',
+    titulo: 'Janeiro Branco — Saúde Mental',
+    descricao: 'Cartazes A3, banners e folders sobre saúde mental no trabalho.',
+    fonte: 'janeirobranco.org.br',
+    url: 'https://janeirobranco.org.br/produto/materiais-para-download-janeiro-branco-2026/',
+  },
+  {
+    icone: '💛',
+    titulo: 'Setembro Amarelo — Prevenção ao Suicídio',
+    descricao: 'Materiais oficiais da campanha. CVV, CFM e ABP.',
+    fonte: 'setembroamarelo.com',
+    url: 'https://www.setembroamarelo.com/',
+  },
+  {
+    icone: '📘',
+    titulo: 'Manual GRO/PGR da NR-1',
+    descricao: 'Manual oficial do MTE de interpretação e aplicação da NR-1.',
+    fonte: 'gov.br',
+    url: 'https://www.gov.br/trabalho-e-emprego/pt-br/assuntos/inspecao-do-trabalho/manuais-e-publicacoes/manual_gro_pgr_da_nr_1.pdf',
+  },
+];
+
+
+function BibliotecaMateriais() {
+  const [aberto, setAberto] = useState(false);
+  const [baixando, setBaixando] = useState(null);
+
+  const baixarMaterial = async (tipo) => {
+    setBaixando(tipo);
+    try {
+      const r = await api.get(`/pesquisa-clima/nr1/material/${tipo}`, { responseType: 'blob' });
+      const blob = new Blob([r.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // libera depois pra nao vazar memoria
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao gerar PDF');
+    } finally { setBaixando(null); }
+  };
+
+  return (
+    <div className="bg-white rounded-lg border-2 border-blue-200 overflow-hidden">
+      <button onClick={() => setAberto(!aberto)}
+        className="w-full px-4 py-3 bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 flex items-center justify-between text-left">
+        <div className="flex items-center gap-3">
+          <div className="text-2xl">📥</div>
+          <div>
+            <div className="font-bold text-gray-800">Materiais para Conscientização</div>
+            <div className="text-xs text-gray-600">Cartazes em PDF personalizados com o nome da sua empresa + materiais oficiais</div>
+          </div>
+        </div>
+        <div className={`transition-transform ${aberto ? 'rotate-180' : ''}`}>▼</div>
+      </button>
+
+      {aberto && (
+        <div className="p-4 space-y-6">
+          {/* 1. Cartazes NR-1 fixos */}
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">📄 Cartazes NR-1 — sempre úteis</h4>
+            <p className="text-xs text-gray-500 mb-3">PDFs personalizados com o nome da sua empresa. Imprima e fixe em murais, sala de descanso, refeitório.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {MATERIAIS_GERADOS.map(m => (
+                <button key={m.tipo} onClick={() => baixarMaterial(m.tipo)} disabled={baixando === m.tipo}
+                  className={`text-left p-3 bg-${m.cor}-50 border-2 border-${m.cor}-200 rounded-lg hover:border-${m.cor}-400 hover:shadow-sm transition group disabled:opacity-60`}>
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">{m.icone}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-bold text-${m.cor}-800`}>{m.titulo}</div>
+                      <div className={`text-xs text-${m.cor}-700 mt-0.5`}>{m.descricao}</div>
+                      <div className={`text-xs font-bold text-${m.cor}-600 mt-2 group-hover:underline`}>
+                        {baixando === m.tipo ? '⏳ Gerando PDF...' : '📥 Baixar PDF →'}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. Calendário do RH — 1 cartaz por mês */}
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">📅 Calendário do RH — 1 cartaz por mês</h4>
+            <p className="text-xs text-gray-500 mb-3">Imprima e fixe o cartaz do mês vigente. Estimule conscientização contínua ao longo do ano.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {CARTAZES_MENSAIS.map(c => (
+                <button key={c.tipo} onClick={() => baixarMaterial(c.tipo)} disabled={baixando === c.tipo}
+                  className={`text-left p-3 bg-${c.cor}-50 border-2 border-${c.cor}-200 rounded-lg hover:border-${c.cor}-500 hover:shadow-sm transition group disabled:opacity-60 relative overflow-hidden`}>
+                  <div className={`absolute top-0 left-0 bg-${c.cor}-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-br-lg`}>
+                    {String(c.mes).padStart(2, '0')}/12
+                  </div>
+                  <div className="mt-3">
+                    <div className={`font-bold text-${c.cor}-800`}>{c.titulo}</div>
+                    <div className={`text-xs text-${c.cor}-700 mt-0.5`}>{c.subtitulo}</div>
+                    <div className={`text-xs font-bold text-${c.cor}-600 mt-2 group-hover:underline`}>
+                      {baixando === c.tipo ? '⏳ Gerando PDF...' : '📥 Baixar PDF →'}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Materiais oficiais externos */}
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">🔗 Materiais oficiais NR-1 — fontes externas</h4>
+            <p className="text-xs text-gray-500 mb-3">Cartilhas e manuais de referência publicados por órgãos oficiais (TST, MTE, Movimentos).</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {MATERIAIS_NR1_OFICIAIS.map(m => (
+                <a key={m.url} href={m.url} target="_blank" rel="noreferrer"
+                  className="block p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition group">
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">{m.icone}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-800">{m.titulo}</div>
+                      <div className="text-xs text-gray-600 mt-0.5">{m.descricao}</div>
+                      <div className="text-xs font-semibold text-blue-600 mt-2 group-hover:underline">↗ Abrir em {m.fonte}</div>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModalNovaSugestao({ dimensaoInicial, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    dimensao_nr1: dimensaoInicial || '',
+    titulo: '',
+    descricao: '',
+    categoria: 'programa',
+    prazo_sugerido_dias: 30,
+  });
+  const [salvando, setSalvando] = useState(false);
+  const dimensoesOptions = Object.keys(DIMENSAO_LABEL);
+  const categoriasOptions = Object.keys(CATEGORIA_LABEL);
+
+  const salvar = async () => {
+    if (!form.titulo.trim() || !form.descricao.trim() || !form.dimensao_nr1) return;
+    setSalvando(true);
+    try {
+      await api.post('/pesquisa-clima/nr1/sugestoes', form);
+      onSaved();
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao criar sugestão');
+    } finally { setSalvando(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-xl">
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-lg font-bold text-gray-800">Nova Sugestão de Ação</h3>
+          <p className="text-xs text-gray-500">Adicione uma medida customizada ao catálogo. Ficará disponível pra você e sua equipe usarem em planos futuros.</p>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="text-xs font-semibold uppercase text-gray-500">Dimensão NR-1 *</label>
+            <select value={form.dimensao_nr1} onChange={e => setForm({ ...form, dimensao_nr1: e.target.value })}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+              <option value="">Selecione...</option>
+              {dimensoesOptions.map(d => (
+                <option key={d} value={d}>{DIMENSAO_LABEL[d]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-gray-500">Título *</label>
+            <input type="text" value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })}
+              placeholder="Ex: Implementar reunião 1:1 quinzenal"
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase text-gray-500">Descrição *</label>
+            <textarea value={form.descricao} onChange={e => setForm({ ...form, descricao: e.target.value })}
+              rows={3} placeholder="O que essa ação faz, como implementar, quem beneficia..."
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold uppercase text-gray-500">Categoria</label>
+              <select value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+                {categoriasOptions.map(c => (
+                  <option key={c} value={c}>{CATEGORIA_LABEL[c].icon} {CATEGORIA_LABEL[c].label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase text-gray-500">Prazo sugerido (dias)</label>
+              <input type="number" min="1" value={form.prazo_sugerido_dias}
+                onChange={e => setForm({ ...form, prazo_sugerido_dias: parseInt(e.target.value) || 0 })}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+        </div>
+        <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+          <button onClick={onClose}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
+            Cancelar
+          </button>
+          <button onClick={salvar} disabled={salvando || !form.titulo.trim() || !form.descricao.trim() || !form.dimensao_nr1}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed">
+            {salvando ? 'Salvando...' : 'Adicionar ao Catálogo'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

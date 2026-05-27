@@ -24,6 +24,8 @@ router.get('/nr1/diagnostico/:modeloId', PesquisaClimaController.diagnosticoNr1)
 // NR-1 — Sugestoes e Planos de acao
 import { Nr1Controller } from '../controllers/nr1.controller';
 router.get('/nr1/sugestoes',        Nr1Controller.listarSugestoes);
+router.post('/nr1/sugestoes',       Nr1Controller.criarSugestao);
+router.get('/nr1/material/:tipo',   Nr1Controller.gerarMaterial);
 router.get('/nr1/planos',           Nr1Controller.listarPlanos);
 router.post('/nr1/planos',          Nr1Controller.criarPlano);
 router.put('/nr1/planos/:id',       Nr1Controller.atualizarPlano);

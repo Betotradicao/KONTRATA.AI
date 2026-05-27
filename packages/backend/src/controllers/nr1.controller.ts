@@ -1,9 +1,54 @@
 import { Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
+import { gerarMaterialPdf } from '../services/nr1-materiais.service';
+
+const TIPOS_MATERIAL = ['canal-denuncia', 'saude-mental', 'a-quem-recorrer', 'direitos-nr1'] as const;
 
 export class Nr1Controller {
+  /** Gera e devolve um PDF de material de conscientizacao personalizado. */
+  static async gerarMaterial(req: AuthRequest, res: Response) {
+    try {
+      const tipo = req.params.tipo as typeof TIPOS_MATERIAL[number];
+      if (!TIPOS_MATERIAL.includes(tipo)) {
+        return res.status(400).json({ error: 'Tipo invalido' });
+      }
+      const pdf = await gerarMaterialPdf(tipo);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="nr1-${tipo}.pdf"`);
+      res.send(pdf);
+    } catch (e: any) {
+      console.error('[NR-1] gerarMaterial:', e);
+      res.status(500).json({ error: e.message });
+    }
+  }
+
   // ===== SUGESTOES (catalogo) =====
+
+  /** Cria nova sugestao customizada (pelo cliente) */
+  static async criarSugestao(req: AuthRequest, res: Response) {
+    try {
+      const { dimensao_nr1, titulo, descricao, categoria, prazo_sugerido_dias } = req.body;
+      if (!dimensao_nr1 || !titulo || !descricao) {
+        return res.status(400).json({ error: 'dimensao_nr1, titulo e descricao sao obrigatorios' });
+      }
+      // proxima ordem da dimensao
+      const [{ max }] = await AppDataSource.query(
+        `SELECT COALESCE(MAX(ordem), 0)::int AS max FROM rh_nr1_sugestoes_acao WHERE dimensao_nr1 = $1::text`,
+        [dimensao_nr1]
+      );
+      const [row] = await AppDataSource.query(
+        `INSERT INTO rh_nr1_sugestoes_acao (dimensao_nr1, titulo, descricao, categoria, prazo_sugerido_dias, ordem, ativa)
+         VALUES ($1::text, $2::text, $3::text, $4::text, $5::int, $6::int, true)
+         RETURNING *`,
+        [dimensao_nr1, titulo, descricao, categoria || 'programa', prazo_sugerido_dias || null, max + 1]
+      );
+      res.status(201).json(row);
+    } catch (e: any) {
+      console.error('[NR-1] criarSugestao:', e);
+      res.status(500).json({ error: e.message });
+    }
+  }
 
   /** Lista todas sugestoes ativas, opcionalmente filtra por dimensao */
   static async listarSugestoes(req: AuthRequest, res: Response) {
