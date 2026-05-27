@@ -2,18 +2,23 @@ import { AppDataSource } from '../config/database';
 import { User, UserRole } from '../entities/User';
 
 /**
- * Script para criar usuário MASTER (desenvolvedor)
+ * Script de fallback do installer: garante que os 2 usuários master
+ * padrão existam no banco, independente do auto-seed do startup.
  *
- * Usuário: Roberto
- * Senha: Beto3107@@##
- * Role: MASTER
+ *   - ROBERTO  / Beto3107@@##
+ *   - MARIANE / L8r1f4a@
  *
- * Este usuário é criado automaticamente na inicialização
- * e tem acesso total ao sistema, incluindo Configurações de Rede
+ * Idempotente por username (case-insensitive). Se algum dos dois
+ * existir, só cria o que falta — não duplica.
  */
+const MASTERS_PADRAO = [
+  { name: 'ROBERTO', username: 'ROBERTO', email: 'admin@prevencao.com.br',   password: 'Beto3107@@##' },
+  { name: 'MARIANE', username: 'MARIANE', email: 'mariane@prevencao.com.br', password: 'L8r1f4a@'     },
+];
+
 async function seedMasterUser() {
   try {
-    console.log('🔧 Verificando usuário MASTER...');
+    console.log('🔧 Garantindo usuários MASTER...');
 
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
@@ -21,42 +26,30 @@ async function seedMasterUser() {
 
     const userRepository = AppDataSource.getRepository(User);
 
-    // Verificar se JA existe QUALQUER usuario master (independente do nome).
-    // O auto-seed do startup cria 'ROBERTO' (maiusculo), enquanto este script
-    // antes criava 'Roberto' (capitalizado) — gerando 2 masters. Agora se ja
-    // tem master, simplesmente retorna idempotente.
-    const existingMasters = await userRepository.find({ where: { isMaster: true } });
+    for (const m of MASTERS_PADRAO) {
+      const ja = await userRepository
+        .createQueryBuilder('u')
+        .where('LOWER(u.username) = LOWER(:u)', { u: m.username })
+        .getOne();
 
-    if (existingMasters.length > 0) {
-      console.log(`✅ Ja existe ${existingMasters.length} usuario(s) MASTER no banco. Skip.`);
-      for (const m of existingMasters) {
-        console.log(`   - ${m.username} (${m.email})`);
+      if (ja) {
+        console.log(`✅ ${m.username} já existe (${ja.email}). Skip.`);
+        continue;
       }
-      return;
+
+      const u = userRepository.create({
+        name: m.name,
+        username: m.username,
+        email: m.email,
+        password: m.password,
+        role: UserRole.MASTER,
+        isMaster: true,
+      });
+      await userRepository.save(u);
+      console.log(`✅ ${m.username} criado (senha: ${m.password})`);
     }
-
-    // Criar usuário MASTER
-    // IMPORTANTE: NÃO fazer hash manual aqui - o @BeforeInsert() do User entity já faz isso
-    const masterUser = userRepository.create({
-      username: 'Roberto',
-      name: 'Roberto (Desenvolvedor)',
-      email: 'roberto@prevencaonoradar.com.br',
-      password: 'Beto3107@@##', // Senha em texto puro - será hashada pelo @BeforeInsert()
-      role: UserRole.MASTER,
-      isMaster: true
-      // companyId não definido - MASTER não vinculado a empresa específica
-    });
-
-    await userRepository.save(masterUser);
-
-    console.log('✅ Usuário MASTER criado com sucesso!');
-    console.log('   Username: Roberto');
-    console.log('   Email: roberto@prevencaonoradar.com.br');
-    console.log('   Role: MASTER');
-    console.log('   ⚠️  Senha: Beto3107@@##');
-
   } catch (error) {
-    console.error('❌ Erro ao criar usuário MASTER:', error);
+    console.error('❌ Erro ao garantir usuários MASTER:', error);
     throw error;
   }
 }
