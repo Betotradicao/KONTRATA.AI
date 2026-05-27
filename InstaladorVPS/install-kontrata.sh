@@ -677,6 +677,38 @@ if [ $TRY -ge $MAX_TRIES ]; then
 fi
 
 # ============================================
+# GARANTIR USUARIO MASTER (ROBERTO)
+# Fallback explicito: roda script de seed dentro do backend caso o
+# auto-seed do startup nao tenha rodado (migration falhou, race condition, etc).
+# Idempotente: nao cria duplicado se ja existe.
+# ============================================
+
+echo ""
+echo "🔑 Garantindo usuario master (ROBERTO / Beto3107@@##)..."
+sleep 5
+SEED_TRIES=0
+while [ $SEED_TRIES -lt 5 ]; do
+    if docker exec ${CONTAINER_PREFIX}-backend node -e "
+        require('./dist/scripts/seed-master-user').seedMasterUser()
+            .then(() => process.exit(0))
+            .catch(e => { console.error(e.message); process.exit(1); });
+    " 2>&1 | tee /tmp/seed-output-$$.log; then
+        echo "✅ Usuario master garantido"
+        rm -f /tmp/seed-output-$$.log
+        break
+    fi
+    SEED_TRIES=$((SEED_TRIES + 1))
+    echo "   tentativa $SEED_TRIES/5 falhou, aguardando 5s..."
+    sleep 5
+done
+
+if [ $SEED_TRIES -ge 5 ]; then
+    echo "⚠️  Nao foi possivel rodar o seed master automaticamente."
+    echo "   Rode manualmente: docker exec ${CONTAINER_PREFIX}-backend node dist/scripts/seed-master-user.js"
+fi
+echo ""
+
+# ============================================
 # REGISTRAR NO clientes.json
 # ============================================
 
