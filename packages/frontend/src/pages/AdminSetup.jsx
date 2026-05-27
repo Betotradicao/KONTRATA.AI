@@ -180,21 +180,26 @@ export default function AdminSetup() {
           {/* STEP 1 — CONTA */}
           {step === 1 && (
             <div className="space-y-4">
+              {/* Honeypots invisiveis pra desviar o autofill agressivo do Chrome
+                  que estava injetando credencial do admin logado nesses campos. */}
+              <input type="text" name="fake-username" autoComplete="username" tabIndex={-1} style={{ position: 'absolute', left: '-9999px', opacity: 0 }} />
+              <input type="password" name="fake-password" autoComplete="current-password" tabIndex={-1} style={{ position: 'absolute', left: '-9999px', opacity: 0 }} />
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Seu nome completo *</label>
-                <input value={name} onChange={(e) => setName(e.target.value)}
+                <input name="adm-fullname" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="João Silva" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email * <span className="text-xs text-gray-500 font-normal">(usado pra recuperar senha)</span></label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                <input type="email" name="adm-recovery-email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="seu@email.com" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome de usuário * <span className="text-xs text-gray-500 font-normal">(login)</span></label>
-                <input value={username} onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                <input name="adm-username" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="joao_silva" />
                 <p className="text-xs text-gray-500 mt-1">Letras, números, underscore e hífen. Min. 3 caracteres.</p>
@@ -202,7 +207,7 @@ export default function AdminSetup() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
                 <div className="relative">
-                  <input type={showPwd ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                  <input type={showPwd ? 'text' : 'password'} name="adm-pwd" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)}
                     className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     placeholder="Senha forte" />
                   <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
@@ -213,7 +218,7 @@ export default function AdminSetup() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar senha *</label>
-                <input type={showPwd ? 'text' : 'password'} value={confirm} onChange={(e) => setConfirm(e.target.value)}
+                <input type={showPwd ? 'text' : 'password'} name="adm-pwd-confirm" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Digite a senha novamente" />
                 {confirm && password !== confirm && <p className="mt-1 text-xs text-red-600">As senhas não coincidem</p>}

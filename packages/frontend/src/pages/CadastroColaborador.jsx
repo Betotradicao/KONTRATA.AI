@@ -128,11 +128,19 @@ export default function CadastroColaborador() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* autoComplete="off" no form + name unicos + autoComplete=new-password
+              evita o Chrome injetar credencial salva do admin que esta logado. */}
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+            {/* Dummy fields invisiveis que enganam o autofill agressivo do Chrome */}
+            <input type="text" name="fake-username" autoComplete="username" tabIndex={-1} style={{ position: 'absolute', left: '-9999px', opacity: 0 }} />
+            <input type="password" name="fake-password" autoComplete="current-password" tabIndex={-1} style={{ position: 'absolute', left: '-9999px', opacity: 0 }} />
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Usuário *</label>
               <input
                 type="text"
+                name="setup-user"
+                autoComplete="off"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toUpperCase())}
                 style={{ textTransform: 'uppercase' }}
@@ -148,6 +156,8 @@ export default function CadastroColaborador() {
               <div className="relative">
                 <input
                   type={showPwd ? 'text' : 'password'}
+                  name="setup-pwd"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent"
@@ -166,6 +176,8 @@ export default function CadastroColaborador() {
               <div className="relative">
                 <input
                   type={showConfirm ? 'text' : 'password'}
+                  name="setup-pwd-confirm"
+                  autoComplete="new-password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent"
@@ -182,6 +194,8 @@ export default function CadastroColaborador() {
               <label className="block text-sm font-medium text-gray-700 mb-2">Email para recuperação</label>
               <input
                 type="email"
+                name="setup-recovery-email"
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent"
