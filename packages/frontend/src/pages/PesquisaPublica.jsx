@@ -43,6 +43,13 @@ export default function PesquisaPublica() {
       // "Outro: " sem texto depois dos dois pontos = vazio
       if (typeof v === 'string' && /^outro:\s*$/i.test(v)) return true;
       if (Array.isArray(v) && v.some(x => typeof x === 'string' && /^outro:\s*$/i.test(x))) return true;
+      // Matriz de rating: exige resposta pra TODOS os criterios cadastrados.
+      // Sem isso, respondente preenchia 1 linha e o objeto passava como "respondido".
+      if (p.tipo === 'rating_5_matriz') {
+        const criterios = p.configuracao?.criterios || [];
+        if (typeof v !== 'object' || Array.isArray(v)) return true;
+        return criterios.some(c => v[c] === undefined || v[c] === null || v[c] === '');
+      }
       return false;
     };
     const faltando = data.perguntas.filter(p => p.obrigatoria && isVazio(p));
