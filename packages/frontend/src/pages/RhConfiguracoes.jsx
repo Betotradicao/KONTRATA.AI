@@ -2054,6 +2054,51 @@ function DocsPadronizadosTab() {
     }
   };
 
+  // CRUD inline de Motivos de Advertência (usado na fase 4, painel abaixo do editor).
+  // Tem que manter motivosAdv em sync porque ele alimenta o picker do modal Gerar.
+  const [motivoModal, setMotivoModal] = useState(null); // null | { id?, nome, texto, artigo }
+  const [salvandoMotivo, setSalvandoMotivo] = useState(false);
+
+  const recarregarMotivos = async () => {
+    try {
+      const rm = await api.get('/rh/configuracoes/motivos-advertencia');
+      setMotivosAdv(Array.isArray(rm.data) ? rm.data : []);
+    } catch (e) { console.error(e); }
+  };
+
+  const salvarMotivo = async () => {
+    const m = motivoModal;
+    if (!m?.nome?.trim() || !m?.texto?.trim()) {
+      toast.error('Nome e texto do motivo são obrigatórios'); return;
+    }
+    setSalvandoMotivo(true);
+    try {
+      const payload = { nome: m.nome.trim(), texto: m.texto.trim(), artigo: (m.artigo || '').trim() };
+      if (m.id) {
+        await api.put(`/rh/configuracoes/motivos-advertencia/${m.id}`, payload);
+        toast.success('Motivo atualizado');
+      } else {
+        await api.post('/rh/configuracoes/motivos-advertencia', payload);
+        toast.success('Motivo criado');
+      }
+      setMotivoModal(null);
+      await recarregarMotivos();
+    } catch (e) {
+      toast.error('Erro ao salvar motivo');
+    } finally { setSalvandoMotivo(false); }
+  };
+
+  const excluirMotivo = async (m) => {
+    if (!window.confirm(`Excluir o motivo "${m.nome}"?`)) return;
+    try {
+      await api.delete(`/rh/configuracoes/motivos-advertencia/${m.id}`);
+      toast.success('Motivo excluído');
+      await recarregarMotivos();
+    } catch (e) {
+      toast.error('Erro ao excluir motivo');
+    }
+  };
+
   // Monta o HTML da tabela de EPIs (header DATA/CUSTO/QTDE/EQUIPAMENTO/Nº CA/ASS).
   // Cada EPI do cargo vira uma linha com EQUIPAMENTO e (se houver) CA pré-preenchidos;
   // o resto das colunas fica em branco pra preencher à mão na entrega.
@@ -2267,55 +2312,120 @@ function DocsPadronizadosTab() {
                 </div>
               </div>
 
-              <div className="space-y-4 sticky top-2">
-                <div>
-                  <label className="text-xs font-bold uppercase text-gray-600 mb-2 block">Variáveis disponíveis</label>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 space-y-1">
-                    {VARIAVEIS.map(v => (
-                      <button key={v.tag} type="button"
-                        onClick={() => setDocEditado({ ...docEditado, conteudo: (docEditado.conteudo || '') + v.tag })}
-                        className="w-full text-left p-2 hover:bg-orange-50 rounded border border-transparent hover:border-orange-200">
-                        <span className="inline-block bg-orange-100 text-orange-800 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded tracking-normal">{v.tag}</span>
-                        <div className="text-gray-600 mt-1 text-xs leading-snug">{v.desc}</div>
-                      </button>
-                    ))}
-                  </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600 mb-2 block">Variáveis disponíveis</label>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 space-y-1 sticky top-2">
+                  {VARIAVEIS.map(v => (
+                    <button key={v.tag} type="button"
+                      onClick={() => setDocEditado({ ...docEditado, conteudo: (docEditado.conteudo || '') + v.tag })}
+                      className="w-full text-left p-2 hover:bg-orange-50 rounded border border-transparent hover:border-orange-200">
+                      <span className="inline-block bg-orange-100 text-orange-800 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded tracking-normal">{v.tag}</span>
+                      <div className="text-gray-600 mt-1 text-xs leading-snug">{v.desc}</div>
+                    </button>
+                  ))}
                 </div>
+              </div>
+            </div>
 
-                {/* Motivos de Advertência — só na fase 4. Painel lateral pra
-                    visualizar os motivos cadastrados sem sair da tela. */}
-                {faseAtiva === 4 && (
+            {/* Motivos de Advertência — só na fase 4. Painel abaixo do editor,
+                com CRUD inline (criar/editar/excluir) sem precisar trocar de aba. */}
+            {faseAtiva === 4 && (
+              <div className="mt-6 border-t-2 border-amber-200 pt-4">
+                <div className="flex items-center justify-between mb-3">
                   <div>
-                    <label className="text-xs font-bold uppercase text-gray-600 mb-2 block">
-                      Motivos cadastrados <span className="text-amber-700 normal-case font-normal">(use aba "Motivos Advert." pra editar)</span>
-                    </label>
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1 max-h-[400px] overflow-y-auto">
-                      {motivosAdv.length === 0 ? (
-                        <div className="text-xs text-amber-700 px-2 py-3 text-center">
-                          Nenhum motivo cadastrado. Use a aba <strong>Motivos Advert.</strong> pra cadastrar.
+                    <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2">⚠️ Motivos de Advertência</h3>
+                    <p className="text-xs text-gray-500">O RH escolhe um destes ao gerar o doc — texto + embasamento vão pra <span className="font-mono text-amber-700">$MOTIVO_ADVERTENCIA$</span>.</p>
+                  </div>
+                  <button type="button"
+                    onClick={() => setMotivoModal({ nome: '', texto: '', artigo: '' })}
+                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
+                    ➕ Novo Motivo
+                  </button>
+                </div>
+                {motivosAdv.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg">
+                    Nenhum motivo cadastrado. Clique em <strong>+ Novo Motivo</strong> pra começar.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {motivosAdv.map(m => (
+                      <div key={m.id} className="p-3 bg-amber-50 border border-amber-200 rounded-lg hover:border-amber-400 transition group relative">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="text-xs font-bold text-amber-900 leading-tight flex-1">⚠️ {m.nome}</div>
+                          {m.artigo && (
+                            <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
+                          )}
                         </div>
-                      ) : motivosAdv.map(m => (
-                        <div key={m.id} className="p-2 bg-white rounded border border-amber-200">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="text-[12px] font-semibold text-amber-900 leading-tight">⚠️ {m.nome}</div>
-                            {m.artigo && (
-                              <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-gray-600 mt-1 leading-snug">{m.texto}</div>
+                        <div className="text-[11px] text-gray-700 leading-snug line-clamp-3">{m.texto}</div>
+                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition flex gap-1">
+                          <button type="button" onClick={() => setMotivoModal({ ...m })}
+                            title="Editar"
+                            className="bg-white border border-gray-300 hover:bg-blue-50 hover:border-blue-300 text-blue-600 rounded p-1 text-xs">
+                            ✏️
+                          </button>
+                          <button type="button" onClick={() => excluirMotivo(m)}
+                            title="Excluir"
+                            className="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 rounded p-1 text-xs">
+                            🗑️
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      O RH escolhe um destes ao gerar o doc — o texto + embasamento vão pra <span className="font-mono text-amber-700">$MOTIVO_ADVERTENCIA$</span>.
-                    </p>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
+      )}
+
+      {/* Modal de Novo / Editar Motivo de Advertência */}
+      {motivoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-bold text-amber-900">
+                {motivoModal.id ? '✏️ Editar Motivo' : '➕ Novo Motivo de Advertência'}
+              </h3>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600">Nome curto *</label>
+                <input type="text" value={motivoModal.nome || ''}
+                  onChange={e => setMotivoModal({ ...motivoModal, nome: e.target.value })}
+                  placeholder="Ex: Desídia, Atraso, Insubordinação..."
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600">Embasamento legal / Artigo (opcional)</label>
+                <input type="text" value={motivoModal.artigo || ''}
+                  onChange={e => setMotivoModal({ ...motivoModal, artigo: e.target.value })}
+                  placeholder='Ex: Art. 482, "e", CLT  ·  Regulamento Interno  ·  NR-6'
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono" />
+                <p className="text-[10px] text-gray-500 mt-1">Aparece como tag no card e entre parênteses no doc gerado.</p>
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600">Texto do motivo *</label>
+                <textarea value={motivoModal.texto || ''}
+                  onChange={e => setMotivoModal({ ...motivoModal, texto: e.target.value })}
+                  rows={5}
+                  placeholder="Texto que vai substituir $MOTIVO_ADVERTENCIA$ no documento. Ex: 'desídia no desempenho das respectivas funções'"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button type="button" onClick={() => setMotivoModal(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">
+                Cancelar
+              </button>
+              <button type="button" onClick={salvarMotivo} disabled={salvandoMotivo}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded text-sm font-bold shadow disabled:opacity-50">
+                {salvandoMotivo ? 'Salvando...' : (motivoModal.id ? '💾 Salvar' : '➕ Criar')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Gerar pra colaborador — passo 1: empresa, passo 2: colaborador */}
