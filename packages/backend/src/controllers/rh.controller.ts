@@ -2,6 +2,88 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 
+// ============================================================
+// Helpers pra gravar os campos "extras" do colaborador (alinhados à Ficha
+// de Admissão completa) — RG completo, características, CTPS expandido,
+// Título expandido, Reservista, CNH, cônjuge, estrangeiro, dependentes.
+// Roda como UPDATE secundário pra não mexer no INSERT/UPDATE principal
+// (que já é grande). Idempotente — pode chamar várias vezes.
+// ============================================================
+const CAMPOS_EXTRAS_COLAB = [
+  'rg_orgao_emissor', 'rg_uf', 'rg_emissao',
+  'naturalidade_uf',
+  'raca_cor', 'tipo_sanguineo', 'altura', 'peso', 'cor_cabelos', 'cor_olhos', 'deficiente',
+  'ctps_uf', 'ctps_emissao',
+  'titulo_zona', 'titulo_secao', 'titulo_emissao',
+  'reservista_uf', 'reservista_emissao',
+  'cnh', 'cnh_categoria', 'cnh_uf', 'cnh_validade',
+  'conjuge_nome', 'conjuge_cpf', 'conjuge_data_nascimento', 'conjuge_data_casamento',
+  'pais_nacionalidade', 'condicao_ingresso_brasil', 'data_chegada_brasil',
+  'filhos_brasileiros', 'filhos_brasileiros_qtd', 'casado_brasileiro',
+  'portaria_naturalizacao', 'data_naturalizacao',
+];
+
+async function gravarCamposExtrasColab(colaboradorId: number, body: any) {
+  if (!colaboradorId || !body) return;
+  const sets: string[] = [];
+  const params: any[] = [];
+  let idx = 1;
+  for (const campo of CAMPOS_EXTRAS_COLAB) {
+    if (Object.prototype.hasOwnProperty.call(body, campo)) {
+      let v: any = body[campo];
+      if (v === '' || v === undefined) v = null;
+      // booleans
+      if (campo === 'filhos_brasileiros' || campo === 'casado_brasileiro') v = !!v;
+      sets.push(`${campo} = $${idx++}`);
+      params.push(v);
+    }
+  }
+  if (sets.length === 0) return;
+  params.push(colaboradorId);
+  await AppDataSource.query(
+    `UPDATE rh_colaboradores SET ${sets.join(', ')} WHERE id = $${idx}`,
+    params
+  );
+}
+
+async function gravarDependentes(colaboradorId: number, dependentes: any[]) {
+  if (!colaboradorId || !Array.isArray(dependentes)) return;
+  // Estratégia simples: apaga todos e re-insere (o front sempre manda a lista atual).
+  await AppDataSource.query(`DELETE FROM rh_colaborador_dependentes WHERE colaborador_id = $1`, [colaboradorId]);
+  for (const d of dependentes) {
+    if (!d?.nome) continue;
+    await AppDataSource.query(
+      `INSERT INTO rh_colaborador_dependentes
+         (colaborador_id, nome, parentesco, sexo, cpf, data_nascimento,
+          certidao_numero, certidao_data, certidao_cartorio, certidao_folha,
+          dependente_ir, dependente_sf)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [
+        colaboradorId,
+        d.nome,
+        d.parentesco || null,
+        d.sexo || null,
+        d.cpf || null,
+        d.data_nascimento || null,
+        d.certidao_numero || null,
+        d.certidao_data || null,
+        d.certidao_cartorio || null,
+        d.certidao_folha || null,
+        !!d.dependente_ir,
+        !!d.dependente_sf,
+      ]
+    );
+  }
+}
+
+async function listarDependentes(colaboradorId: number) {
+  if (!colaboradorId) return [];
+  return await AppDataSource.query(
+    `SELECT * FROM rh_colaborador_dependentes WHERE colaborador_id = $1 ORDER BY id`,
+    [colaboradorId]
+  );
+}
+
 export class RhController {
   static async listColaboradores(req: AuthRequest, res: Response) {
     try {
@@ -116,7 +198,9 @@ export class RhController {
         return res.status(404).json({ error: 'Colaborador not found' });
       }
 
-      res.json(result[0]);
+      // Inclui dependentes (1-N) na resposta — Família do colaborador
+      const dependentes = await listarDependentes(Number(id)).catch(() => []);
+      res.json({ ...result[0], dependentes });
     } catch (error) {
       console.error('Get colaborador by ID error:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -226,6 +310,20 @@ export class RhController {
         }
       }
 
+      // Grava campos extras (RG completo, CTPS UF/emissão, Título zona/seção,
+      // Reservista UF, CNH, características pessoais, cônjuge, estrangeiro)
+      // + dependentes em tabela separada.
+      try {
+        if (novoColabId) {
+          await gravarCamposExtrasColab(novoColabId, req.body);
+          if (Array.isArray(req.body.dependentes)) {
+            await gravarDependentes(novoColabId, req.body.dependentes);
+          }
+        }
+      } catch (e) {
+        console.warn(`[colab ${novoColabId}] falha ao gravar campos extras/dependentes:`, (e as Error).message);
+      }
+
       res.status(201).json(result[0]);
     } catch (error: any) {
       console.error('Create colaborador error:', error);
@@ -319,6 +417,16 @@ export class RhController {
 
       if (result.length === 0) {
         return res.status(404).json({ error: 'Colaborador not found' });
+      }
+
+      // Grava campos extras + dependentes (idempotente)
+      try {
+        await gravarCamposExtrasColab(Number(id), req.body);
+        if (Array.isArray(req.body.dependentes)) {
+          await gravarDependentes(Number(id), req.body.dependentes);
+        }
+      } catch (e) {
+        console.warn(`[colab ${id}] falha ao gravar campos extras/dependentes:`, (e as Error).message);
       }
 
       res.json(result[0]);

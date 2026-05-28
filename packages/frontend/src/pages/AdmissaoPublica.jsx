@@ -18,6 +18,7 @@ export default function AdmissaoPublica() {
 
   // Dados que o candidato preenche (estrutura espelha o que o backend espera em criar-colaborador)
   const [dados, setDados] = useState({
+    foto_url: '', // base64 da foto do candidato (resized pra ~800px / JPEG 0.8)
     dados_pessoais: {
       nome: '', cpf: '', rg: '', rg_orgao_emissor: '', rg_uf: '', rg_emissao: '',
       data_nascimento: '', sexo: '', estado_civil: '',
@@ -110,6 +111,39 @@ export default function AdmissaoPublica() {
     ])
   );
   const setSecao = (secao, patch) => setDados(d => ({ ...d, [secao]: { ...d[secao], ...upperize(patch) } }));
+
+  // Upload de foto: aceita do celular (galeria/câmera), redimensiona pra ~800px
+  // e salva como base64 em dados.foto_url. Quando o RH criar o colaborador,
+  // essa foto é copiada pra rh_colaboradores.foto_url e aparece no avatar dele.
+  const handleFotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Arquivo precisa ser uma imagem'); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.error('Foto muito grande (máx 15MB)'); return; }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const img = new Image();
+      img.onload = () => {
+        // Resize pra no máx 800px (mantendo proporção) → JPEG 0.85
+        const maxSize = 800;
+        let { width, height } = img;
+        if (width > height && width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize; }
+        else if (height > maxSize)              { width  = Math.round(width  * maxSize / height); height = maxSize; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setDados(d => ({ ...d, foto_url: dataUrl }));
+        toast.success('Foto carregada!');
+      };
+      img.onerror = () => toast.error('Não foi possível ler a imagem');
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // CEP autofill (ViaCEP)
   const buscarCep = async (cep) => {
@@ -237,6 +271,43 @@ export default function AdmissaoPublica() {
             <div><span className="text-gray-500">Cargo:</span> <strong>{ficha?.cargo_nome || '—'}</strong></div>
             <div><span className="text-gray-500">Departamento:</span> {ficha?.departamento_nome || '—'}</div>
             <div><span className="text-gray-500">Data de admissão:</span> {ficha?.data_admissao ? new Date(ficha.data_admissao).toLocaleDateString('pt-BR') : '—'}</div>
+          </div>
+        </div>
+
+        {/* Foto do candidato — escolhe da galeria ou tira na hora */}
+        <div className={sectionCls}>
+          <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Sua foto</h3>
+          <div className="flex items-center gap-4">
+            {dados.foto_url ? (
+              <img src={dados.foto_url} alt="Foto do candidato"
+                className="w-28 h-28 rounded-full object-cover border-4 border-purple-300 shadow" />
+            ) : (
+              <div className="w-28 h-28 rounded-full bg-gray-100 flex flex-col items-center justify-center text-gray-400 text-3xl border-4 border-dashed border-gray-300">
+                📷
+              </div>
+            )}
+            <div className="flex-1">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFotoUpload}
+                id="upload-foto-cand"
+                className="hidden"
+              />
+              <label htmlFor="upload-foto-cand"
+                className="cursor-pointer inline-block px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-bold shadow">
+                📷 {dados.foto_url ? 'Trocar foto' : 'Escolher foto'}
+              </label>
+              <p className="text-xs text-gray-500 mt-2">
+                Escolha uma foto sua (do celular ou galeria). Use o rosto centralizado e fundo claro.
+              </p>
+              {dados.foto_url && (
+                <button type="button" onClick={() => setDados(d => ({ ...d, foto_url: '' }))}
+                  className="mt-2 text-xs text-red-600 hover:underline block">
+                  🗑 Remover foto
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

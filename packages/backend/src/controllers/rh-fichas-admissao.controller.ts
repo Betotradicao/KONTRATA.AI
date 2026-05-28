@@ -120,8 +120,9 @@ export class RhFichasAdmissaoController {
            contribuicao_sindical = COALESCE($21, contribuicao_sindical),
            vale_transporte       = COALESCE($22, vale_transporte),
            status                = COALESCE($23, status),
+           candidato_dados       = COALESCE($24::jsonb, candidato_dados),
            updated_at            = NOW()
-         WHERE id = $24 RETURNING *`,
+         WHERE id = $25 RETURNING *`,
         [
           b.company_id ?? null, b.candidato_nome ?? null, b.candidato_email ?? null, b.candidato_celular ?? null,
           b.data_admissao ?? null, b.cargo_id ?? null, b.departamento_id ?? null, b.jornada_id ?? null, b.escala_id ?? null, b.escala_domingo_id ?? null,
@@ -297,6 +298,9 @@ export class RhFichasAdmissaoController {
       const cont = dados.contato || {};
       const doc  = dados.documentos || {};
       const bnc  = dados.banco || {};
+      // Foto do candidato (base64 vindo do link público, já redimensionada).
+      const fotoUrl = dados.foto_url || null;
+
       // Opções vêm do candidato (não mais da ficha do RH).
       // Aceita boolean (legado) OU string 'SIM'/'NAO' (formato atual).
       const opc  = dados.opcoes_candidato || {};
@@ -343,6 +347,70 @@ export class RhFichasAdmissaoController {
           pess.nome_pai || null, pess.nome_mae || null
         ]
       );
+
+      // Grava TODOS os outros campos do candidato_dados que não couberam no
+      // INSERT principal: RG completo, características, CTPS UF/emissão,
+      // Título zona/seção, Reservista, CNH, cônjuge, estrangeiro,
+      // naturalidade UF — via UPDATE secundário.
+      try {
+        const est = dados.estrangeiro || {};
+        const conj = dados.conjuge || {};
+        await AppDataSource.query(
+          `UPDATE rh_colaboradores SET
+             rg_orgao_emissor = $1, rg_uf = $2, rg_emissao = $3,
+             naturalidade_uf = $4,
+             raca_cor = $5, tipo_sanguineo = $6, altura = $7, peso = $8,
+             cor_cabelos = $9, cor_olhos = $10, deficiente = $11,
+             ctps_uf = $12, ctps_emissao = $13,
+             titulo_zona = $14, titulo_secao = $15, titulo_emissao = $16,
+             reservista_uf = $17, reservista_emissao = $18,
+             cnh = $19, cnh_categoria = $20, cnh_uf = $21, cnh_validade = $22,
+             conjuge_nome = $23, conjuge_cpf = $24, conjuge_data_nascimento = $25, conjuge_data_casamento = $26,
+             pais_nacionalidade = $27, condicao_ingresso_brasil = $28, data_chegada_brasil = $29,
+             filhos_brasileiros = $30, filhos_brasileiros_qtd = $31, casado_brasileiro = $32,
+             portaria_naturalizacao = $33, data_naturalizacao = $34,
+             foto_url = $35
+           WHERE id = $36`,
+          [
+            pess.rg_orgao_emissor || null, pess.rg_uf || null, pess.rg_emissao || null,
+            pess.naturalidade_uf || null,
+            pess.raca_cor || null, pess.tipo_sanguineo || null, pess.altura || null, pess.peso || null,
+            pess.cor_cabelos || null, pess.cor_olhos || null, pess.deficiente || null,
+            doc.ctps_uf || null, doc.ctps_emissao || null,
+            doc.titulo_zona || null, doc.titulo_secao || null, doc.titulo_emissao || null,
+            doc.reservista_uf || null, doc.reservista_emissao || null,
+            doc.cnh || null, doc.cnh_categoria || null, doc.cnh_uf || null, doc.cnh_validade || null,
+            conj.nome || null, conj.cpf || null, conj.data_nascimento || null, conj.data_casamento || null,
+            est.pais_nacionalidade || null, est.condicao_ingresso || null, est.data_chegada || null,
+            !!est.filhos_brasileiros, est.filhos_brasileiros_qtd || null, !!est.casado_brasileiro,
+            est.portaria_naturalizacao || null, est.data_naturalizacao || null,
+            fotoUrl,
+            novo.id,
+          ]
+        );
+
+        // Dependentes (lista) — copia pra rh_colaborador_dependentes
+        const deps = Array.isArray(dados.dependentes) ? dados.dependentes : [];
+        for (const d of deps) {
+          if (!d?.nome) continue;
+          await AppDataSource.query(
+            `INSERT INTO rh_colaborador_dependentes
+               (colaborador_id, nome, parentesco, sexo, cpf, data_nascimento,
+                certidao_numero, certidao_data, certidao_cartorio, certidao_folha,
+                dependente_ir, dependente_sf)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [
+              novo.id, d.nome, d.parentesco || null, d.sexo || null, d.cpf || null,
+              d.data_nascimento || null,
+              d.certidao_numero || null, d.certidao_data || null,
+              d.certidao_cartorio || null, d.certidao_folha || null,
+              !!d.dependente_ir, !!d.dependente_sf,
+            ]
+          );
+        }
+      } catch (extraErr) {
+        console.warn('[criarColaborador] falha ao gravar campos extras/dependentes:', (extraErr as Error).message);
+      }
 
       await AppDataSource.query(
         `UPDATE rh_fichas_admissao SET colaborador_id = $1, status = 'colaborador_criado', updated_at = NOW() WHERE id = $2`,

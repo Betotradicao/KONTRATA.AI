@@ -463,7 +463,10 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
           {/* Painel READ-ONLY com os dados preenchidos pelo candidato via link público.
               Aparece SOMENTE quando há candidato_dados (status >= preenchida ou rascunho do candidato). */}
           {ficha.candidato_dados && Object.keys(ficha.candidato_dados).length > 0 && (
-            <DadosCandidatoPainel dados={ficha.candidato_dados} />
+            <DadosCandidatoPainel
+              dados={ficha.candidato_dados}
+              onChange={(novoDados) => setFicha({ ...ficha, candidato_dados: novoDados })}
+            />
           )}
         </div>
 
@@ -483,7 +486,7 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
 // Mostrado dentro do modal de edição da ficha pra RH revisar antes de
 // converter em colaborador.
 // ============================================================
-function DadosCandidatoPainel({ dados }) {
+function DadosCandidatoPainel({ dados, onChange }) {
   const pess = dados.dados_pessoais || {};
   const end = dados.endereco || {};
   const cont = dados.contato || {};
@@ -497,57 +500,146 @@ function DadosCandidatoPainel({ dados }) {
   const temConjuge = pess.estado_civil === 'CASADO' || pess.estado_civil === 'UNIAO_ESTAVEL';
   const ehEstrangeiro = pess.nacionalidade && !String(pess.nacionalidade).toUpperCase().includes('BRASIL');
 
-  const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
-  const fmtBool = (b) => {
-    if (b === true || b === 'SIM' || b === 'sim' || b === 'Sim') return '✅ Sim';
-    if (b === false || b === 'NAO' || b === 'nao' || b === 'Não') return '❌ Não';
-    return '—';
+  // Helpers de update
+  const setRoot = (key, val) => onChange({ ...dados, [key]: val });
+  const setSecao = (sec, key, val) => onChange({ ...dados, [sec]: { ...(dados[sec] || {}), [key]: val } });
+  const setDep = (idx, key, val) => {
+    const arr = [...deps];
+    arr[idx] = { ...(arr[idx] || {}), [key]: val };
+    onChange({ ...dados, dependentes: arr });
   };
-  const fmt = (v) => v || '—';
+  const addDep = () => onChange({
+    ...dados,
+    dependentes: [...deps, { nome: '', parentesco: '', sexo: '', cpf: '', data_nascimento: '',
+                              certidao_numero: '', certidao_data: '', certidao_cartorio: '', certidao_folha: '',
+                              dependente_ir: false, dependente_sf: false }],
+  });
+  const rmDep = (idx) => onChange({ ...dados, dependentes: deps.filter((_, i) => i !== idx) });
 
-  const labelStyle = 'text-[10px] uppercase font-semibold text-gray-500';
-  const valueStyle = 'text-sm text-gray-800 font-medium';
+  // Upload de foto (com resize) — RH troca a foto do candidato
+  const handleFotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Imagem inválida'); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.error('Foto muito grande'); return; }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 800;
+        let { width, height } = img;
+        if (width > height && width > maxSize) { height = Math.round(height * maxSize / width); width = maxSize; }
+        else if (height > maxSize)              { width  = Math.round(width  * maxSize / height); height = maxSize; }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        setRoot('foto_url', canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Styles
+  const labelStyle = 'block text-[10px] uppercase font-semibold text-gray-600 mb-1';
+  const inputCls = 'w-full px-2 py-1.5 border border-purple-200 rounded text-xs bg-white focus:ring-2 focus:ring-purple-400 focus:border-purple-400';
   const sectionBox = 'bg-purple-50 border border-purple-200 rounded-lg p-4';
   const subTitle = 'text-sm font-bold text-purple-900 uppercase mb-3 pb-2 border-b border-purple-200 flex items-center gap-2';
 
-  const Item = ({ label, value }) => (
+  // Components
+  const Field = ({ label, value, onChg, type = 'text' }) => (
     <div>
-      <div className={labelStyle}>{label}</div>
-      <div className={valueStyle}>{value || '—'}</div>
+      <label className={labelStyle}>{label}</label>
+      <input type={type} value={value || ''} onChange={e => onChg(e.target.value)} className={inputCls} />
     </div>
   );
+  const SelectField = ({ label, value, onChg, options }) => (
+    <div>
+      <label className={labelStyle}>{label}</label>
+      <select value={value || ''} onChange={e => onChg(e.target.value)} className={inputCls}>
+        <option value="">—</option>
+        {options.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+  const SimNao = ({ label, value, onChg }) => (
+    <SelectField label={label} value={value} onChg={onChg} options={[{ v: 'SIM', label: 'Sim' }, { v: 'NAO', label: 'Não' }]} />
+  );
+
+  const opcoesSexo = [{ v: 'MASCULINO', label: 'Masculino' }, { v: 'FEMININO', label: 'Feminino' }, { v: 'M', label: 'M' }, { v: 'F', label: 'F' }];
+  const opcoesEstadoCivil = [
+    { v: 'SOLTEIRO', label: 'Solteiro(a)' },
+    { v: 'CASADO', label: 'Casado(a)' },
+    { v: 'DIVORCIADO', label: 'Divorciado(a)' },
+    { v: 'VIUVO', label: 'Viúvo(a)' },
+    { v: 'UNIAO_ESTAVEL', label: 'União estável' },
+  ];
+  const opcoesRaca = ['BRANCA', 'PRETA', 'PARDA', 'AMARELA', 'INDIGENA', 'NAO_DECLARADO'].map(v => ({ v, label: v }));
+  const opcoesSangue = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(v => ({ v, label: v }));
+  const opcoesDef = ['NENHUMA', 'FISICA', 'AUDITIVA', 'VISUAL', 'REABILITADO', 'MENTAL', 'MULTIPLA', 'INTELECTUAL'].map(v => ({ v, label: v }));
+  const opcoesTipoConta = [{ v: 'CORRENTE', label: 'Corrente' }, { v: 'POUPANCA', label: 'Poupança' }, { v: 'SALARIO', label: 'Salário' }];
+  const opcoesParentesco = [
+    { v: 'FILHO', label: 'Filho(a)' }, { v: 'CONJUGE', label: 'Cônjuge' },
+    { v: 'ENTEADO', label: 'Enteado(a)' }, { v: 'PAI_MAE', label: 'Pai/Mãe' }, { v: 'OUTRO', label: 'Outro' },
+  ];
+  const opcoesSexoDep = [{ v: 'M', label: 'M' }, { v: 'F', label: 'F' }];
 
   return (
     <div className="space-y-3 mt-3">
-      <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg p-3 text-sm font-bold">
-        📝 Dados preenchidos pelo candidato
+      <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg p-3 text-sm font-bold flex items-center gap-3">
+        {dados.foto_url && (
+          <img src={dados.foto_url} alt="Foto" className="w-12 h-12 rounded-full object-cover border-2 border-white shadow" />
+        )}
+        <span>📝 Dados preenchidos pelo candidato</span>
+        <span className="ml-auto text-[10px] bg-white/20 px-2 py-0.5 rounded">✏️ editável — RH pode corrigir antes de criar colaborador</span>
+      </div>
+
+      {/* Foto editável */}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>📸 Foto do colaborador</h4>
+        <div className="flex items-center gap-3">
+          {dados.foto_url ? (
+            <img src={dados.foto_url} alt="Foto" className="w-20 h-20 rounded-full object-cover border-2 border-purple-300" />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-2xl text-gray-400 border-2 border-dashed border-gray-300">📷</div>
+          )}
+          <div className="flex-1">
+            <input type="file" accept="image/*" onChange={handleFotoUpload} id="painel-foto-upload" className="hidden" />
+            <label htmlFor="painel-foto-upload" className="cursor-pointer inline-block px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-bold">
+              📷 {dados.foto_url ? 'Trocar foto' : 'Escolher foto'}
+            </label>
+            {dados.foto_url && (
+              <button type="button" onClick={() => setRoot('foto_url', '')} className="ml-2 text-xs text-red-600 hover:underline">🗑 Remover</button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Dados pessoais */}
       <div className={sectionBox}>
         <h4 className={subTitle}>Dados pessoais</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Item label="Nome" value={pess.nome} />
-          <Item label="CPF" value={pess.cpf} />
-          <Item label="RG" value={pess.rg} />
-          <Item label="RG — Órgão" value={pess.rg_orgao_emissor} />
-          <Item label="RG — UF" value={pess.rg_uf} />
-          <Item label="RG — Emissão" value={fmtDate(pess.rg_emissao)} />
-          <Item label="Data nasc." value={fmtDate(pess.data_nascimento)} />
-          <Item label="Sexo" value={pess.sexo} />
-          <Item label="Estado civil" value={pess.estado_civil} />
-          <Item label="Nacionalidade" value={pess.nacionalidade} />
-          <Item label="Naturalidade" value={pess.naturalidade} />
-          <Item label="Naturalidade UF" value={pess.naturalidade_uf} />
-          <Item label="Pai" value={pess.nome_pai} />
-          <Item label="Mãe" value={pess.nome_mae} />
-          <Item label="Raça/Cor" value={pess.raca_cor} />
-          <Item label="Sanguíneo" value={pess.tipo_sanguineo} />
-          <Item label="Altura" value={pess.altura} />
-          <Item label="Peso" value={pess.peso} />
-          <Item label="Cabelos" value={pess.cor_cabelos} />
-          <Item label="Olhos" value={pess.cor_olhos} />
-          <Item label="Deficiência" value={pess.deficiente} />
+          <Field label="Nome completo" value={pess.nome} onChg={v => setSecao('dados_pessoais', 'nome', v)} />
+          <Field label="CPF" value={pess.cpf} onChg={v => setSecao('dados_pessoais', 'cpf', v)} />
+          <Field label="RG (nº)" value={pess.rg} onChg={v => setSecao('dados_pessoais', 'rg', v)} />
+          <Field label="RG — Órgão" value={pess.rg_orgao_emissor} onChg={v => setSecao('dados_pessoais', 'rg_orgao_emissor', v)} />
+          <Field label="RG — UF" value={pess.rg_uf} onChg={v => setSecao('dados_pessoais', 'rg_uf', v)} />
+          <Field label="RG — Emissão" value={pess.rg_emissao} onChg={v => setSecao('dados_pessoais', 'rg_emissao', v)} type="date" />
+          <Field label="Data nasc." value={pess.data_nascimento} onChg={v => setSecao('dados_pessoais', 'data_nascimento', v)} type="date" />
+          <SelectField label="Sexo" value={pess.sexo} onChg={v => setSecao('dados_pessoais', 'sexo', v)} options={opcoesSexo} />
+          <SelectField label="Estado civil" value={pess.estado_civil} onChg={v => setSecao('dados_pessoais', 'estado_civil', v)} options={opcoesEstadoCivil} />
+          <Field label="Nacionalidade" value={pess.nacionalidade} onChg={v => setSecao('dados_pessoais', 'nacionalidade', v)} />
+          <Field label="Naturalidade" value={pess.naturalidade} onChg={v => setSecao('dados_pessoais', 'naturalidade', v)} />
+          <Field label="Naturalidade UF" value={pess.naturalidade_uf} onChg={v => setSecao('dados_pessoais', 'naturalidade_uf', v)} />
+          <Field label="Nome do pai" value={pess.nome_pai} onChg={v => setSecao('dados_pessoais', 'nome_pai', v)} />
+          <Field label="Nome da mãe" value={pess.nome_mae} onChg={v => setSecao('dados_pessoais', 'nome_mae', v)} />
+          <SelectField label="Raça/Cor" value={pess.raca_cor} onChg={v => setSecao('dados_pessoais', 'raca_cor', v)} options={opcoesRaca} />
+          <SelectField label="Tipo sanguíneo" value={pess.tipo_sanguineo} onChg={v => setSecao('dados_pessoais', 'tipo_sanguineo', v)} options={opcoesSangue} />
+          <Field label="Altura" value={pess.altura} onChg={v => setSecao('dados_pessoais', 'altura', v)} />
+          <Field label="Peso" value={pess.peso} onChg={v => setSecao('dados_pessoais', 'peso', v)} />
+          <Field label="Cor cabelos" value={pess.cor_cabelos} onChg={v => setSecao('dados_pessoais', 'cor_cabelos', v)} />
+          <Field label="Cor olhos" value={pess.cor_olhos} onChg={v => setSecao('dados_pessoais', 'cor_olhos', v)} />
+          <SelectField label="Deficiência" value={pess.deficiente} onChg={v => setSecao('dados_pessoais', 'deficiente', v)} options={opcoesDef} />
         </div>
       </div>
 
@@ -556,10 +648,10 @@ function DadosCandidatoPainel({ dados }) {
         <div className={sectionBox}>
           <h4 className={subTitle}>Cônjuge</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Item label="Nome" value={conj.nome} />
-            <Item label="CPF" value={conj.cpf} />
-            <Item label="Data nasc." value={fmtDate(conj.data_nascimento)} />
-            <Item label="Data casamento" value={fmtDate(conj.data_casamento)} />
+            <Field label="Nome" value={conj.nome} onChg={v => setSecao('conjuge', 'nome', v)} />
+            <Field label="CPF" value={conj.cpf} onChg={v => setSecao('conjuge', 'cpf', v)} />
+            <Field label="Data nasc." value={conj.data_nascimento} onChg={v => setSecao('conjuge', 'data_nascimento', v)} type="date" />
+            <Field label="Data casamento" value={conj.data_casamento} onChg={v => setSecao('conjuge', 'data_casamento', v)} type="date" />
           </div>
         </div>
       )}
@@ -569,14 +661,14 @@ function DadosCandidatoPainel({ dados }) {
         <div className={sectionBox}>
           <h4 className={subTitle}>Para estrangeiro</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Item label="País de nacionalidade" value={estr.pais_nacionalidade} />
-            <Item label="Condição de ingresso" value={estr.condicao_ingresso} />
-            <Item label="Data de chegada" value={fmtDate(estr.data_chegada)} />
-            <Item label="Filhos c/ brasileiro" value={fmtBool(estr.filhos_brasileiros)} />
-            <Item label="Quantos" value={estr.filhos_brasileiros_qtd} />
-            <Item label="Casado c/ brasileiro" value={fmtBool(estr.casado_brasileiro)} />
-            <Item label="Portaria naturalização" value={estr.portaria_naturalizacao} />
-            <Item label="Data naturalização" value={fmtDate(estr.data_naturalizacao)} />
+            <Field label="País de nacionalidade" value={estr.pais_nacionalidade} onChg={v => setSecao('estrangeiro', 'pais_nacionalidade', v)} />
+            <Field label="Condição de ingresso" value={estr.condicao_ingresso} onChg={v => setSecao('estrangeiro', 'condicao_ingresso', v)} />
+            <Field label="Data de chegada" value={estr.data_chegada} onChg={v => setSecao('estrangeiro', 'data_chegada', v)} type="date" />
+            <SimNao label="Filhos c/ brasileiro" value={estr.filhos_brasileiros === true ? 'SIM' : estr.filhos_brasileiros === false ? 'NAO' : estr.filhos_brasileiros} onChg={v => setSecao('estrangeiro', 'filhos_brasileiros', v === 'SIM')} />
+            <Field label="Quantos" value={estr.filhos_brasileiros_qtd} onChg={v => setSecao('estrangeiro', 'filhos_brasileiros_qtd', v)} />
+            <SimNao label="Casado c/ brasileiro" value={estr.casado_brasileiro === true ? 'SIM' : estr.casado_brasileiro === false ? 'NAO' : estr.casado_brasileiro} onChg={v => setSecao('estrangeiro', 'casado_brasileiro', v === 'SIM')} />
+            <Field label="Portaria naturalização" value={estr.portaria_naturalizacao} onChg={v => setSecao('estrangeiro', 'portaria_naturalizacao', v)} />
+            <Field label="Data naturalização" value={estr.data_naturalizacao} onChg={v => setSecao('estrangeiro', 'data_naturalizacao', v)} type="date" />
           </div>
         </div>
       )}
@@ -585,9 +677,9 @@ function DadosCandidatoPainel({ dados }) {
       <div className={sectionBox}>
         <h4 className={subTitle}>Contato</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Item label="Telefone" value={cont.telefone} />
-          <Item label="Celular" value={cont.celular} />
-          <Item label="E-mail" value={cont.email} />
+          <Field label="Telefone" value={cont.telefone} onChg={v => setSecao('contato', 'telefone', v)} />
+          <Field label="Celular" value={cont.celular} onChg={v => setSecao('contato', 'celular', v)} />
+          <Field label="E-mail" value={cont.email} onChg={v => setSecao('contato', 'email', v)} type="email" />
         </div>
       </div>
 
@@ -595,44 +687,42 @@ function DadosCandidatoPainel({ dados }) {
       <div className={sectionBox}>
         <h4 className={subTitle}>Endereço</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Item label="CEP" value={end.cep} />
-          <Item label="Rua" value={end.rua} />
-          <Item label="Nº" value={end.numero} />
-          <Item label="Complemento" value={end.complemento} />
-          <Item label="Bairro" value={end.bairro} />
-          <Item label="Cidade" value={end.cidade} />
-          <Item label="UF" value={end.estado} />
+          <Field label="CEP" value={end.cep} onChg={v => setSecao('endereco', 'cep', v)} />
+          <Field label="Rua" value={end.rua} onChg={v => setSecao('endereco', 'rua', v)} />
+          <Field label="Nº" value={end.numero} onChg={v => setSecao('endereco', 'numero', v)} />
+          <Field label="Complemento" value={end.complemento} onChg={v => setSecao('endereco', 'complemento', v)} />
+          <Field label="Bairro" value={end.bairro} onChg={v => setSecao('endereco', 'bairro', v)} />
+          <Field label="Cidade" value={end.cidade} onChg={v => setSecao('endereco', 'cidade', v)} />
+          <Field label="UF" value={end.estado} onChg={v => setSecao('endereco', 'estado', v)} />
         </div>
       </div>
 
       {/* Escolaridade */}
-      {esc.escolaridade_id && (
-        <div className={sectionBox}>
-          <h4 className={subTitle}>Escolaridade</h4>
-          <Item label="Grau" value={esc.escolaridade_id} />
-        </div>
-      )}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>Escolaridade</h4>
+        <Field label="Grau" value={esc.escolaridade_id} onChg={v => setSecao('escolaridade', 'escolaridade_id', v)} />
+      </div>
 
       {/* Documentos */}
       <div className={sectionBox}>
         <h4 className={subTitle}>Documentos</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Item label="CTPS" value={doc.ctps} />
-          <Item label="CTPS Série" value={doc.serie_ctps} />
-          <Item label="CTPS UF" value={doc.ctps_uf} />
-          <Item label="CTPS Emissão" value={fmtDate(doc.ctps_emissao)} />
-          <Item label="PIS/PASEP" value={doc.pis_pasep} />
-          <Item label="Tít. Eleitor" value={doc.titulo_eleitor} />
-          <Item label="Tít. Zona" value={doc.titulo_zona} />
-          <Item label="Tít. Seção" value={doc.titulo_secao} />
-          <Item label="Tít. Emissão" value={fmtDate(doc.titulo_emissao)} />
-          <Item label="Reservista" value={doc.reservista} />
-          <Item label="Reserv. UF" value={doc.reservista_uf} />
-          <Item label="Reserv. Emissão" value={fmtDate(doc.reservista_emissao)} />
-          <Item label="CNH" value={doc.cnh} />
-          <Item label="CNH Cat." value={doc.cnh_categoria} />
-          <Item label="CNH UF" value={doc.cnh_uf} />
-          <Item label="CNH Valid." value={fmtDate(doc.cnh_validade)} />
+          <Field label="CTPS" value={doc.ctps} onChg={v => setSecao('documentos', 'ctps', v)} />
+          <Field label="CTPS Série" value={doc.serie_ctps} onChg={v => setSecao('documentos', 'serie_ctps', v)} />
+          <Field label="CTPS UF" value={doc.ctps_uf} onChg={v => setSecao('documentos', 'ctps_uf', v)} />
+          <Field label="CTPS Emissão" value={doc.ctps_emissao} onChg={v => setSecao('documentos', 'ctps_emissao', v)} type="date" />
+          <Field label="PIS/PASEP" value={doc.pis_pasep} onChg={v => setSecao('documentos', 'pis_pasep', v)} />
+          <Field label="Título Eleitor" value={doc.titulo_eleitor} onChg={v => setSecao('documentos', 'titulo_eleitor', v)} />
+          <Field label="Título Zona" value={doc.titulo_zona} onChg={v => setSecao('documentos', 'titulo_zona', v)} />
+          <Field label="Título Seção" value={doc.titulo_secao} onChg={v => setSecao('documentos', 'titulo_secao', v)} />
+          <Field label="Título Emissão" value={doc.titulo_emissao} onChg={v => setSecao('documentos', 'titulo_emissao', v)} type="date" />
+          <Field label="Reservista" value={doc.reservista} onChg={v => setSecao('documentos', 'reservista', v)} />
+          <Field label="Reservista UF" value={doc.reservista_uf} onChg={v => setSecao('documentos', 'reservista_uf', v)} />
+          <Field label="Reservista Emissão" value={doc.reservista_emissao} onChg={v => setSecao('documentos', 'reservista_emissao', v)} type="date" />
+          <Field label="CNH" value={doc.cnh} onChg={v => setSecao('documentos', 'cnh', v)} />
+          <Field label="CNH Categoria" value={doc.cnh_categoria} onChg={v => setSecao('documentos', 'cnh_categoria', v)} />
+          <Field label="CNH UF" value={doc.cnh_uf} onChg={v => setSecao('documentos', 'cnh_uf', v)} />
+          <Field label="CNH Validade" value={doc.cnh_validade} onChg={v => setSecao('documentos', 'cnh_validade', v)} type="date" />
         </div>
       </div>
 
@@ -640,45 +730,64 @@ function DadosCandidatoPainel({ dados }) {
       <div className={sectionBox}>
         <h4 className={subTitle}>Dados bancários</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Item label="Banco" value={bnc.banco} />
-          <Item label="Agência" value={bnc.agencia} />
-          <Item label="Conta" value={bnc.conta} />
-          <Item label="Tipo" value={bnc.tipo_conta} />
-          <Item label="PIX" value={bnc.pix} />
+          <Field label="Banco" value={bnc.banco} onChg={v => setSecao('banco', 'banco', v)} />
+          <Field label="Agência" value={bnc.agencia} onChg={v => setSecao('banco', 'agencia', v)} />
+          <Field label="Conta" value={bnc.conta} onChg={v => setSecao('banco', 'conta', v)} />
+          <SelectField label="Tipo" value={bnc.tipo_conta} onChg={v => setSecao('banco', 'tipo_conta', v)} options={opcoesTipoConta} />
+          <Field label="PIX" value={bnc.pix} onChg={v => setSecao('banco', 'pix', v)} />
         </div>
       </div>
 
-      {/* Dependentes */}
-      {deps.length > 0 && (
-        <div className={sectionBox}>
-          <h4 className={subTitle}>Dependentes ({deps.length})</h4>
+      {/* Dependentes — editáveis */}
+      <div className={sectionBox}>
+        <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-200">
+          <h4 className="text-sm font-bold text-purple-900 uppercase">Dependentes ({deps.length})</h4>
+          <button type="button" onClick={addDep} className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-semibold">+ Adicionar</button>
+        </div>
+        {deps.length === 0 ? (
+          <p className="text-xs text-gray-500 italic">Nenhum dependente. Clique em <strong>+ Adicionar</strong> se houver.</p>
+        ) : (
           <div className="space-y-3">
             {deps.map((d, i) => (
-              <div key={i} className="bg-white rounded p-3 border border-purple-100">
-                <div className="font-bold text-sm text-gray-800 mb-2">{fmt(d.nome)} — {fmt(d.parentesco)} {d.sexo ? `(${d.sexo})` : ''}</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                  <Item label="CPF" value={d.cpf} />
-                  <Item label="Data nasc." value={fmtDate(d.data_nascimento)} />
-                  <Item label="IR" value={fmtBool(d.dependente_ir)} />
-                  <Item label="Salário-família" value={fmtBool(d.dependente_sf)} />
-                  <Item label="Certidão (nº)" value={d.certidao_numero} />
-                  <Item label="Data certidão" value={fmtDate(d.certidao_data)} />
-                  <Item label="Cartório" value={d.certidao_cartorio} />
-                  <Item label="Folha" value={d.certidao_folha} />
+              <div key={i} className="bg-white rounded p-3 border border-purple-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-gray-500 uppercase">Dependente {i + 1}</div>
+                  <button type="button" onClick={() => rmDep(i)} className="text-xs text-red-600 hover:underline">🗑 remover</button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Field label="Nome" value={d.nome} onChg={v => setDep(i, 'nome', v)} />
+                  <SelectField label="Parentesco" value={d.parentesco} onChg={v => setDep(i, 'parentesco', v)} options={opcoesParentesco} />
+                  <SelectField label="Sexo" value={d.sexo} onChg={v => setDep(i, 'sexo', v)} options={opcoesSexoDep} />
+                  <Field label="CPF" value={d.cpf} onChg={v => setDep(i, 'cpf', v)} />
+                  <Field label="Data nasc." value={d.data_nascimento} onChg={v => setDep(i, 'data_nascimento', v)} type="date" />
+                  <Field label="Certidão (nº)" value={d.certidao_numero} onChg={v => setDep(i, 'certidao_numero', v)} />
+                  <Field label="Data certidão" value={d.certidao_data} onChg={v => setDep(i, 'certidao_data', v)} type="date" />
+                  <Field label="Cartório" value={d.certidao_cartorio} onChg={v => setDep(i, 'certidao_cartorio', v)} />
+                  <Field label="Folha" value={d.certidao_folha} onChg={v => setDep(i, 'certidao_folha', v)} />
+                </div>
+                <div className="flex gap-4 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!d.dependente_ir} onChange={e => setDep(i, 'dependente_ir', e.target.checked)} className="accent-purple-600" />
+                    Dependente IR
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={!!d.dependente_sf} onChange={e => setDep(i, 'dependente_sf', e.target.checked)} className="accent-purple-600" />
+                    Salário-família
+                  </label>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Opções */}
       <div className={sectionBox}>
         <h4 className={subTitle}>Opções (escolhas do candidato)</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Item label="1º emprego" value={fmtBool(opc.primeiro_emprego)} />
-          <Item label="Contribuição Sindical" value={fmtBool(opc.contribuicao_sindical)} />
-          <Item label="Vale Transporte" value={fmtBool(opc.vale_transporte)} />
+          <SimNao label="1º emprego" value={opc.primeiro_emprego === true ? 'SIM' : opc.primeiro_emprego === false ? 'NAO' : opc.primeiro_emprego} onChg={v => setSecao('opcoes_candidato', 'primeiro_emprego', v)} />
+          <SimNao label="Contribuição Sindical" value={opc.contribuicao_sindical === true ? 'SIM' : opc.contribuicao_sindical === false ? 'NAO' : opc.contribuicao_sindical} onChg={v => setSecao('opcoes_candidato', 'contribuicao_sindical', v)} />
+          <SimNao label="Vale Transporte" value={opc.vale_transporte === true ? 'SIM' : opc.vale_transporte === false ? 'NAO' : opc.vale_transporte} onChg={v => setSecao('opcoes_candidato', 'vale_transporte', v)} />
         </div>
       </div>
     </div>

@@ -187,9 +187,49 @@ export default function RhCadastroGeral() {
     // Documentos
     ctps: '',
     serie_ctps: '',
+    ctps_uf: '',
+    ctps_emissao: '',
     pis_pasep: '',
     titulo_eleitor: '',
+    titulo_zona: '',
+    titulo_secao: '',
+    titulo_emissao: '',
     reservista: '',
+    reservista_uf: '',
+    reservista_emissao: '',
+    cnh: '',
+    cnh_categoria: '',
+    cnh_uf: '',
+    cnh_validade: '',
+    // RG completo
+    rg_orgao_emissor: '',
+    rg_uf: '',
+    rg_emissao: '',
+    // Características pessoais
+    naturalidade_uf: '',
+    raca_cor: '',
+    tipo_sanguineo: '',
+    altura: '',
+    peso: '',
+    cor_cabelos: '',
+    cor_olhos: '',
+    deficiente: '',
+    // Cônjuge
+    conjuge_nome: '',
+    conjuge_cpf: '',
+    conjuge_data_nascimento: '',
+    conjuge_data_casamento: '',
+    // Estrangeiro
+    pais_nacionalidade: '',
+    condicao_ingresso_brasil: '',
+    data_chegada_brasil: '',
+    filhos_brasileiros: false,
+    filhos_brasileiros_qtd: '',
+    casado_brasileiro: false,
+    portaria_naturalizacao: '',
+    data_naturalizacao: '',
+    // Dependentes (lista) — carregada do backend, atualizada no save
+    dependentes: [],
     // Banco
     banco: '',
     agencia: '',
@@ -361,8 +401,16 @@ export default function RhCadastroGeral() {
     }
   };
 
-  const abrirModal = (colaborador = null) => {
+  const abrirModal = async (colaborador = null) => {
     if (colaborador) {
+      // Busca a versão completa do colaborador (com dependentes + campos novos
+      // que não vêm na listagem). Se falhar, usa o objeto do listing como fallback.
+      let colab = colaborador;
+      try {
+        const r = await api.get(`/rh/colaboradores/${colaborador.id}`);
+        if (r?.data) colab = r.data;
+      } catch { /* mantém o objeto do listing */ }
+      colaborador = colab;
       setEditando(colaborador);
       setFormData({
         matricula: colaborador.matricula || '',
@@ -404,9 +452,53 @@ export default function RhCadastroGeral() {
         status: colaborador.status || 'ativo',
         ctps: colaborador.ctps || '',
         serie_ctps: colaborador.serie_ctps || '',
+        ctps_uf: colaborador.ctps_uf || '',
+        ctps_emissao: colaborador.ctps_emissao?.split('T')[0] || '',
         pis_pasep: colaborador.pis_pasep || '',
         titulo_eleitor: colaborador.titulo_eleitor || '',
+        titulo_zona: colaborador.titulo_zona || '',
+        titulo_secao: colaborador.titulo_secao || '',
+        titulo_emissao: colaborador.titulo_emissao?.split('T')[0] || '',
         reservista: colaborador.reservista || '',
+        reservista_uf: colaborador.reservista_uf || '',
+        reservista_emissao: colaborador.reservista_emissao?.split('T')[0] || '',
+        cnh: colaborador.cnh || '',
+        cnh_categoria: colaborador.cnh_categoria || '',
+        cnh_uf: colaborador.cnh_uf || '',
+        cnh_validade: colaborador.cnh_validade?.split('T')[0] || '',
+        // RG completo
+        rg_orgao_emissor: colaborador.rg_orgao_emissor || '',
+        rg_uf: colaborador.rg_uf || '',
+        rg_emissao: colaborador.rg_emissao?.split('T')[0] || '',
+        // Características pessoais
+        naturalidade_uf: colaborador.naturalidade_uf || '',
+        raca_cor: colaborador.raca_cor || '',
+        tipo_sanguineo: colaborador.tipo_sanguineo || '',
+        altura: colaborador.altura || '',
+        peso: colaborador.peso || '',
+        cor_cabelos: colaborador.cor_cabelos || '',
+        cor_olhos: colaborador.cor_olhos || '',
+        deficiente: colaborador.deficiente || '',
+        // Cônjuge
+        conjuge_nome: colaborador.conjuge_nome || '',
+        conjuge_cpf: colaborador.conjuge_cpf || '',
+        conjuge_data_nascimento: colaborador.conjuge_data_nascimento?.split('T')[0] || '',
+        conjuge_data_casamento: colaborador.conjuge_data_casamento?.split('T')[0] || '',
+        // Estrangeiro
+        pais_nacionalidade: colaborador.pais_nacionalidade || '',
+        condicao_ingresso_brasil: colaborador.condicao_ingresso_brasil || '',
+        data_chegada_brasil: colaborador.data_chegada_brasil?.split('T')[0] || '',
+        filhos_brasileiros: colaborador.filhos_brasileiros || false,
+        filhos_brasileiros_qtd: colaborador.filhos_brasileiros_qtd || '',
+        casado_brasileiro: colaborador.casado_brasileiro || false,
+        portaria_naturalizacao: colaborador.portaria_naturalizacao || '',
+        data_naturalizacao: colaborador.data_naturalizacao?.split('T')[0] || '',
+        // Dependentes (vem do backend agora — array em colaborador.dependentes)
+        dependentes: Array.isArray(colaborador.dependentes) ? colaborador.dependentes.map(d => ({
+          ...d,
+          data_nascimento: d.data_nascimento?.split('T')[0] || '',
+          certidao_data: d.certidao_data?.split('T')[0] || '',
+        })) : [],
         banco: colaborador.banco || '',
         agencia: colaborador.agencia || '',
         conta: colaborador.conta || '',
@@ -544,6 +636,7 @@ export default function RhCadastroGeral() {
     { id: 'endereco', label: 'Endereco', icon: '🏠' },
     { id: 'profissionais', label: 'Profissionais', icon: '💼' },
     { id: 'documentos', label: 'Documentos', icon: '📄' },
+    { id: 'familia', label: 'Família', icon: '👨‍👩‍👧' },
     { id: 'banco', label: 'Banco', icon: '🏦' },
     { id: 'beneficios', label: 'Beneficios', icon: '🎁' }
   ];
@@ -1070,12 +1163,26 @@ export default function RhCadastroGeral() {
                         <input type="text" required className={inputClass} value={formData.cpf} onChange={(e) => handleChange('cpf', e.target.value)} placeholder="000.000.000-00" />
                       </div>
                       <div>
-                        <label className={labelClass}>RG</label>
+                        <label className={labelClass}>RG (nº)</label>
                         <input type="text" className={inputClass} value={formData.rg} onChange={(e) => handleChange('rg', e.target.value)} />
                       </div>
                       <div>
                         <label className={labelClass}>Data de Nascimento *</label>
                         <input type="date" required className={inputClass} value={formData.data_nascimento} onChange={(e) => handleChange('data_nascimento', e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className={labelClass}>RG — Órgão Emissor</label>
+                        <input type="text" className={inputClass} value={formData.rg_orgao_emissor} onChange={(e) => handleChange('rg_orgao_emissor', e.target.value)} placeholder="SSP, IFP..." />
+                      </div>
+                      <div>
+                        <label className={labelClass}>RG — UF</label>
+                        <input type="text" maxLength={2} className={inputClass} value={formData.rg_uf} onChange={(e) => handleChange('rg_uf', e.target.value.toUpperCase())} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>RG — Data Emissão</label>
+                        <input type="date" className={inputClass} value={formData.rg_emissao} onChange={(e) => handleChange('rg_emissao', e.target.value)} />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1143,6 +1250,62 @@ export default function RhCadastroGeral() {
                       <div>
                         <label className={labelClass}>E-mail</label>
                         <input type="email" className={inputClass} value={formData.email} onChange={(e) => handleChange('email', e.target.value)} />
+                      </div>
+                    </div>
+
+                    <h4 className="text-md font-semibold text-gray-700 pt-3 pb-2 border-b border-gray-200">Características pessoais</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className={labelClass}>Naturalidade — UF</label>
+                        <input type="text" maxLength={2} className={inputClass} value={formData.naturalidade_uf} onChange={(e) => handleChange('naturalidade_uf', e.target.value.toUpperCase())} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Raça / Cor</label>
+                        <select className={selectClass} value={formData.raca_cor} onChange={(e) => handleChange('raca_cor', e.target.value)}>
+                          <option value="">—</option>
+                          <option value="BRANCA">Branca</option>
+                          <option value="PRETA">Preta</option>
+                          <option value="PARDA">Parda</option>
+                          <option value="AMARELA">Amarela</option>
+                          <option value="INDIGENA">Indígena</option>
+                          <option value="NAO_DECLARADO">Não declarado</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Tipo Sanguíneo</label>
+                        <select className={selectClass} value={formData.tipo_sanguineo} onChange={(e) => handleChange('tipo_sanguineo', e.target.value)}>
+                          <option value="">—</option>
+                          {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Deficiência</label>
+                        <select className={selectClass} value={formData.deficiente} onChange={(e) => handleChange('deficiente', e.target.value)}>
+                          <option value="">Nenhuma</option>
+                          <option value="FISICA">Física</option>
+                          <option value="AUDITIVA">Auditiva</option>
+                          <option value="VISUAL">Visual</option>
+                          <option value="REABILITADO">Reabilitado</option>
+                          <option value="MENTAL">Mental</option>
+                          <option value="MULTIPLA">Múltipla</option>
+                          <option value="INTELECTUAL">Intelectual</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Altura (m)</label>
+                        <input type="text" className={inputClass} value={formData.altura} onChange={(e) => handleChange('altura', e.target.value)} placeholder="1,75" />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Peso (kg)</label>
+                        <input type="text" className={inputClass} value={formData.peso} onChange={(e) => handleChange('peso', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Cor dos cabelos</label>
+                        <input type="text" className={inputClass} value={formData.cor_cabelos} onChange={(e) => handleChange('cor_cabelos', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Cor dos olhos</label>
+                        <input type="text" className={inputClass} value={formData.cor_olhos} onChange={(e) => handleChange('cor_olhos', e.target.value)} />
                       </div>
                     </div>
                   </div>
@@ -1298,6 +1461,14 @@ export default function RhCadastroGeral() {
                         <label className={labelClass}>Serie</label>
                         <input type="text" className={inputClass} value={formData.serie_ctps} onChange={(e) => handleChange('serie_ctps', e.target.value)} />
                       </div>
+                      <div>
+                        <label className={labelClass}>UF</label>
+                        <input type="text" maxLength={2} className={inputClass} value={formData.ctps_uf} onChange={(e) => handleChange('ctps_uf', e.target.value.toUpperCase())} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Data Emissão</label>
+                        <input type="date" className={inputClass} value={formData.ctps_emissao} onChange={(e) => handleChange('ctps_emissao', e.target.value)} />
+                      </div>
                     </div>
 
                     <h4 className="text-md font-semibold text-gray-700 pt-3 pb-2 border-b border-gray-200">PIS/PASEP</h4>
@@ -1309,20 +1480,188 @@ export default function RhCadastroGeral() {
                     </div>
 
                     <h4 className="text-md font-semibold text-gray-700 pt-3 pb-2 border-b border-gray-200">Titulo de Eleitor</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className={labelClass}>Numero</label>
+                        <label className={labelClass}>Número</label>
                         <input type="text" className={inputClass} value={formData.titulo_eleitor} onChange={(e) => handleChange('titulo_eleitor', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Zona</label>
+                        <input type="text" className={inputClass} value={formData.titulo_zona} onChange={(e) => handleChange('titulo_zona', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Seção</label>
+                        <input type="text" className={inputClass} value={formData.titulo_secao} onChange={(e) => handleChange('titulo_secao', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Data Emissão</label>
+                        <input type="date" className={inputClass} value={formData.titulo_emissao} onChange={(e) => handleChange('titulo_emissao', e.target.value)} />
                       </div>
                     </div>
 
                     <h4 className="text-md font-semibold text-gray-700 pt-3 pb-2 border-b border-gray-200">Certificado de Reservista</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className={labelClass}>Numero</label>
+                        <label className={labelClass}>Número</label>
                         <input type="text" className={inputClass} value={formData.reservista} onChange={(e) => handleChange('reservista', e.target.value)} />
                       </div>
+                      <div>
+                        <label className={labelClass}>UF</label>
+                        <input type="text" maxLength={2} className={inputClass} value={formData.reservista_uf} onChange={(e) => handleChange('reservista_uf', e.target.value.toUpperCase())} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Data Emissão</label>
+                        <input type="date" className={inputClass} value={formData.reservista_emissao} onChange={(e) => handleChange('reservista_emissao', e.target.value)} />
+                      </div>
                     </div>
+
+                    <h4 className="text-md font-semibold text-gray-700 pt-3 pb-2 border-b border-gray-200">Carteira de Habilitação (CNH)</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className={labelClass}>Número CNH</label>
+                        <input type="text" className={inputClass} value={formData.cnh} onChange={(e) => handleChange('cnh', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Categoria</label>
+                        <input type="text" className={inputClass} value={formData.cnh_categoria} onChange={(e) => handleChange('cnh_categoria', e.target.value.toUpperCase())} placeholder="A, B, AB..." />
+                      </div>
+                      <div>
+                        <label className={labelClass}>UF</label>
+                        <input type="text" maxLength={2} className={inputClass} value={formData.cnh_uf} onChange={(e) => handleChange('cnh_uf', e.target.value.toUpperCase())} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Validade</label>
+                        <input type="date" className={inputClass} value={formData.cnh_validade} onChange={(e) => handleChange('cnh_validade', e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ===== ABA: Família (Cônjuge + Estrangeiro + Dependentes) ===== */}
+                {abaAtiva === 'familia' && (
+                  <div className="space-y-4">
+                    {/* Cônjuge (se casado/união estável) */}
+                    {(formData.estado_civil === 'CASADO' || formData.estado_civil === 'UNIAO_ESTAVEL' || formData.estado_civil === 'casado' || formData.estado_civil === 'uniao_estavel') && (
+                      <>
+                        <h4 className="text-md font-semibold text-gray-700 pt-3 pb-2 border-b border-gray-200">Cônjuge</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Nome do cônjuge</label>
+                            <input type="text" className={inputClass} value={formData.conjuge_nome} onChange={(e) => handleChange('conjuge_nome', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className={labelClass}>CPF</label>
+                            <input type="text" className={inputClass} value={formData.conjuge_cpf} onChange={(e) => handleChange('conjuge_cpf', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Data nascimento</label>
+                            <input type="date" className={inputClass} value={formData.conjuge_data_nascimento} onChange={(e) => handleChange('conjuge_data_nascimento', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Data casamento/união</label>
+                            <input type="date" className={inputClass} value={formData.conjuge_data_casamento} onChange={(e) => handleChange('conjuge_data_casamento', e.target.value)} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Estrangeiro (se nacionalidade não brasileira) */}
+                    {formData.nacionalidade && !String(formData.nacionalidade).toUpperCase().includes('BRASIL') && (
+                      <>
+                        <h4 className="text-md font-semibold text-gray-700 pt-3 pb-2 border-b border-gray-200">Estrangeiro</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className={labelClass}>País de nacionalidade</label>
+                            <input type="text" className={inputClass} value={formData.pais_nacionalidade} onChange={(e) => handleChange('pais_nacionalidade', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Condição de ingresso</label>
+                            <input type="text" className={inputClass} value={formData.condicao_ingresso_brasil} onChange={(e) => handleChange('condicao_ingresso_brasil', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Data de chegada</label>
+                            <input type="date" className={inputClass} value={formData.data_chegada_brasil} onChange={(e) => handleChange('data_chegada_brasil', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="flex items-center gap-2 mt-6 cursor-pointer">
+                              <input type="checkbox" checked={!!formData.filhos_brasileiros} onChange={(e) => handleChange('filhos_brasileiros', e.target.checked)} className="w-4 h-4" />
+                              <span className="text-sm">Possui filhos c/ brasileiro</span>
+                            </label>
+                          </div>
+                          <div>
+                            <label className={labelClass}>Quantos</label>
+                            <input type="text" className={inputClass} value={formData.filhos_brasileiros_qtd} onChange={(e) => handleChange('filhos_brasileiros_qtd', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="flex items-center gap-2 mt-6 cursor-pointer">
+                              <input type="checkbox" checked={!!formData.casado_brasileiro} onChange={(e) => handleChange('casado_brasileiro', e.target.checked)} className="w-4 h-4" />
+                              <span className="text-sm">Casado c/ brasileiro</span>
+                            </label>
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className={labelClass}>Portaria naturalização</label>
+                            <input type="text" className={inputClass} value={formData.portaria_naturalizacao} onChange={(e) => handleChange('portaria_naturalizacao', e.target.value)} />
+                          </div>
+                          <div>
+                            <label className={labelClass}>Data naturalização</label>
+                            <input type="date" className={inputClass} value={formData.data_naturalizacao} onChange={(e) => handleChange('data_naturalizacao', e.target.value)} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Dependentes */}
+                    <div className="flex items-center justify-between pt-3 pb-2 border-b border-gray-200">
+                      <h4 className="text-md font-semibold text-gray-700">Dependentes ({(formData.dependentes || []).length})</h4>
+                      <button type="button" onClick={() => handleChange('dependentes', [...(formData.dependentes || []), { nome: '', parentesco: '', sexo: '', cpf: '', data_nascimento: '', certidao_numero: '', certidao_data: '', certidao_cartorio: '', certidao_folha: '', dependente_ir: false, dependente_sf: false }])}
+                        className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded font-bold">+ Adicionar dependente</button>
+                    </div>
+                    {(formData.dependentes || []).length === 0 ? (
+                      <p className="text-sm text-gray-400 text-center py-4">Nenhum dependente cadastrado.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {formData.dependentes.map((d, i) => (
+                          <div key={i} className="border border-gray-200 rounded p-3 bg-gray-50 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs font-bold text-gray-500 uppercase">Dependente {i + 1}</div>
+                              <button type="button" onClick={() => handleChange('dependentes', formData.dependentes.filter((_, x) => x !== i))} className="text-xs text-red-600 hover:underline">🗑 remover</button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                              <input className={inputClass + ' md:col-span-2'} placeholder="Nome completo" value={d.nome} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], nome: e.target.value }; handleChange('dependentes', arr); }} />
+                              <select className={selectClass} value={d.parentesco} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], parentesco: e.target.value }; handleChange('dependentes', arr); }}>
+                                <option value="">Parentesco</option>
+                                <option value="FILHO">Filho(a)</option>
+                                <option value="CONJUGE">Cônjuge</option>
+                                <option value="ENTEADO">Enteado(a)</option>
+                                <option value="PAI_MAE">Pai/Mãe</option>
+                                <option value="OUTRO">Outro</option>
+                              </select>
+                              <select className={selectClass} value={d.sexo} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], sexo: e.target.value }; handleChange('dependentes', arr); }}>
+                                <option value="">Sexo</option>
+                                <option value="M">M</option>
+                                <option value="F">F</option>
+                              </select>
+                              <input className={inputClass} placeholder="CPF" value={d.cpf} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], cpf: e.target.value }; handleChange('dependentes', arr); }} />
+                              <input type="date" className={inputClass} value={d.data_nascimento} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], data_nascimento: e.target.value }; handleChange('dependentes', arr); }} />
+                              <input className={inputClass + ' md:col-span-2'} placeholder="Certidão (nº)" value={d.certidao_numero} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], certidao_numero: e.target.value }; handleChange('dependentes', arr); }} />
+                              <input type="date" className={inputClass} value={d.certidao_data} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], certidao_data: e.target.value }; handleChange('dependentes', arr); }} />
+                              <input className={inputClass + ' md:col-span-2'} placeholder="Cartório" value={d.certidao_cartorio} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], certidao_cartorio: e.target.value }; handleChange('dependentes', arr); }} />
+                              <input className={inputClass} placeholder="Folha" value={d.certidao_folha} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], certidao_folha: e.target.value }; handleChange('dependentes', arr); }} />
+                            </div>
+                            <div className="flex gap-4">
+                              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" checked={!!d.dependente_ir} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], dependente_ir: e.target.checked }; handleChange('dependentes', arr); }} />
+                                Dependente IR
+                              </label>
+                              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" checked={!!d.dependente_sf} onChange={(e) => { const arr = [...formData.dependentes]; arr[i] = { ...arr[i], dependente_sf: e.target.checked }; handleChange('dependentes', arr); }} />
+                                Salário-família
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
