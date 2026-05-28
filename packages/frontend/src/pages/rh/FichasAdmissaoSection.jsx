@@ -15,6 +15,7 @@ export default function FichasAdmissaoSection() {
   const [fichaEditando, setFichaEditando] = useState(null);
 
   // Cadastros (dropdowns)
+  const [linkGerado, setLinkGerado] = useState(null); // { url, nome } ou null — modal de copiar link
   const [empresas, setEmpresas] = useState([]);
   const [cargos, setCargos] = useState([]);
   const [departamentos, setDepartamentos] = useState([]);
@@ -71,7 +72,7 @@ export default function FichasAdmissaoSection() {
       data_admissao: '', cargo_id: '', departamento_id: '', jornada_id: '',
       escala_id: '', escala_domingo_id: '', regime_trabalho_id: '',
       prazo_experiencia_id: '', forma_pagamento_id: '', salario: '',
-      horario_entrada: '', horario_intervalo: '', horario_saida: '',
+      horario_entrada: '', horario_intervalo_inicio: '', horario_intervalo_fim: '', horario_saida: '',
       primeiro_emprego: false, contribuicao_sindical: false, vale_transporte: false,
     });
     setModalAberto(true);
@@ -81,12 +82,35 @@ export default function FichasAdmissaoSection() {
 
   const salvar = async () => {
     const f = fichaEditando;
-    if (!f.candidato_nome?.trim()) { toast.error('Nome do candidato é obrigatório'); return; }
+    // Validação: TODOS os campos obrigatórios pra criar a ficha
+    const obrigatorios = [
+      [f.candidato_nome,          'Nome completo do candidato'],
+      [f.candidato_celular,       'Celular'],
+      [f.company_id,              'Empresa'],
+      [f.data_admissao,           'Data de Envio'],
+      [f.cargo_id,                'Cargo / Função'],
+      [f.departamento_id,         'Departamento'],
+      [f.salario,                 'Salário'],
+      [f.prazo_experiencia_id,    'Prazo de Experiência'],
+      [f.forma_pagamento_id,      'Forma de Pagamento'],
+      [f.regime_trabalho_id,      'Regime de Trabalho'],
+      [f.horario_entrada,            'Horário de Entrada'],
+      [f.horario_intervalo_inicio,   'Intervalo — Início'],
+      [f.horario_intervalo_fim,      'Intervalo — Fim'],
+      [f.horario_saida,              'Horário de Saída'],
+      [f.jornada_id,              'Jornada'],
+      [f.escala_id,               'Escala'],
+      [f.escala_domingo_id,       'Escala Domingo'],
+    ];
+    for (const [valor, label] of obrigatorios) {
+      if (!String(valor ?? '').trim()) { toast.error(`Preencha o campo: ${label}`); return; }
+    }
     try {
       // Limpa strings vazias pra null (FKs)
       const payload = { ...f };
       ['company_id','cargo_id','departamento_id','jornada_id','escala_id','escala_domingo_id',
-       'regime_trabalho_id','prazo_experiencia_id','forma_pagamento_id','data_admissao','salario'
+       'regime_trabalho_id','prazo_experiencia_id','forma_pagamento_id','data_admissao','salario',
+       'horario_intervalo_inicio','horario_intervalo_fim'
       ].forEach(k => { if (payload[k] === '') payload[k] = null; });
 
       if (f.id) {
@@ -113,15 +137,26 @@ export default function FichasAdmissaoSection() {
     } catch (e) { toast.error('Erro ao excluir'); }
   };
 
-  const gerarLink = async (id) => {
+  const gerarLink = async (ficha) => {
     try {
-      const r = await api.post(`/rh/fichas-admissao/${id}/gerar-link`);
+      const r = await api.post(`/rh/fichas-admissao/${ficha.id}/gerar-link`);
       const url = `${window.location.origin}/admissao/${r.data.public_token}`;
+      // Tenta copiar automaticamente já (best-effort)
       await navigator.clipboard.writeText(url).catch(() => {});
-      toast.success('Link gerado e copiado!');
-      window.prompt('Link do candidato (Ctrl+C pra copiar):', url);
+      setLinkGerado({ url, nome: ficha.candidato_nome });
       carregarFichas();
     } catch (e) { toast.error('Erro ao gerar link'); }
+  };
+
+  const copiarLink = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copiado!');
+    } catch {
+      // Fallback: seleciona o texto do input
+      const input = document.getElementById('input-link-publico');
+      if (input) { input.select(); document.execCommand('copy'); toast.success('Link copiado!'); }
+    }
   };
 
   const criarColaborador = async (id) => {
@@ -187,7 +222,7 @@ export default function FichasAdmissaoSection() {
                     <button onClick={() => abrirFicha(f)}
                       className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded font-semibold">✏️ Editar</button>
                     {f.status !== 'colaborador_criado' && (
-                      <button onClick={() => gerarLink(f.id)}
+                      <button onClick={() => gerarLink(f)}
                         className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold">🔗 Link</button>
                     )}
                     {f.status === 'preenchida' && (
@@ -203,6 +238,50 @@ export default function FichasAdmissaoSection() {
           </div>
         )}
       </div>
+
+      {/* Modal de Link gerado: input read-only + botão Copiar + atalhos WhatsApp/Email */}
+      {linkGerado && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setLinkGerado(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-t-lg p-4">
+              <h3 className="text-lg font-bold">🔗 Link da Ficha de Admissão</h3>
+              <p className="text-xs opacity-90 mt-1">Envie este link pro candidato <strong>{linkGerado.nome}</strong> preencher os dados pessoais.</p>
+            </div>
+            <div className="p-4 space-y-3">
+              <label className="block text-xs font-semibold uppercase text-gray-600">Link público</label>
+              <div className="flex gap-2">
+                <input id="input-link-publico" type="text" readOnly value={linkGerado.url}
+                  onFocus={e => e.target.select()}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm bg-gray-50 font-mono" />
+                <button onClick={() => copiarLink(linkGerado.url)}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-bold whitespace-nowrap shadow">
+                  📋 Copiar
+                </button>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-gray-100">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Olá! Por favor preencha sua Ficha de Admissão neste link: ${linkGerado.url}`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex-1 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-sm font-bold text-center">
+                  💬 WhatsApp
+                </a>
+                <a
+                  href={`mailto:?subject=${encodeURIComponent('Ficha de Admissão')}&body=${encodeURIComponent(`Olá,\n\nPor favor preencha sua Ficha de Admissão neste link:\n${linkGerado.url}\n`)}`}
+                  className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-bold text-center">
+                  ✉️ E-mail
+                </a>
+              </div>
+
+              <p className="text-xs text-gray-500 italic pt-2">O link foi copiado automaticamente. Cole onde quiser enviar pro candidato.</p>
+            </div>
+            <div className="p-4 border-t flex justify-end">
+              <button onClick={() => setLinkGerado(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalAberto && fichaEditando && (
         <FichaAdmissaoModal
@@ -257,11 +336,11 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
                 <input type="email" className={inputCls} value={ficha.candidato_email || ''} onChange={e => set('candidato_email', e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Celular</label>
+                <label className={labelCls}>Celular *</label>
                 <input className={inputCls} value={ficha.candidato_celular || ''} onChange={e => set('candidato_celular', e.target.value)} placeholder="(00) 00000-0000" />
               </div>
               <div>
-                <label className={labelCls}>Empresa</label>
+                <label className={labelCls}>Empresa *</label>
                 <select className={selectCls} value={ficha.company_id || ''} onChange={e => set('company_id', e.target.value)}>
                   <option value="">— Selecione —</option>
                   {(empresas || []).map(e => <option key={e.id} value={e.id}>{e.apelido || e.nome_fantasia || e.razao_social || `#${e.id}`}</option>)}
@@ -275,11 +354,11 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
             <h4 className="text-sm font-bold text-gray-700 mb-3">Dados Admissão</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className={labelCls}>Data de Admissão</label>
+                <label className={labelCls}>Data de Envio *</label>
                 <input type="date" className={inputCls} value={ficha.data_admissao || ''} onChange={e => set('data_admissao', e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Cargo / Função</label>
+                <label className={labelCls}>Cargo / Função *</label>
                 <select className={selectCls} value={ficha.cargo_id || ''} onChange={e => {
                   const cargoId = e.target.value;
                   const cargo = cargos.find(c => String(c.id) === String(cargoId));
@@ -290,17 +369,17 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Departamento</label>
+                <label className={labelCls}>Departamento *</label>
                 <select className={selectCls} value={ficha.departamento_id || ''} onChange={e => set('departamento_id', e.target.value)}>
                   <option value="">— Selecione —</option>{optList(departamentos)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Salário</label>
+                <label className={labelCls}>Salário *</label>
                 <input type="number" step="0.01" className={inputCls} value={ficha.salario || ''} onChange={e => set('salario', e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Prazo de Experiência</label>
+                <label className={labelCls}>Prazo de Experiência *</label>
                 <select className={selectCls} value={ficha.prazo_experiencia_id || ''} onChange={e => set('prazo_experiencia_id', e.target.value)}>
                   <option value="">— Selecione —</option>
                   {(prazos || []).map(p => {
@@ -314,13 +393,13 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Forma de Pagamento</label>
+                <label className={labelCls}>Forma de Pagamento *</label>
                 <select className={selectCls} value={ficha.forma_pagamento_id || ''} onChange={e => set('forma_pagamento_id', e.target.value)}>
                   <option value="">— Selecione —</option>{optList(formasPgto)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Regime de Trabalho</label>
+                <label className={labelCls}>Regime de Trabalho *</label>
                 <select className={selectCls} value={ficha.regime_trabalho_id || ''} onChange={e => set('regime_trabalho_id', e.target.value)}>
                   <option value="">— Selecione —</option>{optList(regimes)}
                 </select>
@@ -333,31 +412,35 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
             <h4 className="text-sm font-bold text-gray-700 mb-3">Horário de Trabalho</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className={labelCls}>Entrada</label>
+                <label className={labelCls}>Entrada *</label>
                 <input type="time" className={inputCls} value={ficha.horario_entrada || ''} onChange={e => set('horario_entrada', e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Intervalo</label>
-                <input className={inputCls} value={ficha.horario_intervalo || ''} onChange={e => set('horario_intervalo', e.target.value)} placeholder="ex: 12:00 às 13:00" />
+                <label className={labelCls}>Intervalo — Início *</label>
+                <input type="time" className={inputCls} value={ficha.horario_intervalo_inicio || ''} onChange={e => set('horario_intervalo_inicio', e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Saída</label>
+                <label className={labelCls}>Intervalo — Fim *</label>
+                <input type="time" className={inputCls} value={ficha.horario_intervalo_fim || ''} onChange={e => set('horario_intervalo_fim', e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Saída *</label>
                 <input type="time" className={inputCls} value={ficha.horario_saida || ''} onChange={e => set('horario_saida', e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Jornada</label>
+                <label className={labelCls}>Jornada *</label>
                 <select className={selectCls} value={ficha.jornada_id || ''} onChange={e => set('jornada_id', e.target.value)}>
                   <option value="">— Selecione —</option>{optList(jornadas)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Escala</label>
+                <label className={labelCls}>Escala *</label>
                 <select className={selectCls} value={ficha.escala_id || ''} onChange={e => set('escala_id', e.target.value)}>
                   <option value="">— Selecione —</option>{optList(escalas)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Escala Domingo</label>
+                <label className={labelCls}>Escala Domingo *</label>
                 <select className={selectCls} value={ficha.escala_domingo_id || ''} onChange={e => set('escala_domingo_id', e.target.value)}>
                   <option value="">— Selecione —</option>{optList(escalasDomingo)}
                 </select>
@@ -399,11 +482,15 @@ function DadosCandidatoPainel({ dados }) {
   const conj = dados.conjuge || {};
   const estr = dados.estrangeiro || {};
   const deps = Array.isArray(dados.dependentes) ? dados.dependentes : [];
-  const temConjuge = pess.estado_civil === 'casado' || pess.estado_civil === 'uniao_estavel';
+  const temConjuge = pess.estado_civil === 'CASADO' || pess.estado_civil === 'UNIAO_ESTAVEL';
   const ehEstrangeiro = pess.nacionalidade && !String(pess.nacionalidade).toUpperCase().includes('BRASIL');
 
   const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
-  const fmtBool = (b) => b ? '✅ Sim' : '❌ Não';
+  const fmtBool = (b) => {
+    if (b === true || b === 'SIM' || b === 'sim' || b === 'Sim') return '✅ Sim';
+    if (b === false || b === 'NAO' || b === 'nao' || b === 'Não') return '❌ Não';
+    return '—';
+  };
   const fmt = (v) => v || '—';
 
   const labelStyle = 'text-[10px] uppercase font-semibold text-gray-500';

@@ -45,8 +45,9 @@ export default function AdmissaoPublica() {
       portaria_naturalizacao: '', data_naturalizacao: ''
     },
     dependentes: [],
-    // DECISÕES DO CANDIDATO (antes ficavam na ficha do RH — agora é o próprio que opta):
-    opcoes_candidato: { primeiro_emprego: false, contribuicao_sindical: false, vale_transporte: false },
+    // DECISÕES DO CANDIDATO (antes ficavam na ficha do RH — agora é o próprio que opta).
+    // '' = não respondeu / 'SIM' / 'NAO' — todos obrigatórios antes de enviar.
+    opcoes_candidato: { primeiro_emprego: '', contribuicao_sindical: '', vale_transporte: '' },
   });
 
   const [escolaridades, setEscolaridades] = useState([]);
@@ -153,8 +154,25 @@ export default function AdmissaoPublica() {
   };
 
   const finalizar = async () => {
-    if (!dados.dados_pessoais.cpf?.trim()) { toast.error('CPF é obrigatório'); return; }
-    if (!dados.dados_pessoais.data_nascimento) { toast.error('Data de nascimento é obrigatória'); return; }
+    // Obrigatórios (alinhado aos asteriscos visuais)
+    const obrigatorios = [
+      [dados.dados_pessoais.nome,           'Nome completo é obrigatório'],
+      [dados.dados_pessoais.cpf,            'CPF é obrigatório'],
+      [dados.dados_pessoais.data_nascimento,'Data de nascimento é obrigatória'],
+      [dados.escolaridade.escolaridade_id,  'Grau de instrução é obrigatório'],
+      [dados.endereco.cep,                  'CEP é obrigatório'],
+      [dados.endereco.rua,                  'Rua / Logradouro é obrigatório'],
+      [dados.endereco.numero,               'Número é obrigatório'],
+      [dados.endereco.bairro,               'Bairro é obrigatório'],
+      [dados.endereco.cidade,               'Cidade é obrigatória'],
+      [dados.endereco.estado,               'UF é obrigatória'],
+      [dados.opcoes_candidato.primeiro_emprego,     'Responda Sim/Não para "É o seu primeiro emprego?"'],
+      [dados.opcoes_candidato.contribuicao_sindical,'Responda Sim/Não para "Contribuição Sindical Anual"'],
+      [dados.opcoes_candidato.vale_transporte,      'Responda Sim/Não para "Vale-Transporte"'],
+    ];
+    for (const [valor, msg] of obrigatorios) {
+      if (!String(valor || '').trim()) { toast.error(msg); return; }
+    }
     if (!window.confirm('Tem certeza? Após enviar, você não conseguirá mais editar esta ficha.')) return;
     setSalvando(true);
     try {
@@ -219,7 +237,6 @@ export default function AdmissaoPublica() {
             <div><span className="text-gray-500">Cargo:</span> <strong>{ficha?.cargo_nome || '—'}</strong></div>
             <div><span className="text-gray-500">Departamento:</span> {ficha?.departamento_nome || '—'}</div>
             <div><span className="text-gray-500">Data de admissão:</span> {ficha?.data_admissao ? new Date(ficha.data_admissao).toLocaleDateString('pt-BR') : '—'}</div>
-            <div><span className="text-gray-500">Vale Transporte:</span> {ficha?.vale_transporte ? 'Sim' : 'Não'}</div>
           </div>
         </div>
 
@@ -269,11 +286,11 @@ export default function AdmissaoPublica() {
               <label className={labelCls}>Estado civil</label>
               <select className={inputCls} value={dados.dados_pessoais.estado_civil} onChange={e => setSecao('dados_pessoais', { estado_civil: e.target.value })}>
                 <option value="">—</option>
-                <option value="solteiro">Solteiro(a)</option>
-                <option value="casado">Casado(a)</option>
-                <option value="divorciado">Divorciado(a)</option>
-                <option value="viuvo">Viúvo(a)</option>
-                <option value="uniao_estavel">União estável</option>
+                <option value="SOLTEIRO">Solteiro(a)</option>
+                <option value="CASADO">Casado(a)</option>
+                <option value="DIVORCIADO">Divorciado(a)</option>
+                <option value="VIUVO">Viúvo(a)</option>
+                <option value="UNIAO_ESTAVEL">União estável</option>
               </select>
             </div>
             <div>
@@ -363,7 +380,7 @@ export default function AdmissaoPublica() {
         <div className={sectionCls}>
           <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Escolaridade</h3>
           <div>
-            <label className={labelCls}>Grau de instrução</label>
+            <label className={labelCls}>Grau de instrução *</label>
             <select className={inputCls} value={dados.escolaridade.escolaridade_id} onChange={e => setSecao('escolaridade', { escolaridade_id: e.target.value })}>
               <option value="">— Selecione —</option>
               {escolaridades.map(es => <option key={es.id} value={es.id}>{es.nome}</option>)}
@@ -395,15 +412,15 @@ export default function AdmissaoPublica() {
           <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Endereço</h3>
           <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
             <div className="md:col-span-2">
-              <label className={labelCls}>CEP</label>
+              <label className={labelCls}>CEP *</label>
               <input className={inputCls} value={dados.endereco.cep} onChange={e => { setSecao('endereco', { cep: e.target.value }); buscarCep(e.target.value); }} placeholder="00000-000" />
             </div>
             <div className="md:col-span-4">
-              <label className={labelCls}>Rua / Logradouro</label>
+              <label className={labelCls}>Rua / Logradouro *</label>
               <input className={inputCls} value={dados.endereco.rua} onChange={e => setSecao('endereco', { rua: e.target.value })} />
             </div>
             <div className="md:col-span-2">
-              <label className={labelCls}>Número</label>
+              <label className={labelCls}>Número *</label>
               <input className={inputCls} value={dados.endereco.numero} onChange={e => setSecao('endereco', { numero: e.target.value })} />
             </div>
             <div className="md:col-span-4">
@@ -411,15 +428,15 @@ export default function AdmissaoPublica() {
               <input className={inputCls} value={dados.endereco.complemento} onChange={e => setSecao('endereco', { complemento: e.target.value })} />
             </div>
             <div className="md:col-span-3">
-              <label className={labelCls}>Bairro</label>
+              <label className={labelCls}>Bairro *</label>
               <input className={inputCls} value={dados.endereco.bairro} onChange={e => setSecao('endereco', { bairro: e.target.value })} />
             </div>
             <div className="md:col-span-2">
-              <label className={labelCls}>Cidade</label>
+              <label className={labelCls}>Cidade *</label>
               <input className={inputCls} value={dados.endereco.cidade} onChange={e => setSecao('endereco', { cidade: e.target.value })} />
             </div>
             <div className="md:col-span-1">
-              <label className={labelCls}>UF</label>
+              <label className={labelCls}>UF *</label>
               <input className={inputCls} maxLength={2} value={dados.endereco.estado} onChange={e => setSecao('endereco', { estado: e.target.value.toUpperCase() })} />
             </div>
           </div>
@@ -501,7 +518,7 @@ export default function AdmissaoPublica() {
         </div>
 
         {/* Cônjuge — só aparece se estado civil = casado ou união estável */}
-        {(dados.dados_pessoais.estado_civil === 'casado' || dados.dados_pessoais.estado_civil === 'uniao_estavel') && (
+        {(dados.dados_pessoais.estado_civil === 'CASADO' || dados.dados_pessoais.estado_civil === 'UNIAO_ESTAVEL') && (
           <div className={sectionCls}>
             <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Dados do cônjuge</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -598,9 +615,9 @@ export default function AdmissaoPublica() {
               <label className={labelCls}>Tipo</label>
               <select className={inputCls} value={dados.banco.tipo_conta} onChange={e => setSecao('banco', { tipo_conta: e.target.value })}>
                 <option value="">—</option>
-                <option value="corrente">Corrente</option>
-                <option value="poupanca">Poupança</option>
-                <option value="salario">Salário</option>
+                <option value="CORRENTE">Corrente</option>
+                <option value="POUPANCA">Poupança</option>
+                <option value="SALARIO">Salário</option>
               </select>
             </div>
             <div className="md:col-span-3">
@@ -628,11 +645,11 @@ export default function AdmissaoPublica() {
                     <input className={inputCls + ' md:col-span-3'} placeholder="Nome completo" value={d.nome} onChange={e => updDependente(i, { nome: e.target.value })} />
                     <select className={inputCls + ' md:col-span-2'} value={d.parentesco} onChange={e => updDependente(i, { parentesco: e.target.value })}>
                       <option value="">Parentesco</option>
-                      <option value="filho">Filho(a)</option>
-                      <option value="conjuge">Cônjuge</option>
-                      <option value="enteado">Enteado(a)</option>
-                      <option value="pai_mae">Pai/Mãe</option>
-                      <option value="outro">Outro</option>
+                      <option value="FILHO">Filho(a)</option>
+                      <option value="CONJUGE">Cônjuge</option>
+                      <option value="ENTEADO">Enteado(a)</option>
+                      <option value="PAI_MAE">Pai/Mãe</option>
+                      <option value="OUTRO">Outro</option>
                     </select>
                     <select className={inputCls} value={d.sexo} onChange={e => updDependente(i, { sexo: e.target.value })}>
                       <option value="">Sexo</option>
@@ -670,39 +687,49 @@ export default function AdmissaoPublica() {
           )}
         </div>
 
-        {/* Opções do candidato — decisões pessoais (não do RH) */}
+        {/* Opções do candidato — decisões pessoais separadas, com Sim/Não obrigatórios */}
         <div className={sectionCls + ' bg-purple-50 border-purple-200'}>
-          <h3 className="text-sm font-bold text-purple-900 uppercase mb-3 pb-2 border-b border-purple-200">Opções (suas escolhas)</h3>
-          <p className="text-xs text-purple-800 mb-3">Marque conforme sua situação/decisão. Você pode mudar antes de enviar a ficha.</p>
-          <div className="space-y-3">
-            <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-purple-100/50 rounded">
-              <input type="checkbox" checked={!!dados.opcoes_candidato.primeiro_emprego}
-                onChange={e => setSecao('opcoes_candidato', { primeiro_emprego: e.target.checked })}
-                className="w-5 h-5 mt-0.5 accent-purple-600" />
-              <div>
-                <div className="font-semibold text-sm text-gray-800">É o seu primeiro emprego (1º registro na CTPS)?</div>
-                <div className="text-xs text-gray-500">Marque se você nunca teve carteira assinada antes.</div>
+          <h3 className="text-sm font-bold text-purple-900 uppercase mb-2 pb-2 border-b border-purple-200">Opções (suas escolhas) *</h3>
+          <p className="text-xs text-purple-800 mb-3">Responda Sim ou Não em cada uma das opções abaixo (obrigatório).</p>
+
+          {[
+            {
+              campo: 'primeiro_emprego',
+              titulo: 'É o seu primeiro emprego (1º registro na CTPS)?',
+              detalhe: 'Marque "Sim" se você nunca teve carteira de trabalho assinada antes.',
+            },
+            {
+              campo: 'contribuicao_sindical',
+              titulo: 'Você autoriza o desconto da Contribuição Sindical Anual?',
+              detalhe: 'Decisão facultativa do trabalhador (CLT, art. 545 e seguintes).',
+            },
+            {
+              campo: 'vale_transporte',
+              titulo: 'Você opta pela utilização do Vale-Transporte?',
+              detalhe: 'Autoriza o desconto de até 6% do salário base, conforme Decreto nº 95.247/87.',
+            },
+          ].map(opt => (
+            <div key={opt.campo} className="bg-white border border-purple-200 rounded-lg p-3 mb-3">
+              <div className="font-semibold text-sm text-gray-800">{opt.titulo}</div>
+              <div className="text-xs text-gray-500 mb-2">{opt.detalhe}</div>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name={`opt_${opt.campo}`} value="SIM"
+                    checked={dados.opcoes_candidato[opt.campo] === 'SIM'}
+                    onChange={() => setSecao('opcoes_candidato', { [opt.campo]: 'SIM' })}
+                    className="w-4 h-4 accent-purple-600" />
+                  <span className="text-sm font-semibold text-gray-700">Sim</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name={`opt_${opt.campo}`} value="NAO"
+                    checked={dados.opcoes_candidato[opt.campo] === 'NAO'}
+                    onChange={() => setSecao('opcoes_candidato', { [opt.campo]: 'NAO' })}
+                    className="w-4 h-4 accent-purple-600" />
+                  <span className="text-sm font-semibold text-gray-700">Não</span>
+                </label>
               </div>
-            </label>
-            <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-purple-100/50 rounded">
-              <input type="checkbox" checked={!!dados.opcoes_candidato.contribuicao_sindical}
-                onChange={e => setSecao('opcoes_candidato', { contribuicao_sindical: e.target.checked })}
-                className="w-5 h-5 mt-0.5 accent-purple-600" />
-              <div>
-                <div className="font-semibold text-sm text-gray-800">Autorizo desconto da Contribuição Sindical Anual</div>
-                <div className="text-xs text-gray-500">Decisão facultativa do trabalhador (CLT, art. 545 e seguintes).</div>
-              </div>
-            </label>
-            <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-purple-100/50 rounded">
-              <input type="checkbox" checked={!!dados.opcoes_candidato.vale_transporte}
-                onChange={e => setSecao('opcoes_candidato', { vale_transporte: e.target.checked })}
-                className="w-5 h-5 mt-0.5 accent-purple-600" />
-              <div>
-                <div className="font-semibold text-sm text-gray-800">Opto pela utilização do Vale-Transporte</div>
-                <div className="text-xs text-gray-500">Autorizo o desconto de até 6% do salário base, conforme Decreto nº 95.247/87.</div>
-              </div>
-            </label>
-          </div>
+            </div>
+          ))}
         </div>
 
         {/* Botões */}

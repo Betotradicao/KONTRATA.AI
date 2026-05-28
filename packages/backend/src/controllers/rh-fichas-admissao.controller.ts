@@ -62,20 +62,24 @@ export class RhFichasAdmissaoController {
            company_id, candidato_nome, candidato_email, candidato_celular,
            data_admissao, cargo_id, departamento_id, jornada_id, escala_id, escala_domingo_id,
            regime_trabalho_id, prazo_experiencia_id, forma_pagamento_id, salario,
-           horario_entrada, horario_intervalo, horario_saida,
+           horario_entrada, horario_intervalo, horario_intervalo_inicio, horario_intervalo_fim, horario_saida,
            primeiro_emprego, contribuicao_sindical, vale_transporte
          ) VALUES (
            $1, $2, $3, $4,
            $5, $6, $7, $8, $9, $10,
            $11, $12, $13, $14,
-           $15, $16, $17,
-           $18, $19, $20
+           $15, $16, $17, $18, $19,
+           $20, $21, $22
          ) RETURNING *`,
         [
           b.company_id || null, b.candidato_nome, b.candidato_email || null, b.candidato_celular || null,
           b.data_admissao || null, b.cargo_id || null, b.departamento_id || null, b.jornada_id || null, b.escala_id || null, b.escala_domingo_id || null,
           b.regime_trabalho_id || null, b.prazo_experiencia_id || null, b.forma_pagamento_id || null, b.salario || null,
-          b.horario_entrada || null, b.horario_intervalo || null, b.horario_saida || null,
+          b.horario_entrada || null,
+          // horario_intervalo legado = "HH:MM às HH:MM" calculado a partir do inicio+fim (mantém compat)
+          (b.horario_intervalo_inicio && b.horario_intervalo_fim) ? `${b.horario_intervalo_inicio} às ${b.horario_intervalo_fim}` : (b.horario_intervalo || null),
+          b.horario_intervalo_inicio || null, b.horario_intervalo_fim || null,
+          b.horario_saida || null,
           !!b.primeiro_emprego, !!b.contribuicao_sindical, !!b.vale_transporte
         ]
       );
@@ -109,18 +113,24 @@ export class RhFichasAdmissaoController {
            salario               = COALESCE($14, salario),
            horario_entrada       = COALESCE($15, horario_entrada),
            horario_intervalo     = COALESCE($16, horario_intervalo),
-           horario_saida         = COALESCE($17, horario_saida),
-           primeiro_emprego      = COALESCE($18, primeiro_emprego),
-           contribuicao_sindical = COALESCE($19, contribuicao_sindical),
-           vale_transporte       = COALESCE($20, vale_transporte),
-           status                = COALESCE($21, status),
+           horario_intervalo_inicio = COALESCE($17, horario_intervalo_inicio),
+           horario_intervalo_fim    = COALESCE($18, horario_intervalo_fim),
+           horario_saida         = COALESCE($19, horario_saida),
+           primeiro_emprego      = COALESCE($20, primeiro_emprego),
+           contribuicao_sindical = COALESCE($21, contribuicao_sindical),
+           vale_transporte       = COALESCE($22, vale_transporte),
+           status                = COALESCE($23, status),
            updated_at            = NOW()
-         WHERE id = $22 RETURNING *`,
+         WHERE id = $24 RETURNING *`,
         [
           b.company_id ?? null, b.candidato_nome ?? null, b.candidato_email ?? null, b.candidato_celular ?? null,
           b.data_admissao ?? null, b.cargo_id ?? null, b.departamento_id ?? null, b.jornada_id ?? null, b.escala_id ?? null, b.escala_domingo_id ?? null,
           b.regime_trabalho_id ?? null, b.prazo_experiencia_id ?? null, b.forma_pagamento_id ?? null, b.salario ?? null,
-          b.horario_entrada ?? null, b.horario_intervalo ?? null, b.horario_saida ?? null,
+          b.horario_entrada ?? null,
+          // horario_intervalo legado = "HH:MM às HH:MM" se vier inicio+fim, senão usa o valor cru
+          (b.horario_intervalo_inicio && b.horario_intervalo_fim) ? `${b.horario_intervalo_inicio} às ${b.horario_intervalo_fim}` : (b.horario_intervalo ?? null),
+          b.horario_intervalo_inicio ?? null, b.horario_intervalo_fim ?? null,
+          b.horario_saida ?? null,
           typeof b.primeiro_emprego === 'boolean' ? b.primeiro_emprego : null,
           typeof b.contribuicao_sindical === 'boolean' ? b.contribuicao_sindical : null,
           typeof b.vale_transporte === 'boolean' ? b.vale_transporte : null,
@@ -287,9 +297,12 @@ export class RhFichasAdmissaoController {
       const cont = dados.contato || {};
       const doc  = dados.documentos || {};
       const bnc  = dados.banco || {};
-      // Opções vêm do candidato (não mais da ficha do RH):
+      // Opções vêm do candidato (não mais da ficha do RH).
+      // Aceita boolean (legado) OU string 'SIM'/'NAO' (formato atual).
       const opc  = dados.opcoes_candidato || {};
-      const valeTransporte     = typeof opc.vale_transporte     === 'boolean' ? opc.vale_transporte     : !!f.vale_transporte;
+      const toBool = (v: any) => v === true || v === 'SIM' || v === 'sim' || v === 'Sim';
+      const hasResp = (v: any) => v === true || v === false || v === 'SIM' || v === 'NAO';
+      const valeTransporte     = hasResp(opc.vale_transporte)     ? toBool(opc.vale_transporte)     : !!f.vale_transporte;
 
       // Insere colaborador com os campos coletados (ficha + candidato_dados).
       // Matrícula = id da ficha (fallback temporário; o RH pode trocar depois).
