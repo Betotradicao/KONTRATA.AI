@@ -2334,23 +2334,23 @@ function DocsPadronizadosTab() {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {motivosAdv.map(m => (
-                          <div key={m.id} className="p-2 bg-amber-50 border border-amber-200 rounded hover:border-amber-400 transition group relative">
-                            <div className="flex items-start justify-between gap-2 mb-1 pr-12">
-                              <div className="text-xs font-bold text-amber-900 leading-tight flex-1">⚠️ {m.nome}</div>
+                          <div key={m.id} className="p-3 bg-amber-50 border border-amber-200 rounded hover:border-amber-400 transition group relative">
+                            <div className="flex items-start justify-between gap-2 mb-1.5 pr-14">
+                              <div className="text-sm font-bold text-amber-900 leading-tight flex-1">⚠️ {m.nome}</div>
                               {m.artigo && (
-                                <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
+                                <span className="inline-block bg-amber-100 text-amber-800 text-[11px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
                               )}
                             </div>
-                            <div className="text-[11px] text-gray-700 leading-snug line-clamp-2">{m.texto}</div>
-                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition flex gap-1">
+                            <div className="text-[13px] text-gray-800 leading-snug">{m.texto}</div>
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1">
                               <button type="button" onClick={() => setMotivoModal({ ...m })}
                                 title="Editar"
-                                className="bg-white border border-gray-300 hover:bg-blue-50 hover:border-blue-300 text-blue-600 rounded p-1 text-xs">
+                                className="bg-white border border-gray-300 hover:bg-blue-50 hover:border-blue-300 text-blue-600 rounded p-1 text-sm">
                                 ✏️
                               </button>
                               <button type="button" onClick={() => excluirMotivo(m)}
                                 title="Excluir"
-                                className="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 rounded p-1 text-xs">
+                                className="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 rounded p-1 text-sm">
                                 🗑️
                               </button>
                             </div>
