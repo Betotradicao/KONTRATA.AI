@@ -20,8 +20,9 @@ export default function ContaSalarioSection() {
     try {
       const r = await api.get('/rh/fichas-admissao');
       const list = Array.isArray(r.data) ? r.data : [];
-      // só candidatos EM PROCESSO (não cancelados nem já virou colaborador)
-      setFichas(list.filter(f => f.status !== 'cancelada' && f.status !== 'colaborador_criado'));
+      // Mostra todas exceto canceladas. Inclui colaborador_criado pq o RH
+      // pode precisar reimprimir a carta pro banco depois do cadastro.
+      setFichas(list.filter(f => f.status !== 'cancelada'));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -44,6 +45,7 @@ export default function ContaSalarioSection() {
       rascunho:              { label: 'Rascunho',                cls: 'bg-gray-200 text-gray-700' },
       aguardando_candidato:  { label: 'Aguardando candidato',    cls: 'bg-amber-100 text-amber-800' },
       preenchida:            { label: 'Preenchida',              cls: 'bg-blue-100 text-blue-800' },
+      colaborador_criado:    { label: 'Colaborador criado',      cls: 'bg-emerald-100 text-emerald-800' },
     };
     const m = map[status] || map.rascunho;
     return <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${m.cls}`}>{m.label}</span>;
