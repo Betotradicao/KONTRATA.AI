@@ -95,6 +95,12 @@ router.post('/configuracoes/motivos-desligamento', authenticateToken, RhControll
 router.put('/configuracoes/motivos-desligamento/:id', authenticateToken, RhController.atualizarMotivoDesligamento);
 router.delete('/configuracoes/motivos-desligamento/:id', authenticateToken, RhController.deletarMotivoDesligamento);
 
+// Motivos de Advertência (usados nos docs de ADVERTÊNCIA — fase 4)
+router.get('/configuracoes/motivos-advertencia', authenticateToken, RhController.listarMotivosAdvertencia);
+router.post('/configuracoes/motivos-advertencia', authenticateToken, RhController.criarMotivoAdvertencia);
+router.put('/configuracoes/motivos-advertencia/:id', authenticateToken, RhController.atualizarMotivoAdvertencia);
+router.delete('/configuracoes/motivos-advertencia/:id', authenticateToken, RhController.deletarMotivoAdvertencia);
+
 // Configuracoes - Beneficios
 router.get('/configuracoes/beneficios', authenticateToken, RhController.listarBeneficios);
 router.post('/configuracoes/beneficios', authenticateToken, RhController.criarBeneficio);

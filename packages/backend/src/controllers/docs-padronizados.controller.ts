@@ -109,6 +109,7 @@ export class DocsPadronizadosController {
     try {
       const id = parseInt(req.params.id);
       const colaboradorId = parseInt(req.params.colaboradorId);
+      const motivoId = req.query.motivo_id ? parseInt(req.query.motivo_id as string) : null;
 
       const [doc] = await AppDataSource.query(
         `SELECT * FROM rh_docs_padronizados WHERE id = $1`, [id]
@@ -182,6 +183,19 @@ export class DocsPadronizadosController {
         return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
       };
 
+      // Motivo de advertência (opcional, usado em docs com $MOTIVO_ADVERTENCIA$).
+      // Aceita motivo_id na query string. Substitui pelo texto + artigo de embasamento.
+      let motivoAdvertencia = '';
+      if (motivoId) {
+        try {
+          const [m] = await AppDataSource.query(
+            `SELECT nome, texto, artigo FROM rh_motivos_advertencia WHERE id = $1`,
+            [motivoId]
+          );
+          if (m) motivoAdvertencia = m.artigo ? `${m.texto} (${m.artigo})` : m.texto;
+        } catch { /* tabela pode ainda não existir em clientes que não rodaram a migration */ }
+      }
+
       // Endereço da empresa = rua + ", " + numero (bairro/CEP têm vars próprias)
       const empresaEndereco = colab.empresa_rua
         ? colab.empresa_rua + (colab.empresa_numero ? `, ${colab.empresa_numero}` : '')
@@ -220,6 +234,7 @@ export class DocsPadronizadosController {
         '$EMPRESA_BAIRRO$': colab.empresa_bairro || '',
         '$EMPRESA_CEP$': colab.empresa_cep || '',
         '$EPIS_DO_CARGO$': episDoCargoTexto,
+        '$MOTIVO_ADVERTENCIA$': motivoAdvertencia,
         '$CIDADE$':       colab.empresa_cidade || '',
         '$ESTADO$':       colab.empresa_estado || '',
       };

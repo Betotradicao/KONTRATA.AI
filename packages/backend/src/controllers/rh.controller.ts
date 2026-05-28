@@ -635,6 +635,20 @@ export class RhController {
     return RhController.deletarConfig(req, res, 'rh_motivos_desligamento');
   }
 
+  // --- Motivos de Advertência (usado nos docs da fase 4 ADVERTÊNCIA) ---
+  static async listarMotivosAdvertencia(req: AuthRequest, res: Response) {
+    return RhController.listarConfig(req, res, 'rh_motivos_advertencia', 'ordem');
+  }
+  static async criarMotivoAdvertencia(req: AuthRequest, res: Response) {
+    return RhController.criarConfig(req, res, 'rh_motivos_advertencia', ['nome', 'texto', 'artigo', 'ordem']);
+  }
+  static async atualizarMotivoAdvertencia(req: AuthRequest, res: Response) {
+    return RhController.atualizarConfig(req, res, 'rh_motivos_advertencia', ['nome', 'texto', 'artigo', 'ordem', 'ativo']);
+  }
+  static async deletarMotivoAdvertencia(req: AuthRequest, res: Response) {
+    return RhController.deletarConfig(req, res, 'rh_motivos_advertencia');
+  }
+
   // --- Beneficios ---
   static async listarBeneficios(req: AuthRequest, res: Response) {
     return RhController.listarConfig(req, res, 'rh_beneficios');

@@ -329,7 +329,7 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="md:col-span-3">
                 <label className={labelCls}>Nome completo *</label>
-                <input className={inputCls} value={ficha.candidato_nome || ''} onChange={e => set('candidato_nome', e.target.value)} />
+                <input className={inputCls + ' uppercase'} value={ficha.candidato_nome || ''} onChange={e => set('candidato_nome', e.target.value.toUpperCase())} />
               </div>
               <div>
                 <label className={labelCls}>E-mail</label>

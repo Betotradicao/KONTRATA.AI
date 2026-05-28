@@ -23,6 +23,7 @@ const TABS = [
   { key: 'prazos', label: 'Prazos Exp.', endpoint: '/rh/configuracoes/prazos-experiencia', fields: ['nome', 'dias_inicial', 'dias_final', 'dias', 'descricao'] },
   { key: 'tipos_desligamento', label: 'Tipos Deslig.', endpoint: '/rh/configuracoes/tipos-desligamento', fields: ['nome', 'descricao'] },
   { key: 'motivos_desligamento', label: 'Motivos Deslig.', endpoint: '/rh/configuracoes/motivos-desligamento', fields: ['nome', 'descricao'] },
+  { key: 'motivos_advertencia',  label: 'Motivos Advert.', endpoint: '/rh/configuracoes/motivos-advertencia', fields: ['nome', 'texto', 'artigo'] },
   { key: 'departamentos', label: 'Setores', endpoint: '/rh/configuracoes/departamentos', fields: ['nome', 'descricao'] },
   { key: 'tipos_ausencia', label: 'Tipos Ausencia', endpoint: '/rh/configuracoes/tipos-ausencia', fields: ['nome', 'cor'] },
   { key: 'tipos_treinamento', label: 'Tipos Trein.', endpoint: '/rh/configuracoes/tipos-treinamento', fields: ['nome', 'categoria'] },
@@ -43,6 +44,8 @@ const FIELD_LABELS = {
   dias: 'Total (dias)',
   dias_inicial: 'Período Inicial (dias)',
   dias_final: 'Período Final (dias)',
+  texto: 'Texto do motivo (vai no documento)',
+  artigo: 'Embasamento legal (ex: Art. 482, "e" da CLT)',
   cor: 'Cor',
   categoria: 'Categoria',
   codLoja: 'Loja',
@@ -1888,6 +1891,8 @@ function DocsPadronizadosTab() {
   const [empresas, setEmpresas] = useState([]);
   const [empresaSel, setEmpresaSel] = useState(null); // empresa escolhida (objeto) antes de listar colaboradores
   const [loadingColabs, setLoadingColabs] = useState(false);
+  const [motivosAdv, setMotivosAdv] = useState([]);     // motivos de advertência (pros docs da fase 4)
+  const [motivoSel, setMotivoSel] = useState(null);     // motivo escolhido (se doc precisa)
 
   const VARIAVEIS = [
     { tag: '$NOME$',         desc: 'Nome completo' },
@@ -1905,6 +1910,7 @@ function DocsPadronizadosTab() {
     { tag: '$COLAB_CIDADE$', desc: 'Cidade do colaborador' },
     { tag: '$COLAB_ESTADO$', desc: 'UF do colaborador' },
     { tag: '$COLAB_CEP$',    desc: 'CEP do colaborador' },
+    { tag: '$MOTIVO_ADVERTENCIA$', desc: 'Motivo + embasamento (escolhido ao gerar)' },
     { tag: '$DATA_HOJE$',    desc: 'dd/mm/yyyy' },
     { tag: '$DATA_EXTENSO$', desc: '"24 de julho de 2025"' },
     { tag: '$EMPRESA_NOME$',     desc: 'Nome da empresa' },
@@ -1945,6 +1951,7 @@ function DocsPadronizadosTab() {
   useEffect(() => {
     if (!gerando) return;
     setEmpresaSel(null);
+    setMotivoSel(null);
     setColaboradores([]);
     (async () => {
       try {
@@ -1953,8 +1960,18 @@ function DocsPadronizadosTab() {
         setEmpresas(list);
         if (list.length === 1) setEmpresaSel(list[0]);
       } catch (e) { console.error(e); }
+      // Se o doc contém $MOTIVO_ADVERTENCIA$, carrega motivos pra escolha
+      if (docEditado?.conteudo?.includes('$MOTIVO_ADVERTENCIA$')) {
+        try {
+          const rm = await api.get('/rh/configuracoes/motivos-advertencia');
+          setMotivosAdv(Array.isArray(rm.data) ? rm.data : []);
+        } catch (e) { console.error(e); }
+      }
     })();
   }, [gerando]);
+
+  // Doc precisa de motivo? (tem $MOTIVO_ADVERTENCIA$ no conteudo)
+  const precisaMotivo = () => !!docEditado?.conteudo?.includes('$MOTIVO_ADVERTENCIA$');
 
   // Depois que a empresa é escolhida, lista só os colaboradores dela.
   useEffect(() => {
@@ -2011,8 +2028,13 @@ function DocsPadronizadosTab() {
 
   const gerarPdf = async (colaboradorId) => {
     if (!docEditado?.id) return;
+    if (precisaMotivo() && !motivoSel) {
+      toast.error('Selecione o motivo da advertência antes de continuar');
+      return;
+    }
     try {
-      const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${colaboradorId}`);
+      const qs = motivoSel ? `?motivo_id=${motivoSel}` : '';
+      const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${colaboradorId}${qs}`);
       setResultado(r.data);
       setGerando(false);
     } catch (e) {
@@ -2091,11 +2113,14 @@ function DocsPadronizadosTab() {
         📄 <strong>Modelos de documentos da empresa.</strong> Use variáveis tipo <code className="bg-blue-100 px-1 rounded">$NOME$</code>, <code className="bg-blue-100 px-1 rounded">$CPF$</code>, <code className="bg-blue-100 px-1 rounded">$DATA_EXTENSO$</code> — serão substituídas automaticamente ao gerar pro colaborador.
       </div>
 
-      {/* Sub-abas de FASE: 1ª (pré-contratação / admissão) e 2ª (pós-contratação) */}
-      <div className="flex gap-2">
+      {/* Sub-abas de FASE: 1ª (pré-contratação / admissão), 2ª (pós-contratação),
+          3 (demissionais — quando o colaborador sai) e 4 (advertência — formal/punitiva) */}
+      <div className="flex flex-wrap gap-2">
         {[
           { num: 1, label: 'DOCS 1ª FASE CONTRATAÇÃO' },
           { num: 2, label: 'DOCS 2ª FASE CONTRATAÇÃO' },
+          { num: 3, label: 'DOCS DEMISSIONAIS' },
+          { num: 4, label: 'DOCS ADVERTÊNCIA' },
         ].map(f => (
           <button key={f.num} onClick={() => setFaseAtiva(f.num)}
             className={`px-5 py-2.5 text-sm font-bold rounded-lg transition shadow-md ${
@@ -2131,8 +2156,10 @@ function DocsPadronizadosTab() {
         </div>
       )}
 
-      {/* 2ª FASE: docs de texto com variáveis (abas horizontais com cada documento + botão Novo) */}
-      {faseAtiva === 2 && (
+      {/* Fases 2, 3 e 4: docs de texto com variáveis (abas horizontais com cada documento + botão Novo).
+          O filtro por fase já é aplicado no carregar() via ?fase=${faseAtiva}, então cada aba
+          carrega/cria docs no escopo dela. */}
+      {faseAtiva !== 1 && (
       <div className="bg-white border border-gray-200 rounded-t-lg overflow-hidden">
         <div className="flex flex-wrap gap-px bg-gray-100 border-b border-gray-200">
           {docs.map(d => (
@@ -2253,22 +2280,34 @@ function DocsPadronizadosTab() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b">
               <h3 className="text-lg font-bold">Gerar "{docEditado?.nome}"</h3>
-              {!empresaSel ? (
-                <p className="text-xs text-gray-500">Passo 1 de 2 · Selecione a empresa</p>
-              ) : (
-                <div className="flex items-center justify-between gap-2 mt-1">
-                  <p className="text-xs text-gray-500">
-                    Passo 2 de 2 · Colaboradores de{' '}
-                    <span className="font-semibold text-gray-700">
-                      {empresaSel.apelido || empresaSel.nome_fantasia || empresaSel.razao_social}
-                    </span>
-                  </p>
-                  {empresas.length > 1 && (
-                    <button onClick={() => setEmpresaSel(null)}
-                      className="text-xs text-orange-600 hover:underline whitespace-nowrap">↩ trocar empresa</button>
-                  )}
-                </div>
-              )}
+              {(() => {
+                const totalPassos = precisaMotivo() ? 3 : 2;
+                if (!empresaSel) return <p className="text-xs text-gray-500">Passo 1 de {totalPassos} · Selecione a empresa</p>;
+                if (precisaMotivo() && !motivoSel) return (
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className="text-xs text-gray-500">Passo 2 de {totalPassos} · Motivo da advertência</p>
+                    <button onClick={() => setEmpresaSel(null)} className="text-xs text-orange-600 hover:underline whitespace-nowrap">↩ trocar empresa</button>
+                  </div>
+                );
+                return (
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className="text-xs text-gray-500">
+                      Passo {totalPassos} de {totalPassos} · Colaboradores de{' '}
+                      <span className="font-semibold text-gray-700">
+                        {empresaSel.apelido || empresaSel.nome_fantasia || empresaSel.razao_social}
+                      </span>
+                    </p>
+                    <div className="flex gap-2 text-xs whitespace-nowrap">
+                      {empresas.length > 1 && (
+                        <button onClick={() => setEmpresaSel(null)} className="text-orange-600 hover:underline">↩ empresa</button>
+                      )}
+                      {precisaMotivo() && (
+                        <button onClick={() => setMotivoSel(null)} className="text-orange-600 hover:underline">↩ motivo</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="p-4 overflow-y-auto flex-1 space-y-1">
@@ -2290,8 +2329,24 @@ function DocsPadronizadosTab() {
                     </div>
                   </button>
                 ))
+              ) : precisaMotivo() && !motivoSel ? (
+                /* Passo extra: escolher motivo da advertência */
+                motivosAdv.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">
+                    Nenhum motivo cadastrado. Vá em <strong>Configurações RH → Motivos Advert.</strong> pra cadastrar.
+                  </p>
+                ) : motivosAdv.map(m => (
+                  <button key={m.id} onClick={() => setMotivoSel(m.id)}
+                    className="w-full text-left p-3 hover:bg-amber-50 rounded border border-transparent hover:border-amber-300">
+                    <div className="font-semibold text-sm text-gray-800 flex items-center gap-2">
+                      ⚠️ {m.nome}
+                      {m.artigo && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-mono">{m.artigo}</span>}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 line-clamp-2">{m.texto}</div>
+                  </button>
+                ))
               ) : (
-                /* Passo 2: colaboradores da empresa */
+                /* Passo final: colaboradores da empresa */
                 loadingColabs ? (
                   <p className="text-sm text-gray-400 text-center py-4">Carregando colaboradores...</p>
                 ) : colaboradores.length === 0 ? (
