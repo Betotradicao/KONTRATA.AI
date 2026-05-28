@@ -162,6 +162,200 @@ export default function FichasAdmissaoSection() {
     return tel ? `https://wa.me/${tel}?text=${txt}` : `https://wa.me/?text=${txt}`;
   };
 
+  // Imprime/Salva em PDF a ficha de admissão completa (RH + candidato).
+  // Abre uma nova janela com layout A4 — o dialogo de impressao do browser
+  // permite "Salvar como PDF" nativamente. Inclui foto, dados de contratação,
+  // dados pessoais, endereço, documentos, banco, dependentes, opções.
+  const imprimirFicha = (ficha) => {
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    const cd = ficha.candidato_dados || {};
+    const pess = cd.dados_pessoais || {};
+    const end = cd.endereco || {};
+    const cont = cd.contato || {};
+    const doc = cd.documentos || {};
+    const bnc = cd.banco || {};
+    const opc = cd.opcoes_candidato || {};
+    const conj = cd.conjuge || {};
+    const estr = cd.estrangeiro || {};
+    const deps = Array.isArray(cd.dependentes) ? cd.dependentes : [];
+
+    const fmt = (v) => (v ?? '') === '' ? '____' : String(v);
+    const fmtDate = (d) => { if (!d) return '____'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
+    const fmtBool = (b) => (b === true || b === 'SIM') ? '✓ Sim' : (b === false || b === 'NAO') ? '✗ Não' : '____';
+    const fotoHtml = cd.foto_url
+      ? `<img src="${cd.foto_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #6d28d9"/>`
+      : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:24px">📷</div>';
+
+    const linha = (lbl, val) => `<div style="font-size:9pt"><span style="color:#666;font-size:7pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
+
+    w.document.write(`<!DOCTYPE html><html><head><title>Ficha de Admissão - ${fmt(ficha.candidato_nome)}</title>
+<style>
+  @page { size: A4; margin: 12mm }
+  body { font-family: Arial, sans-serif; font-size: 10pt; color: #222; margin: 0 }
+  h1 { font-size: 14pt; text-align: center; margin: 0 0 4px; color: #6d28d9 }
+  h2 { font-size: 11pt; margin: 12px 0 4px; padding: 4px 8px; background: #f3e8ff; color: #6d28d9; border-left: 4px solid #6d28d9 }
+  .header { display: flex; gap: 16px; align-items: center; border-bottom: 2px solid #6d28d9; padding-bottom: 10px; margin-bottom: 8px }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 12px }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px }
+  .dep { border: 1px solid #ddd; padding: 6px; margin-top: 6px; border-radius: 4px }
+  .sig { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px }
+  .sig div { border-top: 1px solid #000; padding-top: 4px; text-align: center; font-size: 9pt }
+  table { width: 100%; border-collapse: collapse; font-size: 9pt }
+  td { padding: 2px 4px }
+</style></head><body>
+  <div class="header">
+    ${fotoHtml}
+    <div style="flex:1">
+      <h1>FICHA DE ADMISSÃO</h1>
+      <div style="text-align:center;font-size:9pt">${fmt(ficha.candidato_nome)} — ${fmt(ficha.cargo_nome)}</div>
+      <div style="text-align:center;font-size:8pt;color:#666">${fmt(ficha.empresa_nome)} ${ficha.empresa_cnpj ? `· CNPJ ${ficha.empresa_cnpj}` : ''}</div>
+    </div>
+  </div>
+
+  <h2>Dados da contratação (RH)</h2>
+  <div class="grid">
+    ${linha('Empresa', ficha.empresa_nome)}
+    ${linha('Cargo', ficha.cargo_nome)}
+    ${linha('Departamento', ficha.departamento_nome)}
+    ${linha('Data de envio', fmtDate(ficha.data_admissao))}
+    ${linha('Salário', ficha.salario ? `R$ ${Number(ficha.salario).toFixed(2)}` : '')}
+    ${linha('Entrada', ficha.horario_entrada)}
+    ${linha('Intervalo', `${ficha.horario_intervalo_inicio || ''} às ${ficha.horario_intervalo_fim || ''}`)}
+    ${linha('Saída', ficha.horario_saida)}
+  </div>
+
+  <h2>Dados pessoais</h2>
+  <div class="grid">
+    ${linha('Nome completo', pess.nome)}
+    ${linha('CPF', pess.cpf)}
+    ${linha('RG', pess.rg)}
+    ${linha('RG Órgão', pess.rg_orgao_emissor)}
+    ${linha('RG UF', pess.rg_uf)}
+    ${linha('RG Emissão', fmtDate(pess.rg_emissao))}
+    ${linha('Data nasc.', fmtDate(pess.data_nascimento))}
+    ${linha('Sexo', pess.sexo)}
+    ${linha('Estado civil', pess.estado_civil)}
+    ${linha('Nacionalidade', pess.nacionalidade)}
+    ${linha('Naturalidade', pess.naturalidade)}
+    ${linha('Naturalidade UF', pess.naturalidade_uf)}
+    ${linha('Nome do pai', pess.nome_pai)}
+    ${linha('Nome da mãe', pess.nome_mae)}
+    ${linha('Raça/Cor', pess.raca_cor)}
+    ${linha('Tipo sanguíneo', pess.tipo_sanguineo)}
+    ${linha('Altura', pess.altura)}
+    ${linha('Peso', pess.peso)}
+    ${linha('Cor cabelos', pess.cor_cabelos)}
+    ${linha('Cor olhos', pess.cor_olhos)}
+    ${linha('Deficiência', pess.deficiente)}
+  </div>
+
+  ${(pess.estado_civil === 'CASADO' || pess.estado_civil === 'UNIAO_ESTAVEL') ? `
+  <h2>Cônjuge</h2>
+  <div class="grid">
+    ${linha('Nome', conj.nome)}
+    ${linha('CPF', conj.cpf)}
+    ${linha('Data nasc.', fmtDate(conj.data_nascimento))}
+    ${linha('Data casamento', fmtDate(conj.data_casamento))}
+  </div>` : ''}
+
+  ${(pess.nacionalidade && !String(pess.nacionalidade).toUpperCase().includes('BRASIL')) ? `
+  <h2>Estrangeiro</h2>
+  <div class="grid">
+    ${linha('País', estr.pais_nacionalidade)}
+    ${linha('Condição ingresso', estr.condicao_ingresso)}
+    ${linha('Data chegada', fmtDate(estr.data_chegada))}
+    ${linha('Filhos c/ brasileiro', fmtBool(estr.filhos_brasileiros))}
+    ${linha('Quantos', estr.filhos_brasileiros_qtd)}
+    ${linha('Casado c/ brasileiro', fmtBool(estr.casado_brasileiro))}
+    ${linha('Portaria naturalização', estr.portaria_naturalizacao)}
+    ${linha('Data naturalização', fmtDate(estr.data_naturalizacao))}
+  </div>` : ''}
+
+  <h2>Contato</h2>
+  <div class="grid-3">
+    ${linha('Telefone', cont.telefone)}
+    ${linha('Celular', cont.celular)}
+    ${linha('E-mail', cont.email)}
+  </div>
+
+  <h2>Endereço</h2>
+  <div class="grid">
+    ${linha('CEP', end.cep)}
+    ${linha('Rua', end.rua)}
+    ${linha('Nº', end.numero)}
+    ${linha('Complemento', end.complemento)}
+    ${linha('Bairro', end.bairro)}
+    ${linha('Cidade', end.cidade)}
+    ${linha('UF', end.estado)}
+  </div>
+
+  <h2>Documentos</h2>
+  <div class="grid">
+    ${linha('CTPS', doc.ctps)}
+    ${linha('CTPS Série', doc.serie_ctps)}
+    ${linha('CTPS UF', doc.ctps_uf)}
+    ${linha('CTPS Emissão', fmtDate(doc.ctps_emissao))}
+    ${linha('PIS/PASEP', doc.pis_pasep)}
+    ${linha('Tít. Eleitor', doc.titulo_eleitor)}
+    ${linha('Zona', doc.titulo_zona)}
+    ${linha('Seção', doc.titulo_secao)}
+    ${linha('Tít. Emissão', fmtDate(doc.titulo_emissao))}
+    ${linha('Reservista', doc.reservista)}
+    ${linha('Reserv. UF', doc.reservista_uf)}
+    ${linha('Reserv. Emissão', fmtDate(doc.reservista_emissao))}
+    ${linha('CNH', doc.cnh)}
+    ${linha('CNH Cat.', doc.cnh_categoria)}
+    ${linha('CNH UF', doc.cnh_uf)}
+    ${linha('CNH Validade', fmtDate(doc.cnh_validade))}
+  </div>
+
+  <h2>Dados bancários</h2>
+  <div class="grid">
+    ${linha('Banco', bnc.banco)}
+    ${linha('Agência', bnc.agencia)}
+    ${linha('Conta', bnc.conta)}
+    ${linha('Tipo', bnc.tipo_conta)}
+    ${linha('PIX', bnc.pix)}
+  </div>
+
+  ${deps.length > 0 ? `
+  <h2>Dependentes (${deps.length})</h2>
+  ${deps.map((d, i) => `
+    <div class="dep">
+      <div style="font-weight:bold;color:#6d28d9">Dependente ${i + 1}: ${fmt(d.nome)} (${fmt(d.parentesco)})</div>
+      <div class="grid">
+        ${linha('Sexo', d.sexo)}
+        ${linha('CPF', d.cpf)}
+        ${linha('Data nasc.', fmtDate(d.data_nascimento))}
+        ${linha('Certidão Nº', d.certidao_numero)}
+        ${linha('Data certidão', fmtDate(d.certidao_data))}
+        ${linha('Cartório', d.certidao_cartorio)}
+        ${linha('Folha', d.certidao_folha)}
+        ${linha('Dep. IR', fmtBool(d.dependente_ir))}
+        ${linha('Sal. família', fmtBool(d.dependente_sf))}
+      </div>
+    </div>
+  `).join('')}` : ''}
+
+  <h2>Opções do candidato</h2>
+  <div class="grid-3">
+    ${linha('1º emprego', fmtBool(opc.primeiro_emprego))}
+    ${linha('Contribuição Sindical', fmtBool(opc.contribuicao_sindical))}
+    ${linha('Vale Transporte', fmtBool(opc.vale_transporte))}
+  </div>
+
+  <div class="sig">
+    <div>${fmt(pess.nome || ficha.candidato_nome)}<br/><span style="font-size:8pt;color:#666">Assinatura do candidato</span></div>
+    <div>____________________________<br/><span style="font-size:8pt;color:#666">Responsável de RH</span></div>
+  </div>
+
+  <script>window.onload=()=>{setTimeout(()=>window.print(),300)}</script>
+</body></html>`);
+    w.document.close();
+  };
+
   const copiarLink = async (url) => {
     try {
       await navigator.clipboard.writeText(url);
@@ -302,6 +496,7 @@ export default function FichasAdmissaoSection() {
           jornadas={jornadas} escalas={escalas} escalasDomingo={escalasDomingo}
           regimes={regimes} prazos={prazos} formasPgto={formasPgto}
           onSalvar={salvar} onFechar={() => { setModalAberto(false); setFichaEditando(null); }}
+          onImprimir={imprimirFicha}
         />
       )}
     </div>
@@ -311,7 +506,7 @@ export default function FichasAdmissaoSection() {
 // ============================================================
 // Modal do formulário da ficha
 // ============================================================
-function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, jornadas, escalas, escalasDomingo, regimes, prazos, formasPgto, onSalvar, onFechar }) {
+function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, jornadas, escalas, escalasDomingo, regimes, prazos, formasPgto, onSalvar, onFechar, onImprimir }) {
   const set = (k, v) => setFicha({ ...ficha, [k]: v });
 
   const labelCls = 'block text-xs font-semibold uppercase text-gray-600 mb-1';
@@ -470,11 +665,21 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
           )}
         </div>
 
-        <div className="p-4 border-t flex justify-end gap-2">
-          <button onClick={onFechar} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>
-          <button onClick={onSalvar} className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-sm font-bold">
-            💾 Salvar
-          </button>
+        <div className="p-4 border-t flex justify-between items-center gap-2 flex-wrap">
+          <div className="flex gap-2">
+            {ficha.id && (
+              <button type="button" onClick={() => onImprimir(ficha)}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-bold">
+                🖨️ Imprimir / PDF
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onFechar} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>
+            <button onClick={onSalvar} className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-sm font-bold">
+              💾 Salvar
+            </button>
+          </div>
         </div>
       </div>
     </div>
