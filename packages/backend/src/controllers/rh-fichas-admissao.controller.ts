@@ -141,19 +141,30 @@ export class RhFichasAdmissaoController {
     }
   }
 
-  // POST /rh/fichas-admissao/:id/gerar-link — marca status=aguardando_candidato e retorna o token
+  // POST /rh/fichas-admissao/:id/gerar-link — marca status=aguardando_candidato e retorna o token.
+  // Faz UPDATE + SELECT separados: UPDATE...RETURNING via AppDataSource.query() retorna [rows, count]
+  // no TypeORM 0.3+, o que quebra o destructure `[row] = ...` (vinha array em vez do row).
   static async gerarLink(req: AuthRequest, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const [row] = await AppDataSource.query(
+      const [exists] = await AppDataSource.query(
+        `SELECT id FROM rh_fichas_admissao WHERE id = $1`, [id]
+      );
+      if (!exists) return res.status(404).json({ error: 'Ficha não encontrada' });
+
+      await AppDataSource.query(
         `UPDATE rh_fichas_admissao
             SET status = CASE WHEN status = 'rascunho' THEN 'aguardando_candidato' ELSE status END,
                 sent_to_candidate_at = COALESCE(sent_to_candidate_at, NOW()),
                 updated_at = NOW()
-          WHERE id = $1 RETURNING id, public_token, status`,
+          WHERE id = $1`,
         [id]
       );
-      if (!row) return res.status(404).json({ error: 'Ficha não encontrada' });
+
+      const [row] = await AppDataSource.query(
+        `SELECT id, public_token, status FROM rh_fichas_admissao WHERE id = $1`,
+        [id]
+      );
       res.json(row);
     } catch (e: any) {
       res.status(500).json({ error: e.message });
