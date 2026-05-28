@@ -124,6 +124,17 @@ export default function FichasAdmissaoSection() {
     } catch (e) { toast.error('Erro ao gerar link'); }
   };
 
+  const criarColaborador = async (id) => {
+    if (!window.confirm('Cadastrar este candidato como colaborador ativo? Os dados da ficha serão copiados para o cadastro.')) return;
+    try {
+      const r = await api.post(`/rh/fichas-admissao/${id}/criar-colaborador`);
+      toast.success(`Colaborador criado! (id ${r.data.colaborador_id})`);
+      carregarFichas();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao cadastrar colaborador');
+    }
+  };
+
   const statusBadge = (status) => {
     const map = {
       rascunho:              { label: 'Rascunho',          cls: 'bg-gray-200 text-gray-700' },
@@ -175,8 +186,14 @@ export default function FichasAdmissaoSection() {
                   <div className="flex gap-1 flex-shrink-0">
                     <button onClick={() => abrirFicha(f)}
                       className="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded font-semibold">✏️ Editar</button>
-                    <button onClick={() => gerarLink(f.id)}
-                      className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold">🔗 Link</button>
+                    {f.status !== 'colaborador_criado' && (
+                      <button onClick={() => gerarLink(f.id)}
+                        className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded font-semibold">🔗 Link</button>
+                    )}
+                    {f.status === 'preenchida' && (
+                      <button onClick={() => criarColaborador(f.id)}
+                        className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-semibold">✅ Cadastrar colaborador</button>
+                    )}
                     <button onClick={() => excluir(f.id)}
                       className="text-xs px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded font-semibold">🗑️</button>
                   </div>

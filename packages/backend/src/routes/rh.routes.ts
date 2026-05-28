@@ -300,11 +300,16 @@ router.post('/escala/excessoes', authenticateToken, RhEscalaController.criarExce
 router.delete('/escala/excessoes/:id', authenticateToken, RhEscalaController.deletarExcessao);
 
 // Fichas de Admissão (1ª FASE — RH preenche, candidato completa via link público)
+// ROTAS PÚBLICAS (sem auth) — candidato acessa via token UUID
+router.get('/fichas-admissao/public/:token', RhFichasAdmissaoController.obterPorToken);
+router.put('/fichas-admissao/public/:token', RhFichasAdmissaoController.salvarPorToken);
+// ROTAS DO RH (auth)
 router.get('/fichas-admissao', authenticateToken, RhFichasAdmissaoController.listar);
 router.get('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.obter);
 router.post('/fichas-admissao', authenticateToken, RhFichasAdmissaoController.criar);
 router.put('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.atualizar);
 router.delete('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.deletar);
 router.post('/fichas-admissao/:id/gerar-link', authenticateToken, RhFichasAdmissaoController.gerarLink);
+router.post('/fichas-admissao/:id/criar-colaborador', authenticateToken, RhFichasAdmissaoController.criarColaborador);
 
 export default router;

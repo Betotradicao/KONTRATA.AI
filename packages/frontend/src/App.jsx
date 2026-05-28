@@ -19,6 +19,7 @@ import CurriculoPublico from './pages/CurriculoPublico';
 import DiscPublico from './pages/DiscPublico';
 import PesquisaPublica from './pages/PesquisaPublica';
 import RecrutamentoPublico from './pages/RecrutamentoPublico';
+import AdmissaoPublica from './pages/AdmissaoPublica';
 
 // RH (todas as páginas Rh*)
 import RhDashboard from './pages/RhDashboard';
@@ -68,6 +69,7 @@ function App() {
               <Route path="/disc" element={<DiscPublico />} />
               <Route path="/pesquisa-publica/:token" element={<PesquisaPublica />} />
               <Route path="/recrutamento/:token" element={<RecrutamentoPublico />} />
+              <Route path="/admissao/:token" element={<AdmissaoPublica />} />
 
               {/* Protected — Auth & Perfil */}
               <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
