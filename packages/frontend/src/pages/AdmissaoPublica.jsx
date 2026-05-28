@@ -19,8 +19,10 @@ export default function AdmissaoPublica() {
   // Dados que o candidato preenche (estrutura espelha o que o backend espera em criar-colaborador)
   const [dados, setDados] = useState({
     dados_pessoais: {
-      nome: '', cpf: '', rg: '', data_nascimento: '', sexo: '', estado_civil: '',
-      nacionalidade: 'BRASILEIRO(A)', naturalidade: '', nome_pai: '', nome_mae: '',
+      nome: '', cpf: '', rg: '', rg_orgao_emissor: '', rg_uf: '', rg_emissao: '',
+      data_nascimento: '', sexo: '', estado_civil: '',
+      nacionalidade: 'BRASILEIRO(A)', naturalidade: '', naturalidade_uf: '',
+      nome_pai: '', nome_mae: '',
       raca_cor: '', tipo_sanguineo: '', altura: '', peso: '',
       cor_cabelos: '', cor_olhos: '', deficiente: 'NENHUMA'
     },
@@ -28,12 +30,20 @@ export default function AdmissaoPublica() {
     endereco: { cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' },
     contato: { telefone: '', celular: '', email: '' },
     documentos: {
-      ctps: '', serie_ctps: '', pis_pasep: '', titulo_eleitor: '', titulo_zona: '', titulo_secao: '',
+      ctps: '', serie_ctps: '', ctps_uf: '', ctps_emissao: '',
+      pis_pasep: '',
+      titulo_eleitor: '', titulo_zona: '', titulo_secao: '', titulo_emissao: '',
       reservista: '', reservista_uf: '', reservista_emissao: '',
       cnh: '', cnh_categoria: '', cnh_uf: '', cnh_validade: ''
     },
     banco: { banco: '', agencia: '', conta: '', tipo_conta: '', pix: '' },
     conjuge: { nome: '', cpf: '', data_nascimento: '', data_casamento: '' },
+    estrangeiro: {
+      pais_nacionalidade: '', condicao_ingresso: '', data_chegada: '',
+      filhos_brasileiros: false, filhos_brasileiros_qtd: '',
+      casado_brasileiro: false,
+      portaria_naturalizacao: '', data_naturalizacao: ''
+    },
     dependentes: [],
     // DECISÕES DO CANDIDATO (antes ficavam na ficha do RH — agora é o próprio que opta):
     opcoes_candidato: { primeiro_emprego: false, contribuicao_sindical: false, vale_transporte: false },
@@ -43,7 +53,7 @@ export default function AdmissaoPublica() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await api.get(`/rh/fichas-admissao/public/${token}/escolaridades`).catch(() => null);
+        const r = await api.get(`/rh/fichas-admissao/public/escolaridades`).catch(() => null);
         // Fallback: se a rota pública não existir, usa lista hardcoded básica
         if (r?.data && Array.isArray(r.data)) setEscolaridades(r.data);
         else setEscolaridades([
@@ -120,7 +130,11 @@ export default function AdmissaoPublica() {
 
   const addDependente = () => setDados(d => ({
     ...d,
-    dependentes: [...(d.dependentes || []), { nome: '', parentesco: '', cpf: '', data_nascimento: '', dependente_ir: false, dependente_sf: false }]
+    dependentes: [...(d.dependentes || []), {
+      nome: '', parentesco: '', cpf: '', sexo: '', data_nascimento: '',
+      certidao_numero: '', certidao_data: '', certidao_cartorio: '', certidao_folha: '',
+      dependente_ir: false, dependente_sf: false
+    }]
   }));
   const updDependente = (i, patch) => setDados(d => {
     const arr = [...(d.dependentes || [])];
@@ -222,8 +236,22 @@ export default function AdmissaoPublica() {
               <input className={inputCls} value={dados.dados_pessoais.cpf} onChange={e => setSecao('dados_pessoais', { cpf: e.target.value })} placeholder="000.000.000-00" />
             </div>
             <div>
-              <label className={labelCls}>RG</label>
+              <label className={labelCls}>RG (número)</label>
               <input className={inputCls} value={dados.dados_pessoais.rg} onChange={e => setSecao('dados_pessoais', { rg: e.target.value })} />
+            </div>
+            <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className={labelCls}>RG — Órgão Emissor</label>
+                <input className={inputCls} value={dados.dados_pessoais.rg_orgao_emissor} onChange={e => setSecao('dados_pessoais', { rg_orgao_emissor: e.target.value })} placeholder="SSP, IFP..." />
+              </div>
+              <div>
+                <label className={labelCls}>RG — UF</label>
+                <input className={inputCls} maxLength={2} value={dados.dados_pessoais.rg_uf} onChange={e => setSecao('dados_pessoais', { rg_uf: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>RG — Data Emissão</label>
+                <input type="date" className={inputCls} value={dados.dados_pessoais.rg_emissao} onChange={e => setSecao('dados_pessoais', { rg_emissao: e.target.value })} />
+              </div>
             </div>
             <div>
               <label className={labelCls}>Data de nascimento *</label>
@@ -252,9 +280,13 @@ export default function AdmissaoPublica() {
               <label className={labelCls}>Nacionalidade</label>
               <input className={inputCls} value={dados.dados_pessoais.nacionalidade} onChange={e => setSecao('dados_pessoais', { nacionalidade: e.target.value })} />
             </div>
-            <div>
-              <label className={labelCls}>Naturalidade (cidade/UF)</label>
+            <div className="md:col-span-2">
+              <label className={labelCls}>Naturalidade (cidade)</label>
               <input className={inputCls} value={dados.dados_pessoais.naturalidade} onChange={e => setSecao('dados_pessoais', { naturalidade: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Naturalidade — UF</label>
+              <input className={inputCls} maxLength={2} value={dados.dados_pessoais.naturalidade_uf} onChange={e => setSecao('dados_pessoais', { naturalidade_uf: e.target.value })} />
             </div>
             <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -402,8 +434,16 @@ export default function AdmissaoPublica() {
               <input className={inputCls} value={dados.documentos.ctps} onChange={e => setSecao('documentos', { ctps: e.target.value })} />
             </div>
             <div>
-              <label className={labelCls}>Série CTPS</label>
+              <label className={labelCls}>CTPS — Série</label>
               <input className={inputCls} value={dados.documentos.serie_ctps} onChange={e => setSecao('documentos', { serie_ctps: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>CTPS — UF</label>
+              <input className={inputCls} maxLength={2} value={dados.documentos.ctps_uf} onChange={e => setSecao('documentos', { ctps_uf: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>CTPS — Data Emissão</label>
+              <input type="date" className={inputCls} value={dados.documentos.ctps_emissao} onChange={e => setSecao('documentos', { ctps_emissao: e.target.value })} />
             </div>
             <div>
               <label className={labelCls}>PIS / PASEP</label>
@@ -420,6 +460,10 @@ export default function AdmissaoPublica() {
             <div>
               <label className={labelCls}>Título: Seção</label>
               <input className={inputCls} value={dados.documentos.titulo_secao} onChange={e => setSecao('documentos', { titulo_secao: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Título — Data Emissão</label>
+              <input type="date" className={inputCls} value={dados.documentos.titulo_emissao} onChange={e => setSecao('documentos', { titulo_emissao: e.target.value })} />
             </div>
 
             {/* Reservista */}
@@ -455,6 +499,84 @@ export default function AdmissaoPublica() {
             </div>
           </div>
         </div>
+
+        {/* Cônjuge — só aparece se estado civil = casado ou união estável */}
+        {(dados.dados_pessoais.estado_civil === 'casado' || dados.dados_pessoais.estado_civil === 'uniao_estavel') && (
+          <div className={sectionCls}>
+            <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Dados do cônjuge</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="md:col-span-2">
+                <label className={labelCls}>Nome do cônjuge</label>
+                <input className={inputCls} value={dados.conjuge.nome} onChange={e => setSecao('conjuge', { nome: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>CPF do cônjuge</label>
+                <input className={inputCls} value={dados.conjuge.cpf} onChange={e => setSecao('conjuge', { cpf: e.target.value })} placeholder="000.000.000-00" />
+              </div>
+              <div>
+                <label className={labelCls}>Data de nascimento</label>
+                <input type="date" className={inputCls} value={dados.conjuge.data_nascimento} onChange={e => setSecao('conjuge', { data_nascimento: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Data do casamento / união</label>
+                <input type="date" className={inputCls} value={dados.conjuge.data_casamento} onChange={e => setSecao('conjuge', { data_casamento: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Para Estrangeiro — só aparece se nacionalidade não brasileira */}
+        {dados.dados_pessoais.nacionalidade &&
+         !dados.dados_pessoais.nacionalidade.toUpperCase().includes('BRASIL') && (
+          <div className={sectionCls}>
+            <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Para estrangeiro</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className={labelCls}>País de nacionalidade</label>
+                <input className={inputCls} value={dados.estrangeiro.pais_nacionalidade} onChange={e => setSecao('estrangeiro', { pais_nacionalidade: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Condição de ingresso no Brasil</label>
+                <input className={inputCls} value={dados.estrangeiro.condicao_ingresso} onChange={e => setSecao('estrangeiro', { condicao_ingresso: e.target.value })} placeholder="Visto permanente, refúgio..." />
+              </div>
+              <div>
+                <label className={labelCls}>Data de chegada</label>
+                <input type="date" className={inputCls} value={dados.estrangeiro.data_chegada} onChange={e => setSecao('estrangeiro', { data_chegada: e.target.value })} />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!dados.estrangeiro.filhos_brasileiros}
+                  onChange={e => setSecao('estrangeiro', { filhos_brasileiros: e.target.checked })}
+                  className="w-4 h-4 accent-purple-600" />
+                <span className="text-sm">Possui filhos com brasileiro(a)?</span>
+              </label>
+              <div>
+                <label className={labelCls}>Quantos?</label>
+                <input className={inputCls} value={dados.estrangeiro.filhos_brasileiros_qtd} onChange={e => setSecao('estrangeiro', { filhos_brasileiros_qtd: e.target.value })} />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!dados.estrangeiro.casado_brasileiro}
+                  onChange={e => setSecao('estrangeiro', { casado_brasileiro: e.target.checked })}
+                  className="w-4 h-4 accent-purple-600" />
+                <span className="text-sm">Casado(a) com brasileiro(a)?</span>
+              </label>
+
+              <div className="md:col-span-3 border-t pt-3 mt-2">
+                <div className="text-xs font-semibold uppercase text-gray-600 mb-2">Em caso de estrangeiro naturalizado brasileiro:</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>Portaria de naturalização</label>
+                    <input className={inputCls} value={dados.estrangeiro.portaria_naturalizacao} onChange={e => setSecao('estrangeiro', { portaria_naturalizacao: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Data da naturalização</label>
+                    <input type="date" className={inputCls} value={dados.estrangeiro.data_naturalizacao} onChange={e => setSecao('estrangeiro', { data_naturalizacao: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Banco */}
         <div className={sectionCls}>
@@ -499,22 +621,49 @@ export default function AdmissaoPublica() {
           ) : (
             <div className="space-y-3">
               {dados.dependentes.map((d, i) => (
-                <div key={i} className="border border-gray-200 rounded p-3 bg-gray-50">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                    <input className={inputCls + ' md:col-span-2'} placeholder="Nome" value={d.nome} onChange={e => updDependente(i, { nome: e.target.value })} />
-                    <select className={inputCls} value={d.parentesco} onChange={e => updDependente(i, { parentesco: e.target.value })}>
+                <div key={i} className="border border-gray-200 rounded p-3 bg-gray-50 space-y-2">
+                  <div className="text-xs font-bold text-gray-500 uppercase">Dependente {i + 1}</div>
+                  {/* Linha 1: Nome + Parentesco + Sexo */}
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+                    <input className={inputCls + ' md:col-span-3'} placeholder="Nome completo" value={d.nome} onChange={e => updDependente(i, { nome: e.target.value })} />
+                    <select className={inputCls + ' md:col-span-2'} value={d.parentesco} onChange={e => updDependente(i, { parentesco: e.target.value })}>
                       <option value="">Parentesco</option>
                       <option value="filho">Filho(a)</option>
                       <option value="conjuge">Cônjuge</option>
                       <option value="enteado">Enteado(a)</option>
+                      <option value="pai_mae">Pai/Mãe</option>
                       <option value="outro">Outro</option>
                     </select>
-                    <input type="date" className={inputCls} value={d.data_nascimento} onChange={e => updDependente(i, { data_nascimento: e.target.value })} />
-                    <input className={inputCls + ' md:col-span-2'} placeholder="CPF" value={d.cpf} onChange={e => updDependente(i, { cpf: e.target.value })} />
-                    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!d.dependente_ir} onChange={e => updDependente(i, { dependente_ir: e.target.checked })} /> Dependente IR</label>
-                    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!d.dependente_sf} onChange={e => updDependente(i, { dependente_sf: e.target.checked })} /> Salário-família</label>
+                    <select className={inputCls} value={d.sexo} onChange={e => updDependente(i, { sexo: e.target.value })}>
+                      <option value="">Sexo</option>
+                      <option value="M">M</option>
+                      <option value="F">F</option>
+                    </select>
                   </div>
-                  <button onClick={() => rmDependente(i)} className="text-xs text-red-600 hover:underline mt-2">remover</button>
+                  {/* Linha 2: CPF + Data nascimento */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input className={inputCls} placeholder="CPF" value={d.cpf} onChange={e => updDependente(i, { cpf: e.target.value })} />
+                    <div>
+                      <label className="block text-[10px] uppercase text-gray-500 mb-0.5">Data de nascimento</label>
+                      <input type="date" className={inputCls} value={d.data_nascimento} onChange={e => updDependente(i, { data_nascimento: e.target.value })} />
+                    </div>
+                  </div>
+                  {/* Linha 3: Certidão de nascimento completa */}
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+                    <input className={inputCls + ' md:col-span-2'} placeholder="Certidão de Nascimento (nº)" value={d.certidao_numero} onChange={e => updDependente(i, { certidao_numero: e.target.value })} />
+                    <div>
+                      <label className="block text-[10px] uppercase text-gray-500 mb-0.5">Data certidão</label>
+                      <input type="date" className={inputCls} value={d.certidao_data} onChange={e => updDependente(i, { certidao_data: e.target.value })} />
+                    </div>
+                    <input className={inputCls + ' md:col-span-2'} placeholder="Cartório" value={d.certidao_cartorio} onChange={e => updDependente(i, { certidao_cartorio: e.target.value })} />
+                    <input className={inputCls} placeholder="Folha" value={d.certidao_folha} onChange={e => updDependente(i, { certidao_folha: e.target.value })} />
+                  </div>
+                  {/* Linha 4: Flags IR e SF */}
+                  <div className="flex gap-4 flex-wrap">
+                    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!d.dependente_ir} onChange={e => updDependente(i, { dependente_ir: e.target.checked })} className="accent-purple-600" /> Dependente Imposto de Renda</label>
+                    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!d.dependente_sf} onChange={e => updDependente(i, { dependente_sf: e.target.checked })} className="accent-purple-600" /> Salário-família</label>
+                  </div>
+                  <button onClick={() => rmDependente(i)} className="text-xs text-red-600 hover:underline">🗑 Remover este dependente</button>
                 </div>
               ))}
             </div>

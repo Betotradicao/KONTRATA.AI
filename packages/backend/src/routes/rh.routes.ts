@@ -301,6 +301,7 @@ router.delete('/escala/excessoes/:id', authenticateToken, RhEscalaController.del
 
 // Fichas de Admissão (1ª FASE — RH preenche, candidato completa via link público)
 // ROTAS PÚBLICAS (sem auth) — candidato acessa via token UUID
+router.get('/fichas-admissao/public/escolaridades', RhFichasAdmissaoController.listarEscolaridadesPublicas);
 router.get('/fichas-admissao/public/:token', RhFichasAdmissaoController.obterPorToken);
 router.put('/fichas-admissao/public/:token', RhFichasAdmissaoController.salvarPorToken);
 // ROTAS DO RH (auth)

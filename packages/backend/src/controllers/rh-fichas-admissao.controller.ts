@@ -177,6 +177,22 @@ export class RhFichasAdmissaoController {
     }
   }
 
+  // GET /rh/fichas-admissao/public/escolaridades — ROTA PÚBLICA
+  // Lista de escolaridades cadastradas em Configurações RH (pro dropdown do candidato).
+  static async listarEscolaridadesPublicas(_req: Request, res: Response) {
+    try {
+      const rows = await AppDataSource.query(
+        `SELECT id, nome FROM rh_escolaridades WHERE ativo = true ORDER BY ordem, nome`
+      ).catch(async () => {
+        // Fallback se a tabela tem schema diferente
+        return await AppDataSource.query(`SELECT id, nome FROM rh_escolaridades ORDER BY id`).catch(() => []);
+      });
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+
   // GET /rh/fichas-admissao/public/:token — ROTA PÚBLICA (sem auth)
   // Candidato abre o link e vê os dados que o RH pré-preencheu (read-only)
   // + estado atual dos dados pessoais (pra retomar preenchimento se quiser).

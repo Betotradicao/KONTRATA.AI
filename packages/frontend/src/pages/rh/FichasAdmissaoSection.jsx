@@ -383,7 +383,11 @@ function DadosCandidatoPainel({ dados }) {
   const bnc = dados.banco || {};
   const esc = dados.escolaridade || {};
   const opc = dados.opcoes_candidato || {};
+  const conj = dados.conjuge || {};
+  const estr = dados.estrangeiro || {};
   const deps = Array.isArray(dados.dependentes) ? dados.dependentes : [];
+  const temConjuge = pess.estado_civil === 'casado' || pess.estado_civil === 'uniao_estavel';
+  const ehEstrangeiro = pess.nacionalidade && !String(pess.nacionalidade).toUpperCase().includes('BRASIL');
 
   const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
   const fmtBool = (b) => b ? '✅ Sim' : '❌ Não';
@@ -414,11 +418,15 @@ function DadosCandidatoPainel({ dados }) {
           <Item label="Nome" value={pess.nome} />
           <Item label="CPF" value={pess.cpf} />
           <Item label="RG" value={pess.rg} />
+          <Item label="RG — Órgão" value={pess.rg_orgao_emissor} />
+          <Item label="RG — UF" value={pess.rg_uf} />
+          <Item label="RG — Emissão" value={fmtDate(pess.rg_emissao)} />
           <Item label="Data nasc." value={fmtDate(pess.data_nascimento)} />
           <Item label="Sexo" value={pess.sexo} />
           <Item label="Estado civil" value={pess.estado_civil} />
           <Item label="Nacionalidade" value={pess.nacionalidade} />
           <Item label="Naturalidade" value={pess.naturalidade} />
+          <Item label="Naturalidade UF" value={pess.naturalidade_uf} />
           <Item label="Pai" value={pess.nome_pai} />
           <Item label="Mãe" value={pess.nome_mae} />
           <Item label="Raça/Cor" value={pess.raca_cor} />
@@ -430,6 +438,36 @@ function DadosCandidatoPainel({ dados }) {
           <Item label="Deficiência" value={pess.deficiente} />
         </div>
       </div>
+
+      {/* Cônjuge — só se casado/união estável */}
+      {temConjuge && (
+        <div className={sectionBox}>
+          <h4 className={subTitle}>Cônjuge</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Item label="Nome" value={conj.nome} />
+            <Item label="CPF" value={conj.cpf} />
+            <Item label="Data nasc." value={fmtDate(conj.data_nascimento)} />
+            <Item label="Data casamento" value={fmtDate(conj.data_casamento)} />
+          </div>
+        </div>
+      )}
+
+      {/* Estrangeiro — só se nacionalidade não brasileira */}
+      {ehEstrangeiro && (
+        <div className={sectionBox}>
+          <h4 className={subTitle}>Para estrangeiro</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Item label="País de nacionalidade" value={estr.pais_nacionalidade} />
+            <Item label="Condição de ingresso" value={estr.condicao_ingresso} />
+            <Item label="Data de chegada" value={fmtDate(estr.data_chegada)} />
+            <Item label="Filhos c/ brasileiro" value={fmtBool(estr.filhos_brasileiros)} />
+            <Item label="Quantos" value={estr.filhos_brasileiros_qtd} />
+            <Item label="Casado c/ brasileiro" value={fmtBool(estr.casado_brasileiro)} />
+            <Item label="Portaria naturalização" value={estr.portaria_naturalizacao} />
+            <Item label="Data naturalização" value={fmtDate(estr.data_naturalizacao)} />
+          </div>
+        </div>
+      )}
 
       {/* Contato */}
       <div className={sectionBox}>
@@ -468,11 +506,14 @@ function DadosCandidatoPainel({ dados }) {
         <h4 className={subTitle}>Documentos</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Item label="CTPS" value={doc.ctps} />
-          <Item label="Série CTPS" value={doc.serie_ctps} />
+          <Item label="CTPS Série" value={doc.serie_ctps} />
+          <Item label="CTPS UF" value={doc.ctps_uf} />
+          <Item label="CTPS Emissão" value={fmtDate(doc.ctps_emissao)} />
           <Item label="PIS/PASEP" value={doc.pis_pasep} />
           <Item label="Tít. Eleitor" value={doc.titulo_eleitor} />
           <Item label="Tít. Zona" value={doc.titulo_zona} />
           <Item label="Tít. Seção" value={doc.titulo_secao} />
+          <Item label="Tít. Emissão" value={fmtDate(doc.titulo_emissao)} />
           <Item label="Reservista" value={doc.reservista} />
           <Item label="Reserv. UF" value={doc.reservista_uf} />
           <Item label="Reserv. Emissão" value={fmtDate(doc.reservista_emissao)} />
@@ -499,15 +540,20 @@ function DadosCandidatoPainel({ dados }) {
       {deps.length > 0 && (
         <div className={sectionBox}>
           <h4 className={subTitle}>Dependentes ({deps.length})</h4>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {deps.map((d, i) => (
-              <div key={i} className="bg-white rounded p-2 text-xs grid grid-cols-2 md:grid-cols-6 gap-2">
-                <div><strong>{fmt(d.nome)}</strong></div>
-                <div>{fmt(d.parentesco)}</div>
-                <div>CPF: {fmt(d.cpf)}</div>
-                <div>{fmtDate(d.data_nascimento)}</div>
-                <div>IR: {fmtBool(d.dependente_ir)}</div>
-                <div>SF: {fmtBool(d.dependente_sf)}</div>
+              <div key={i} className="bg-white rounded p-3 border border-purple-100">
+                <div className="font-bold text-sm text-gray-800 mb-2">{fmt(d.nome)} — {fmt(d.parentesco)} {d.sexo ? `(${d.sexo})` : ''}</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <Item label="CPF" value={d.cpf} />
+                  <Item label="Data nasc." value={fmtDate(d.data_nascimento)} />
+                  <Item label="IR" value={fmtBool(d.dependente_ir)} />
+                  <Item label="Salário-família" value={fmtBool(d.dependente_sf)} />
+                  <Item label="Certidão (nº)" value={d.certidao_numero} />
+                  <Item label="Data certidão" value={fmtDate(d.certidao_data)} />
+                  <Item label="Cartório" value={d.certidao_cartorio} />
+                  <Item label="Folha" value={d.certidao_folha} />
+                </div>
               </div>
             ))}
           </div>
