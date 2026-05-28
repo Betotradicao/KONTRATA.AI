@@ -18,13 +18,48 @@ export default function AdmissaoPublica() {
 
   // Dados que o candidato preenche (estrutura espelha o que o backend espera em criar-colaborador)
   const [dados, setDados] = useState({
-    dados_pessoais: { nome: '', cpf: '', rg: '', data_nascimento: '', sexo: '', estado_civil: '', nacionalidade: 'Brasileiro(a)', naturalidade: '', nome_pai: '', nome_mae: '' },
+    dados_pessoais: {
+      nome: '', cpf: '', rg: '', data_nascimento: '', sexo: '', estado_civil: '',
+      nacionalidade: 'BRASILEIRO(A)', naturalidade: '', nome_pai: '', nome_mae: '',
+      raca_cor: '', tipo_sanguineo: '', altura: '', peso: '',
+      cor_cabelos: '', cor_olhos: '', deficiente: 'NENHUMA'
+    },
+    escolaridade: { escolaridade_id: '' },
     endereco: { cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '' },
     contato: { telefone: '', celular: '', email: '' },
-    documentos: { ctps: '', serie_ctps: '', pis_pasep: '', titulo_eleitor: '' },
+    documentos: {
+      ctps: '', serie_ctps: '', pis_pasep: '', titulo_eleitor: '', titulo_zona: '', titulo_secao: '',
+      reservista: '', reservista_uf: '', reservista_emissao: '',
+      cnh: '', cnh_categoria: '', cnh_uf: '', cnh_validade: ''
+    },
     banco: { banco: '', agencia: '', conta: '', tipo_conta: '', pix: '' },
+    conjuge: { nome: '', cpf: '', data_nascimento: '', data_casamento: '' },
     dependentes: [],
+    // DECISÕES DO CANDIDATO (antes ficavam na ficha do RH — agora é o próprio que opta):
+    opcoes_candidato: { primeiro_emprego: false, contribuicao_sindical: false, vale_transporte: false },
   });
+
+  const [escolaridades, setEscolaridades] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await api.get(`/rh/fichas-admissao/public/${token}/escolaridades`).catch(() => null);
+        // Fallback: se a rota pública não existir, usa lista hardcoded básica
+        if (r?.data && Array.isArray(r.data)) setEscolaridades(r.data);
+        else setEscolaridades([
+          { id: 'fundamental_incompleto', nome: 'Fundamental Incompleto' },
+          { id: 'fundamental_completo', nome: 'Fundamental Completo' },
+          { id: 'medio_incompleto', nome: 'Médio Incompleto' },
+          { id: 'medio_completo', nome: 'Médio Completo' },
+          { id: 'superior_incompleto', nome: 'Superior Incompleto' },
+          { id: 'superior_completo', nome: 'Superior Completo' },
+          { id: 'pos_graduacao', nome: 'Pós-Graduação' },
+          { id: 'mestrado', nome: 'Mestrado' },
+          { id: 'doutorado', nome: 'Doutorado' },
+        ]);
+      } catch { /* silencia */ }
+    })();
+  }, [token]);
 
   useEffect(() => {
     (async () => {
@@ -55,7 +90,15 @@ export default function AdmissaoPublica() {
     })();
   }, [token]);
 
-  const setSecao = (secao, patch) => setDados(d => ({ ...d, [secao]: { ...d[secao], ...patch } }));
+  // Converte automaticamente strings pra UPPERCASE (exceto email).
+  // Aplicado tanto no save quanto no autofill do CEP/viacep.
+  const upperize = (patch) => Object.fromEntries(
+    Object.entries(patch).map(([k, v]) => [
+      k,
+      (typeof v === 'string' && k !== 'email') ? v.toUpperCase() : v
+    ])
+  );
+  const setSecao = (secao, patch) => setDados(d => ({ ...d, [secao]: { ...d[secao], ...upperize(patch) } }));
 
   // CEP autofill (ViaCEP)
   const buscarCep = async (cep) => {
@@ -81,7 +124,7 @@ export default function AdmissaoPublica() {
   }));
   const updDependente = (i, patch) => setDados(d => {
     const arr = [...(d.dependentes || [])];
-    arr[i] = { ...arr[i], ...patch };
+    arr[i] = { ...arr[i], ...upperize(patch) };
     return { ...d, dependentes: arr };
   });
   const rmDependente = (i) => setDados(d => ({ ...d, dependentes: d.dependentes.filter((_, x) => x !== i) }));
@@ -125,10 +168,10 @@ export default function AdmissaoPublica() {
   }
   if (finalizado) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-emerald-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-purple-50 p-4">
         <div className="bg-white rounded-lg shadow-xl max-w-md p-10 text-center">
           <div className="text-6xl mb-4">✅</div>
-          <h1 className="text-2xl font-bold text-emerald-700 mb-3">Ficha enviada!</h1>
+          <h1 className="text-2xl font-bold text-purple-700 mb-3">Ficha enviada!</h1>
           <p className="text-gray-600 mb-2">Obrigado, <strong>{dados.dados_pessoais.nome || ficha?.candidato_nome}</strong>.</p>
           <p className="text-sm text-gray-500">O RH da empresa <strong>{ficha?.empresa_nome}</strong> vai revisar e dar continuidade à sua admissão. Você pode fechar esta página.</p>
         </div>
@@ -138,7 +181,9 @@ export default function AdmissaoPublica() {
 
   // Form ─────────────────────────────────────────────────────────────
   const labelCls = 'block text-xs font-semibold uppercase text-gray-600 mb-1';
-  const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500';
+  // 'uppercase' visual: tudo digitado/colado aparece em maiúsculo (email tem classe própria abaixo)
+  const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 uppercase';
+  const inputClsEmail = 'w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500';
   const sectionCls = 'bg-white border border-gray-200 rounded-lg p-5 shadow-sm';
 
   return (
@@ -146,7 +191,7 @@ export default function AdmissaoPublica() {
       <Toaster position="top-right" />
       <div className="max-w-3xl mx-auto space-y-4">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg p-5 shadow">
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg p-5 shadow">
           <h1 className="text-2xl font-bold">📋 Ficha de Admissão</h1>
           <p className="text-sm opacity-90 mt-1">Bem-vindo(a)! Confira os dados preenchidos pelo RH e complete os seus.</p>
         </div>
@@ -224,6 +269,76 @@ export default function AdmissaoPublica() {
           </div>
         </div>
 
+        {/* Características pessoais */}
+        <div className={sectionCls}>
+          <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Características pessoais</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className={labelCls}>Raça / Cor</label>
+              <select className={inputCls} value={dados.dados_pessoais.raca_cor} onChange={e => setSecao('dados_pessoais', { raca_cor: e.target.value })}>
+                <option value="">—</option>
+                <option value="BRANCA">Branca</option>
+                <option value="PRETA">Preta</option>
+                <option value="PARDA">Parda</option>
+                <option value="AMARELA">Amarela</option>
+                <option value="INDIGENA">Indígena</option>
+                <option value="NAO_DECLARADO">Não declarado</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Tipo sanguíneo</label>
+              <select className={inputCls} value={dados.dados_pessoais.tipo_sanguineo} onChange={e => setSecao('dados_pessoais', { tipo_sanguineo: e.target.value })}>
+                <option value="">—</option>
+                <option value="A+">A+</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B-">B-</option>
+                <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                <option value="O+">O+</option><option value="O-">O-</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Deficiência</label>
+              <select className={inputCls} value={dados.dados_pessoais.deficiente} onChange={e => setSecao('dados_pessoais', { deficiente: e.target.value })}>
+                <option value="NENHUMA">Nenhuma</option>
+                <option value="FISICA">Física</option>
+                <option value="AUDITIVA">Auditiva</option>
+                <option value="VISUAL">Visual</option>
+                <option value="REABILITADO">Reabilitado</option>
+                <option value="MENTAL">Mental</option>
+                <option value="MULTIPLA">Múltipla</option>
+                <option value="INTELECTUAL">Intelectual</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Altura (m)</label>
+              <input className={inputCls} value={dados.dados_pessoais.altura} onChange={e => setSecao('dados_pessoais', { altura: e.target.value })} placeholder="1,75" />
+            </div>
+            <div>
+              <label className={labelCls}>Peso (kg)</label>
+              <input className={inputCls} value={dados.dados_pessoais.peso} onChange={e => setSecao('dados_pessoais', { peso: e.target.value })} placeholder="70" />
+            </div>
+            <div>
+              <label className={labelCls}>Cor dos cabelos</label>
+              <input className={inputCls} value={dados.dados_pessoais.cor_cabelos} onChange={e => setSecao('dados_pessoais', { cor_cabelos: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Cor dos olhos</label>
+              <input className={inputCls} value={dados.dados_pessoais.cor_olhos} onChange={e => setSecao('dados_pessoais', { cor_olhos: e.target.value })} />
+            </div>
+          </div>
+        </div>
+
+        {/* Escolaridade */}
+        <div className={sectionCls}>
+          <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Escolaridade</h3>
+          <div>
+            <label className={labelCls}>Grau de instrução</label>
+            <select className={inputCls} value={dados.escolaridade.escolaridade_id} onChange={e => setSecao('escolaridade', { escolaridade_id: e.target.value })}>
+              <option value="">— Selecione —</option>
+              {escolaridades.map(es => <option key={es.id} value={es.id}>{es.nome}</option>)}
+            </select>
+          </div>
+        </div>
+
         {/* Contato */}
         <div className={sectionCls}>
           <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Contato</h3>
@@ -298,6 +413,46 @@ export default function AdmissaoPublica() {
               <label className={labelCls}>Título de Eleitor</label>
               <input className={inputCls} value={dados.documentos.titulo_eleitor} onChange={e => setSecao('documentos', { titulo_eleitor: e.target.value })} />
             </div>
+            <div>
+              <label className={labelCls}>Título: Zona</label>
+              <input className={inputCls} value={dados.documentos.titulo_zona} onChange={e => setSecao('documentos', { titulo_zona: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Título: Seção</label>
+              <input className={inputCls} value={dados.documentos.titulo_secao} onChange={e => setSecao('documentos', { titulo_secao: e.target.value })} />
+            </div>
+
+            {/* Reservista */}
+            <div>
+              <label className={labelCls}>Certificado de Reservista</label>
+              <input className={inputCls} value={dados.documentos.reservista} onChange={e => setSecao('documentos', { reservista: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Reservista — UF</label>
+              <input className={inputCls} maxLength={2} value={dados.documentos.reservista_uf} onChange={e => setSecao('documentos', { reservista_uf: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Reservista — Data Emissão</label>
+              <input type="date" className={inputCls} value={dados.documentos.reservista_emissao} onChange={e => setSecao('documentos', { reservista_emissao: e.target.value })} />
+            </div>
+
+            {/* CNH */}
+            <div>
+              <label className={labelCls}>CNH (nº)</label>
+              <input className={inputCls} value={dados.documentos.cnh} onChange={e => setSecao('documentos', { cnh: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>CNH — Categoria</label>
+              <input className={inputCls} value={dados.documentos.cnh_categoria} onChange={e => setSecao('documentos', { cnh_categoria: e.target.value })} placeholder="A, B, AB..." />
+            </div>
+            <div>
+              <label className={labelCls}>CNH — UF</label>
+              <input className={inputCls} maxLength={2} value={dados.documentos.cnh_uf} onChange={e => setSecao('documentos', { cnh_uf: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>CNH — Validade</label>
+              <input type="date" className={inputCls} value={dados.documentos.cnh_validade} onChange={e => setSecao('documentos', { cnh_validade: e.target.value })} />
+            </div>
           </div>
         </div>
 
@@ -337,7 +492,7 @@ export default function AdmissaoPublica() {
         <div className={sectionCls}>
           <div className="flex items-center justify-between mb-3 pb-2 border-b">
             <h3 className="text-sm font-bold text-gray-700 uppercase">Dependentes (filhos, cônjuge)</h3>
-            <button onClick={addDependente} className="text-xs px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded font-semibold">+ Adicionar</button>
+            <button onClick={addDependente} className="text-xs px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded font-semibold">+ Adicionar</button>
           </div>
           {(dados.dependentes || []).length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-4">Nenhum dependente. Clique em + Adicionar se houver.</p>
@@ -366,6 +521,41 @@ export default function AdmissaoPublica() {
           )}
         </div>
 
+        {/* Opções do candidato — decisões pessoais (não do RH) */}
+        <div className={sectionCls + ' bg-purple-50 border-purple-200'}>
+          <h3 className="text-sm font-bold text-purple-900 uppercase mb-3 pb-2 border-b border-purple-200">Opções (suas escolhas)</h3>
+          <p className="text-xs text-purple-800 mb-3">Marque conforme sua situação/decisão. Você pode mudar antes de enviar a ficha.</p>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-purple-100/50 rounded">
+              <input type="checkbox" checked={!!dados.opcoes_candidato.primeiro_emprego}
+                onChange={e => setSecao('opcoes_candidato', { primeiro_emprego: e.target.checked })}
+                className="w-5 h-5 mt-0.5 accent-purple-600" />
+              <div>
+                <div className="font-semibold text-sm text-gray-800">É o seu primeiro emprego (1º registro na CTPS)?</div>
+                <div className="text-xs text-gray-500">Marque se você nunca teve carteira assinada antes.</div>
+              </div>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-purple-100/50 rounded">
+              <input type="checkbox" checked={!!dados.opcoes_candidato.contribuicao_sindical}
+                onChange={e => setSecao('opcoes_candidato', { contribuicao_sindical: e.target.checked })}
+                className="w-5 h-5 mt-0.5 accent-purple-600" />
+              <div>
+                <div className="font-semibold text-sm text-gray-800">Autorizo desconto da Contribuição Sindical Anual</div>
+                <div className="text-xs text-gray-500">Decisão facultativa do trabalhador (CLT, art. 545 e seguintes).</div>
+              </div>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer p-2 hover:bg-purple-100/50 rounded">
+              <input type="checkbox" checked={!!dados.opcoes_candidato.vale_transporte}
+                onChange={e => setSecao('opcoes_candidato', { vale_transporte: e.target.checked })}
+                className="w-5 h-5 mt-0.5 accent-purple-600" />
+              <div>
+                <div className="font-semibold text-sm text-gray-800">Opto pela utilização do Vale-Transporte</div>
+                <div className="text-xs text-gray-500">Autorizo o desconto de até 6% do salário base, conforme Decreto nº 95.247/87.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
         {/* Botões */}
         <div className="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col md:flex-row gap-2 justify-end sticky bottom-2">
           <button onClick={salvarRascunho} disabled={salvando}
@@ -373,7 +563,7 @@ export default function AdmissaoPublica() {
             💾 Salvar rascunho
           </button>
           <button onClick={finalizar} disabled={salvando}
-            className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-bold text-sm disabled:opacity-50">
+            className="px-5 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded font-bold text-sm disabled:opacity-50">
             ✅ Enviar ficha
           </button>
         </div>

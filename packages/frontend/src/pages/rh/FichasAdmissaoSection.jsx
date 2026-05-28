@@ -352,24 +352,11 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
             </div>
           </div>
 
-          {/* Opções */}
-          <div className={sectionCls}>
-            <h4 className="text-sm font-bold text-gray-700 mb-3">Opções</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!ficha.primeiro_emprego} onChange={e => set('primeiro_emprego', e.target.checked)} className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm">É o primeiro registro (1º emprego)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!ficha.contribuicao_sindical} onChange={e => set('contribuicao_sindical', e.target.checked)} className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm">Contribuição Sindical</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!ficha.vale_transporte} onChange={e => set('vale_transporte', e.target.checked)} className="w-4 h-4 text-emerald-600" />
-                <span className="text-sm">Vale Transporte</span>
-              </label>
-            </div>
-          </div>
+          {/* Painel READ-ONLY com os dados preenchidos pelo candidato via link público.
+              Aparece SOMENTE quando há candidato_dados (status >= preenchida ou rascunho do candidato). */}
+          {ficha.candidato_dados && Object.keys(ficha.candidato_dados).length > 0 && (
+            <DadosCandidatoPainel dados={ficha.candidato_dados} />
+          )}
         </div>
 
         <div className="p-4 border-t flex justify-end gap-2">
@@ -377,6 +364,163 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
           <button onClick={onSalvar} className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-sm font-bold">
             💾 Salvar
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Painel read-only com os dados que o candidato preencheu via link público.
+// Mostrado dentro do modal de edição da ficha pra RH revisar antes de
+// converter em colaborador.
+// ============================================================
+function DadosCandidatoPainel({ dados }) {
+  const pess = dados.dados_pessoais || {};
+  const end = dados.endereco || {};
+  const cont = dados.contato || {};
+  const doc = dados.documentos || {};
+  const bnc = dados.banco || {};
+  const esc = dados.escolaridade || {};
+  const opc = dados.opcoes_candidato || {};
+  const deps = Array.isArray(dados.dependentes) ? dados.dependentes : [];
+
+  const fmtDate = (d) => { if (!d) return '—'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
+  const fmtBool = (b) => b ? '✅ Sim' : '❌ Não';
+  const fmt = (v) => v || '—';
+
+  const labelStyle = 'text-[10px] uppercase font-semibold text-gray-500';
+  const valueStyle = 'text-sm text-gray-800 font-medium';
+  const sectionBox = 'bg-purple-50 border border-purple-200 rounded-lg p-4';
+  const subTitle = 'text-sm font-bold text-purple-900 uppercase mb-3 pb-2 border-b border-purple-200 flex items-center gap-2';
+
+  const Item = ({ label, value }) => (
+    <div>
+      <div className={labelStyle}>{label}</div>
+      <div className={valueStyle}>{value || '—'}</div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3 mt-3">
+      <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg p-3 text-sm font-bold">
+        📝 Dados preenchidos pelo candidato
+      </div>
+
+      {/* Dados pessoais */}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>Dados pessoais</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Item label="Nome" value={pess.nome} />
+          <Item label="CPF" value={pess.cpf} />
+          <Item label="RG" value={pess.rg} />
+          <Item label="Data nasc." value={fmtDate(pess.data_nascimento)} />
+          <Item label="Sexo" value={pess.sexo} />
+          <Item label="Estado civil" value={pess.estado_civil} />
+          <Item label="Nacionalidade" value={pess.nacionalidade} />
+          <Item label="Naturalidade" value={pess.naturalidade} />
+          <Item label="Pai" value={pess.nome_pai} />
+          <Item label="Mãe" value={pess.nome_mae} />
+          <Item label="Raça/Cor" value={pess.raca_cor} />
+          <Item label="Sanguíneo" value={pess.tipo_sanguineo} />
+          <Item label="Altura" value={pess.altura} />
+          <Item label="Peso" value={pess.peso} />
+          <Item label="Cabelos" value={pess.cor_cabelos} />
+          <Item label="Olhos" value={pess.cor_olhos} />
+          <Item label="Deficiência" value={pess.deficiente} />
+        </div>
+      </div>
+
+      {/* Contato */}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>Contato</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Item label="Telefone" value={cont.telefone} />
+          <Item label="Celular" value={cont.celular} />
+          <Item label="E-mail" value={cont.email} />
+        </div>
+      </div>
+
+      {/* Endereço */}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>Endereço</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Item label="CEP" value={end.cep} />
+          <Item label="Rua" value={end.rua} />
+          <Item label="Nº" value={end.numero} />
+          <Item label="Complemento" value={end.complemento} />
+          <Item label="Bairro" value={end.bairro} />
+          <Item label="Cidade" value={end.cidade} />
+          <Item label="UF" value={end.estado} />
+        </div>
+      </div>
+
+      {/* Escolaridade */}
+      {esc.escolaridade_id && (
+        <div className={sectionBox}>
+          <h4 className={subTitle}>Escolaridade</h4>
+          <Item label="Grau" value={esc.escolaridade_id} />
+        </div>
+      )}
+
+      {/* Documentos */}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>Documentos</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Item label="CTPS" value={doc.ctps} />
+          <Item label="Série CTPS" value={doc.serie_ctps} />
+          <Item label="PIS/PASEP" value={doc.pis_pasep} />
+          <Item label="Tít. Eleitor" value={doc.titulo_eleitor} />
+          <Item label="Tít. Zona" value={doc.titulo_zona} />
+          <Item label="Tít. Seção" value={doc.titulo_secao} />
+          <Item label="Reservista" value={doc.reservista} />
+          <Item label="Reserv. UF" value={doc.reservista_uf} />
+          <Item label="Reserv. Emissão" value={fmtDate(doc.reservista_emissao)} />
+          <Item label="CNH" value={doc.cnh} />
+          <Item label="CNH Cat." value={doc.cnh_categoria} />
+          <Item label="CNH UF" value={doc.cnh_uf} />
+          <Item label="CNH Valid." value={fmtDate(doc.cnh_validade)} />
+        </div>
+      </div>
+
+      {/* Banco */}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>Dados bancários</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Item label="Banco" value={bnc.banco} />
+          <Item label="Agência" value={bnc.agencia} />
+          <Item label="Conta" value={bnc.conta} />
+          <Item label="Tipo" value={bnc.tipo_conta} />
+          <Item label="PIX" value={bnc.pix} />
+        </div>
+      </div>
+
+      {/* Dependentes */}
+      {deps.length > 0 && (
+        <div className={sectionBox}>
+          <h4 className={subTitle}>Dependentes ({deps.length})</h4>
+          <div className="space-y-2">
+            {deps.map((d, i) => (
+              <div key={i} className="bg-white rounded p-2 text-xs grid grid-cols-2 md:grid-cols-6 gap-2">
+                <div><strong>{fmt(d.nome)}</strong></div>
+                <div>{fmt(d.parentesco)}</div>
+                <div>CPF: {fmt(d.cpf)}</div>
+                <div>{fmtDate(d.data_nascimento)}</div>
+                <div>IR: {fmtBool(d.dependente_ir)}</div>
+                <div>SF: {fmtBool(d.dependente_sf)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Opções */}
+      <div className={sectionBox}>
+        <h4 className={subTitle}>Opções (escolhas do candidato)</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Item label="1º emprego" value={fmtBool(opc.primeiro_emprego)} />
+          <Item label="Contribuição Sindical" value={fmtBool(opc.contribuicao_sindical)} />
+          <Item label="Vale Transporte" value={fmtBool(opc.vale_transporte)} />
         </div>
       </div>
     </div>

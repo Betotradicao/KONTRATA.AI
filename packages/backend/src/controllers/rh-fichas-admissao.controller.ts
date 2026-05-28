@@ -271,6 +271,9 @@ export class RhFichasAdmissaoController {
       const cont = dados.contato || {};
       const doc  = dados.documentos || {};
       const bnc  = dados.banco || {};
+      // Opções vêm do candidato (não mais da ficha do RH):
+      const opc  = dados.opcoes_candidato || {};
+      const valeTransporte     = typeof opc.vale_transporte     === 'boolean' ? opc.vale_transporte     : !!f.vale_transporte;
 
       // Insere colaborador com os campos coletados (ficha + candidato_dados).
       // Matrícula = id da ficha (fallback temporário; o RH pode trocar depois).
@@ -305,7 +308,7 @@ export class RhFichasAdmissaoController {
           end.bairro || null, end.cidade || null, end.estado || null,
           `FICHA-${id}`, f.cargo_id || null, f.company_id || null, f.jornada_id || null,
           f.data_admissao || null, f.salario || null,
-          f.vale_transporte,
+          valeTransporte,
           bnc.banco || null, bnc.agencia || null, bnc.conta || null, bnc.tipo_conta || null, bnc.pix || null,
           doc.ctps || null, doc.serie_ctps || null, doc.pis_pasep || null, doc.titulo_eleitor || null,
           pess.nome_pai || null, pess.nome_mae || null
