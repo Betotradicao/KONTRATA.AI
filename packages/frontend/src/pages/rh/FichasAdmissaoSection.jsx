@@ -143,9 +143,23 @@ export default function FichasAdmissaoSection() {
       const url = `${window.location.origin}/admissao/${r.data.public_token}`;
       // Tenta copiar automaticamente já (best-effort)
       await navigator.clipboard.writeText(url).catch(() => {});
-      setLinkGerado({ url, nome: ficha.candidato_nome });
+      setLinkGerado({
+        url,
+        nome: ficha.candidato_nome,
+        celular: ficha.candidato_celular,
+        email: ficha.candidato_email,
+      });
       carregarFichas();
     } catch (e) { toast.error('Erro ao gerar link'); }
+  };
+
+  // Monta link do WhatsApp direto pro chat do candidato (se tiver celular).
+  // Limpa máscara, garante prefixo 55 (Brasil). Sem celular → wa.me genérico.
+  const buildWhatsAppUrl = (celular, mensagem) => {
+    const digits = String(celular || '').replace(/\D/g, '');
+    const tel = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : '';
+    const txt = encodeURIComponent(mensagem);
+    return tel ? `https://wa.me/${tel}?text=${txt}` : `https://wa.me/?text=${txt}`;
   };
 
   const copiarLink = async (url) => {
@@ -259,17 +273,15 @@ export default function FichasAdmissaoSection() {
                 </button>
               </div>
 
-              <div className="flex gap-2 pt-2 border-t border-gray-100">
+              <div className="pt-2 border-t border-gray-100">
                 <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Olá! Por favor preencha sua Ficha de Admissão neste link: ${linkGerado.url}`)}`}
+                  href={buildWhatsAppUrl(
+                    linkGerado.celular,
+                    `Olá ${linkGerado.nome || ''}! Por favor preencha sua Ficha de Admissão neste link: ${linkGerado.url}`
+                  )}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex-1 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-sm font-bold text-center">
-                  💬 WhatsApp
-                </a>
-                <a
-                  href={`mailto:?subject=${encodeURIComponent('Ficha de Admissão')}&body=${encodeURIComponent(`Olá,\n\nPor favor preencha sua Ficha de Admissão neste link:\n${linkGerado.url}\n`)}`}
-                  className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-bold text-center">
-                  ✉️ E-mail
+                  className="block w-full px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-sm font-bold text-center">
+                  💬 Enviar pelo WhatsApp{linkGerado.celular ? '' : ' (sem nº cadastrado)'}
                 </a>
               </div>
 
