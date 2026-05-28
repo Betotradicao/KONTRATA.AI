@@ -587,10 +587,21 @@ export class RhController {
     return RhController.listarConfig(req, res, 'rh_prazos_experiencia');
   }
   static async criarPrazoExperiencia(req: AuthRequest, res: Response) {
-    return RhController.criarConfig(req, res, 'rh_prazos_experiencia', ['nome', 'dias', 'descricao']);
+    // Se vier dias_inicial + dias_final, calcula `dias` (total) automaticamente
+    const b = req.body || {};
+    if (b.dias_inicial != null && b.dias_final != null && b.dias == null) {
+      b.dias = Number(b.dias_inicial) + Number(b.dias_final);
+      req.body = b;
+    }
+    return RhController.criarConfig(req, res, 'rh_prazos_experiencia', ['nome', 'dias', 'dias_inicial', 'dias_final', 'descricao']);
   }
   static async atualizarPrazoExperiencia(req: AuthRequest, res: Response) {
-    return RhController.atualizarConfig(req, res, 'rh_prazos_experiencia', ['nome', 'dias', 'descricao']);
+    const b = req.body || {};
+    if (b.dias_inicial != null && b.dias_final != null && b.dias == null) {
+      b.dias = Number(b.dias_inicial) + Number(b.dias_final);
+      req.body = b;
+    }
+    return RhController.atualizarConfig(req, res, 'rh_prazos_experiencia', ['nome', 'dias', 'dias_inicial', 'dias_final', 'descricao']);
   }
   static async deletarPrazoExperiencia(req: AuthRequest, res: Response) {
     return RhController.deletarConfig(req, res, 'rh_prazos_experiencia');

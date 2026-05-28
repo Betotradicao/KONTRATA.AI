@@ -280,7 +280,12 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
               </div>
               <div>
                 <label className={labelCls}>Cargo / Função</label>
-                <select className={selectCls} value={ficha.cargo_id || ''} onChange={e => set('cargo_id', e.target.value)}>
+                <select className={selectCls} value={ficha.cargo_id || ''} onChange={e => {
+                  const cargoId = e.target.value;
+                  const cargo = cargos.find(c => String(c.id) === String(cargoId));
+                  // Auto-preenche salário com salario_base do cargo (RH pode ajustar depois)
+                  setFicha({ ...ficha, cargo_id: cargoId, ...(cargo?.salario_base != null ? { salario: cargo.salario_base } : {}) });
+                }}>
                   <option value="">— Selecione —</option>{optList(cargos)}
                 </select>
               </div>
@@ -297,7 +302,15 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
               <div>
                 <label className={labelCls}>Prazo de Experiência</label>
                 <select className={selectCls} value={ficha.prazo_experiencia_id || ''} onChange={e => set('prazo_experiencia_id', e.target.value)}>
-                  <option value="">— Selecione —</option>{optList(prazos)}
+                  <option value="">— Selecione —</option>
+                  {(prazos || []).map(p => {
+                    const ini = p.dias_inicial, fim = p.dias_final;
+                    const total = (ini != null && fim != null) ? (Number(ini) + Number(fim)) : p.dias;
+                    const label = (ini != null && fim != null)
+                      ? `Inicial ${ini} / Final ${fim} (total ${total} dias)`
+                      : (p.nome || `${p.dias || ''} dias`);
+                    return <option key={p.id} value={p.id}>{label}</option>;
+                  })}
                 </select>
               </div>
               <div>
