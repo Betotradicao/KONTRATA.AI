@@ -14,6 +14,12 @@ export class RhFichasAdmissaoController {
       const rows = await AppDataSource.query(
         `SELECT f.*,
                 COALESCE(e.apelido, e.nome_fantasia, e.razao_social) AS empresa_nome,
+                e.razao_social AS empresa_razao_social,
+                e.cnpj AS empresa_cnpj,
+                e.rua AS empresa_rua, e.numero AS empresa_numero,
+                e.bairro AS empresa_bairro, e.cidade AS empresa_cidade,
+                e.estado AS empresa_estado, e.cep AS empresa_cep,
+                e.foto_fachada_url AS empresa_logo,
                 c.nome AS cargo_nome,
                 s.nome AS departamento_nome
          FROM rh_fichas_admissao f

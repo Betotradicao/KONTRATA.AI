@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 import EmployeesTab from '../components/configuracoes/EmployeesTab';
 import FichasAdmissaoSection from './rh/FichasAdmissaoSection';
+import ContaSalarioSection from './rh/ContaSalarioSection';
 
 const TABS = [
   { key: 'liberacao_acesso', label: '🔑 Liberação de Acesso', custom: true },
@@ -1875,6 +1876,7 @@ function DocsPadronizadosTab() {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [faseAtiva, setFaseAtiva] = useState(2); // 1 = pré-contratação / 2 = pós-contratação (todos os seeds iniciais ficam aqui)
+  const [tipoFase1, setTipoFase1] = useState('fichas'); // 'fichas' | 'conta_salario' — sub-abas dentro da 1ª FASE
   const [abaAtiva, setAbaAtiva] = useState(null); // id do doc selecionado ou 'novo'
   const [docEditado, setDocEditado] = useState(null); // doc com edicoes em andamento
   const [salvando, setSalvando] = useState(false);
@@ -2104,8 +2106,28 @@ function DocsPadronizadosTab() {
         ))}
       </div>
 
-      {/* 1ª FASE: Fichas de Admissão (formulário interativo com link público) */}
-      {faseAtiva === 1 && <FichasAdmissaoSection />}
+      {/* 1ª FASE: sub-abas internas (Fichas de Admissão | Conta Salário) */}
+      {faseAtiva === 1 && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            {[
+              { id: 'fichas', label: '📋 Fichas de Admissão' },
+              { id: 'conta_salario', label: '💳 Conta Salário' },
+            ].map(t => (
+              <button key={t.id} onClick={() => setTipoFase1(t.id)}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition shadow ${
+                  tipoFase1 === t.id
+                    ? 'bg-gray-700 text-white shadow-md'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {tipoFase1 === 'fichas' && <FichasAdmissaoSection />}
+          {tipoFase1 === 'conta_salario' && <ContaSalarioSection />}
+        </div>
+      )}
 
       {/* 2ª FASE: docs de texto com variáveis (abas horizontais com cada documento + botão Novo) */}
       {faseAtiva === 2 && (
