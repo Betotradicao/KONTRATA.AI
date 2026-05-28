@@ -2136,9 +2136,12 @@ function DocsPadronizadosTab() {
   const buildConteudoHtml = (conteudo, episLista) => {
     const partes = (conteudo || '').split('$EPIS_TABELA$');
     return partes.map((parte, idx) => {
-      const paragrafos = parte.split('\n\n').map(p =>
-        `<p>${p.replace(/\n/g, '<br>')}</p>`
-      ).join('');
+      // Filtra paragrafos vazios (multiplos \n\n no template) pra nao gerar
+      // <p></p> vazios que ocupam altura inutil na impressao.
+      const paragrafos = parte.split('\n\n')
+        .filter(p => p.trim() !== '')
+        .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+        .join('');
       const tabela = idx < partes.length - 1 ? buildEpisTabelaHtml(episLista) : '';
       return paragrafos + tabela;
     }).join('');
@@ -2151,11 +2154,18 @@ function DocsPadronizadosTab() {
     const logoTag = resultado.logo_url
       ? `<div class="logo-wrap"><img src="${resultado.logo_url}" alt="Logo" /></div>`
       : '';
+    // Advertência tende a ter assinaturas+testemunhas que estouram em 2 paginas.
+    // Aplica layout mais compacto so quando o doc for Advertencia (detectado
+    // pelo titulo) pra caber em 1 folha A4 sem afetar os outros docs.
+    const isAdvert = /advert/i.test(resultado.titulo || '');
+    const cfg = isAdvert
+      ? { pageMargin: '14mm', font: '10.5pt',  lh: '1.3',  logoMb: '8px',  h1Size: '13pt', h1Mb: '10px', pMb: '6px' }
+      : { pageMargin: '25mm', font: '12pt',    lh: '1.5',  logoMb: '20px', h1Size: '16pt', h1Mb: '30px', pMb: '12px' };
     w.document.write('<!DOCTYPE html><html><head><title>' + resultado.titulo + '</title>' +
-      '<style>@page{size:A4;margin:25mm}body{font-family:Times New Roman,serif;font-size:12pt;line-height:1.5;color:#000}' +
-      '.logo-wrap{text-align:center;margin:0 0 20px}.logo-wrap img{max-height:80px;max-width:200px;object-fit:contain}' +
-      'h1{font-size:16pt;text-align:center;margin:0 0 30px;line-height:1.3}' +
-      'p{margin:0 0 12px;text-align:justify;white-space:pre-wrap}' +
+      `<style>@page{size:A4;margin:${cfg.pageMargin}}body{font-family:Times New Roman,serif;font-size:${cfg.font};line-height:${cfg.lh};color:#000}` +
+      `.logo-wrap{text-align:center;margin:0 0 ${cfg.logoMb}}.logo-wrap img{max-height:${isAdvert ? '55px' : '80px'};max-width:${isAdvert ? '160px' : '200px'};object-fit:contain}` +
+      `h1{font-size:${cfg.h1Size};text-align:center;margin:0 0 ${cfg.h1Mb};line-height:1.2}` +
+      `p{margin:0 0 ${cfg.pMb};text-align:justify;white-space:pre-wrap}` +
       'table{page-break-inside:auto}tr{page-break-inside:avoid}</style></head><body>' +
       logoTag + '<h1>' + resultado.titulo + '</h1><div>' + corpo + '</div>' +
       '<script>window.onload=()=>{window.print()}</script></body></html>');
