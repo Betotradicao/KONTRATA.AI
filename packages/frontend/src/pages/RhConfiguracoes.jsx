@@ -6,6 +6,7 @@ import { api } from '../utils/api';
 import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 import EmployeesTab from '../components/configuracoes/EmployeesTab';
+import FichasAdmissaoSection from './rh/FichasAdmissaoSection';
 
 const TABS = [
   { key: 'liberacao_acesso', label: '🔑 Liberação de Acesso', custom: true },
@@ -1873,6 +1874,7 @@ function CargosTab() {
 function DocsPadronizadosTab() {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [faseAtiva, setFaseAtiva] = useState(2); // 1 = pré-contratação / 2 = pós-contratação (todos os seeds iniciais ficam aqui)
   const [abaAtiva, setAbaAtiva] = useState(null); // id do doc selecionado ou 'novo'
   const [docEditado, setDocEditado] = useState(null); // doc com edicoes em andamento
   const [salvando, setSalvando] = useState(false);
@@ -1889,30 +1891,40 @@ function DocsPadronizadosTab() {
     { tag: '$RG$',           desc: 'RG' },
     { tag: '$MATRICULA$',    desc: 'Matrícula' },
     { tag: '$CARGO$',        desc: 'Nome do cargo' },
+    { tag: '$EPIS_DO_CARGO$', desc: 'Lista de EPIs do cargo (uma por linha)' },
+    { tag: '$EPIS_TABELA$',  desc: 'Tabela de EPIs (DATA/CUSTO/QTDE/EQUIP/CA/ASS)' },
     { tag: '$CTPS$',         desc: 'Nº da CTPS' },
     { tag: '$SERIE_CTPS$',   desc: 'Série da CTPS' },
     { tag: '$ADMISSAO$',     desc: 'Data de admissão (dd/mm/yyyy)' },
-    { tag: '$ENDERECO$',     desc: 'Endereço do colaborador' },
+    { tag: '$ENDERECO$',     desc: 'Endereço do colaborador (rua/nº)' },
+    { tag: '$COLAB_BAIRRO$', desc: 'Bairro do colaborador' },
+    { tag: '$COLAB_CIDADE$', desc: 'Cidade do colaborador' },
+    { tag: '$COLAB_ESTADO$', desc: 'UF do colaborador' },
+    { tag: '$COLAB_CEP$',    desc: 'CEP do colaborador' },
     { tag: '$DATA_HOJE$',    desc: 'dd/mm/yyyy' },
     { tag: '$DATA_EXTENSO$', desc: '"24 de julho de 2025"' },
     { tag: '$EMPRESA_NOME$',     desc: 'Nome da empresa' },
     { tag: '$EMPRESA_CNPJ$',     desc: 'CNPJ da empresa' },
-    { tag: '$EMPRESA_ENDERECO$', desc: 'Endereço da empresa' },
+    { tag: '$EMPRESA_ENDERECO$', desc: 'Endereço da empresa (rua, nº)' },
+    { tag: '$EMPRESA_BAIRRO$',   desc: 'Bairro da empresa' },
+    { tag: '$EMPRESA_CEP$',      desc: 'CEP da empresa' },
     { tag: '$CIDADE$',           desc: 'Cidade da empresa' },
     { tag: '$ESTADO$',           desc: 'UF da empresa' },
   ];
 
   const carregar = async () => {
     try {
-      const r = await api.get('/rh/docs-padronizados');
+      const r = await api.get(`/rh/docs-padronizados?fase=${faseAtiva}`);
       const list = Array.isArray(r.data) ? r.data : [];
       setDocs(list);
-      // Seleciona a primeira aba automaticamente
-      if (list.length > 0 && abaAtiva === null) setAbaAtiva(list[0].id);
+      // Seleciona a primeira aba automaticamente; se nenhum doc, abre o painel vazio (1ª fase começa sem nada)
+      if (list.length > 0) setAbaAtiva(list[0].id);
+      else { setAbaAtiva(null); setDocEditado(null); }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
-  useEffect(() => { carregar(); }, []);
+  // Recarrega sempre que troca a sub-aba (1ª/2ª fase)
+  useEffect(() => { carregar(); }, [faseAtiva]);
 
   // Quando troca de aba, carrega doc completo
   useEffect(() => {
@@ -1965,7 +1977,7 @@ function DocsPadronizadosTab() {
         await api.put(`/rh/docs-padronizados/${docEditado.id}`, docEditado);
         toast.success('Documento atualizado');
       } else {
-        const r = await api.post('/rh/docs-padronizados', docEditado);
+        const r = await api.post('/rh/docs-padronizados', { ...docEditado, fase: faseAtiva });
         toast.success('Documento criado');
         // Atualiza estado pra cair na aba do novo
         await carregar();
@@ -2004,12 +2016,55 @@ function DocsPadronizadosTab() {
     }
   };
 
+  // Monta o HTML da tabela de EPIs (header DATA/CUSTO/QTDE/EQUIPAMENTO/Nº CA/ASS).
+  // Cada EPI do cargo vira uma linha com EQUIPAMENTO e (se houver) CA pré-preenchidos;
+  // o resto das colunas fica em branco pra preencher à mão na entrega.
+  // Sempre garante no mínimo 6 linhas (linhas vazias extras pra adições manuais).
+  const buildEpisTabelaHtml = (items) => {
+    const list = Array.isArray(items) ? items : [];
+    const minRows = Math.max(6, list.length);
+    const blankCount = minRows - list.length;
+    const base = 'border:1px solid #000;padding:6px;height:38px;vertical-align:middle';
+    const td = (extra) => `style="${base};${extra || ''}"`;
+    const th = `style="${base};background:#f0f0f0;font-weight:bold;text-align:center;font-size:10pt"`;
+    let body = '';
+    for (const r of list) {
+      body += `<tr>` +
+              `<td ${td('width:80px')}></td>` +
+              `<td ${td('width:60px')}></td>` +
+              `<td ${td('width:50px;text-align:center')}></td>` +
+              `<td ${td()}>${(r.nome || '').replace(/</g, '&lt;')}</td>` +
+              `<td ${td('width:80px;text-align:center')}>${(r.ca || '').replace(/</g, '&lt;')}</td>` +
+              `<td ${td('width:140px')}></td>` +
+              `</tr>`;
+    }
+    for (let i = 0; i < blankCount; i++) {
+      body += `<tr><td ${td()}></td><td ${td()}></td><td ${td()}></td><td ${td()}></td><td ${td()}></td><td ${td()}></td></tr>`;
+    }
+    return `<table style="width:100%;border-collapse:collapse;font-size:10pt;margin:14px 0">` +
+           `<thead><tr><th ${th}>DATA</th><th ${th}>CUSTO</th><th ${th}>QTDE.</th>` +
+           `<th ${th}>EQUIPAMENTO</th><th ${th}>Nº DO C.A</th><th ${th}>ASS. DO EMPREGADO</th></tr></thead>` +
+           `<tbody>${body}</tbody></table>`;
+  };
+
+  // Converte o conteúdo do doc em HTML pronto pra impressão/preview.
+  // Detecta o token $EPIS_TABELA$ e o substitui pela tabela real;
+  // o resto vira <p>...</p> (com <br> pras quebras de linha simples).
+  const buildConteudoHtml = (conteudo, episLista) => {
+    const partes = (conteudo || '').split('$EPIS_TABELA$');
+    return partes.map((parte, idx) => {
+      const paragrafos = parte.split('\n\n').map(p =>
+        `<p>${p.replace(/\n/g, '<br>')}</p>`
+      ).join('');
+      const tabela = idx < partes.length - 1 ? buildEpisTabelaHtml(episLista) : '';
+      return paragrafos + tabela;
+    }).join('');
+  };
+
   const imprimirResultado = () => {
     const w = window.open('', '_blank');
     if (!w) return;
-    const paragrafos = resultado.conteudo.split('\n\n').map(p =>
-      `<p>${p.replace(/\n/g, '<br>')}</p>`
-    ).join('');
+    const corpo = buildConteudoHtml(resultado.conteudo, resultado.epis_lista);
     const logoTag = resultado.logo_url
       ? `<div class="logo-wrap"><img src="${resultado.logo_url}" alt="Logo" /></div>`
       : '';
@@ -2017,8 +2072,9 @@ function DocsPadronizadosTab() {
       '<style>@page{size:A4;margin:25mm}body{font-family:Times New Roman,serif;font-size:12pt;line-height:1.5;color:#000}' +
       '.logo-wrap{text-align:center;margin:0 0 20px}.logo-wrap img{max-height:80px;max-width:200px;object-fit:contain}' +
       'h1{font-size:16pt;text-align:center;margin:0 0 30px;line-height:1.3}' +
-      'p{margin:0 0 12px;text-align:justify;white-space:pre-wrap}</style></head><body>' +
-      logoTag + '<h1>' + resultado.titulo + '</h1><div>' + paragrafos + '</div>' +
+      'p{margin:0 0 12px;text-align:justify;white-space:pre-wrap}' +
+      'table{page-break-inside:auto}tr{page-break-inside:avoid}</style></head><body>' +
+      logoTag + '<h1>' + resultado.titulo + '</h1><div>' + corpo + '</div>' +
       '<script>window.onload=()=>{window.print()}</script></body></html>');
     w.document.close();
   };
@@ -2031,7 +2087,28 @@ function DocsPadronizadosTab() {
         📄 <strong>Modelos de documentos da empresa.</strong> Use variáveis tipo <code className="bg-blue-100 px-1 rounded">$NOME$</code>, <code className="bg-blue-100 px-1 rounded">$CPF$</code>, <code className="bg-blue-100 px-1 rounded">$DATA_EXTENSO$</code> — serão substituídas automaticamente ao gerar pro colaborador.
       </div>
 
-      {/* Abas horizontais com cada documento + botão Novo */}
+      {/* Sub-abas de FASE: 1ª (pré-contratação / admissão) e 2ª (pós-contratação) */}
+      <div className="flex gap-2">
+        {[
+          { num: 1, label: 'DOCS 1ª FASE CONTRATAÇÃO' },
+          { num: 2, label: 'DOCS 2ª FASE CONTRATAÇÃO' },
+        ].map(f => (
+          <button key={f.num} onClick={() => setFaseAtiva(f.num)}
+            className={`px-5 py-2.5 text-sm font-bold rounded-lg transition shadow-md ${
+              faseAtiva === f.num
+                ? 'bg-gray-700 text-white shadow-lg'
+                : 'bg-gray-300 text-gray-700 hover:bg-gray-400 hover:text-gray-800'
+            }`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 1ª FASE: Fichas de Admissão (formulário interativo com link público) */}
+      {faseAtiva === 1 && <FichasAdmissaoSection />}
+
+      {/* 2ª FASE: docs de texto com variáveis (abas horizontais com cada documento + botão Novo) */}
+      {faseAtiva === 2 && (
       <div className="bg-white border border-gray-200 rounded-t-lg overflow-hidden">
         <div className="flex flex-wrap gap-px bg-gray-100 border-b border-gray-200">
           {docs.map(d => (
@@ -2144,6 +2221,7 @@ function DocsPadronizadosTab() {
           </div>
         )}
       </div>
+      )}
 
       {/* Modal Gerar pra colaborador — passo 1: empresa, passo 2: colaborador */}
       {gerando && (
@@ -2234,7 +2312,8 @@ function DocsPadronizadosTab() {
                   </div>
                 )}
                 <h1 className="text-xl font-bold text-center mb-8 leading-tight">{resultado.titulo}</h1>
-                <div className="text-sm leading-relaxed text-justify whitespace-pre-wrap">{resultado.conteudo}</div>
+                <div className="text-sm leading-relaxed text-justify [&>p]:mb-3 [&_p]:whitespace-pre-wrap"
+                  dangerouslySetInnerHTML={{ __html: buildConteudoHtml(resultado.conteudo, resultado.epis_lista) }} />
               </div>
             </div>
             <div className="p-4 border-t flex justify-end">

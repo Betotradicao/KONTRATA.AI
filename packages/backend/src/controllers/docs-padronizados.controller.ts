@@ -8,10 +8,15 @@ import { AuthRequest } from '../middleware/auth';
  * e usa pra gerar documentos prontos pros colaboradores.
  */
 export class DocsPadronizadosController {
-  static async listar(_req: AuthRequest, res: Response) {
+  static async listar(req: AuthRequest, res: Response) {
     try {
+      const fase = req.query.fase ? parseInt(req.query.fase as string) : null;
+      const params: any[] = [];
+      let where = 'WHERE ativo = true';
+      if (fase) { params.push(fase); where += ` AND fase = $${params.length}`; }
       const rows = await AppDataSource.query(
-        `SELECT * FROM rh_docs_padronizados WHERE ativo = true ORDER BY ordem, nome`
+        `SELECT * FROM rh_docs_padronizados ${where} ORDER BY ordem, nome`,
+        params
       );
       res.json(rows);
     } catch (e: any) {
@@ -36,17 +41,19 @@ export class DocsPadronizadosController {
 
   static async criar(req: AuthRequest, res: Response) {
     try {
-      const { nome, descricao, titulo, conteudo, ordem } = req.body;
+      const { nome, descricao, titulo, conteudo, ordem, fase } = req.body;
       if (!nome || !titulo || !conteudo) {
         return res.status(400).json({ error: 'nome, titulo e conteudo são obrigatórios' });
       }
+      const faseVal = fase === 1 || fase === 2 ? fase : 2;
       const [{ max }] = await AppDataSource.query(
-        `SELECT COALESCE(MAX(ordem), 0)::int AS max FROM rh_docs_padronizados`
+        `SELECT COALESCE(MAX(ordem), 0)::int AS max FROM rh_docs_padronizados WHERE fase = $1`,
+        [faseVal]
       );
       const [row] = await AppDataSource.query(
-        `INSERT INTO rh_docs_padronizados (nome, descricao, titulo, conteudo, ordem)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [nome, descricao || null, titulo, conteudo, ordem ?? max + 1]
+        `INSERT INTO rh_docs_padronizados (nome, descricao, titulo, conteudo, ordem, fase)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [nome, descricao || null, titulo, conteudo, ordem ?? max + 1, faseVal]
       );
       res.status(201).json(row);
     } catch (e: any) {
@@ -57,7 +64,7 @@ export class DocsPadronizadosController {
   static async atualizar(req: AuthRequest, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const { nome, descricao, titulo, conteudo, ativo, ordem } = req.body;
+      const { nome, descricao, titulo, conteudo, ativo, ordem, fase } = req.body;
       const [row] = await AppDataSource.query(
         `UPDATE rh_docs_padronizados SET
            nome      = COALESCE($1, nome),
@@ -66,9 +73,10 @@ export class DocsPadronizadosController {
            conteudo  = COALESCE($4, conteudo),
            ativo     = COALESCE($5, ativo),
            ordem     = COALESCE($6, ordem),
+           fase      = COALESCE($7, fase),
            updated_at = NOW()
-         WHERE id = $7 RETURNING *`,
-        [nome ?? null, descricao ?? null, titulo ?? null, conteudo ?? null, ativo ?? null, ordem ?? null, id]
+         WHERE id = $8 RETURNING *`,
+        [nome ?? null, descricao ?? null, titulo ?? null, conteudo ?? null, ativo ?? null, ordem ?? null, fase ?? null, id]
       );
       if (!row) return res.status(404).json({ error: 'Documento não encontrado' });
       res.json(row);
@@ -110,6 +118,8 @@ export class DocsPadronizadosController {
       const [colab] = await AppDataSource.query(
         `SELECT c.id, c.nome, c.cpf, c.rg, c.matricula,
                 c.ctps, c.serie_ctps, c.data_admissao, c.endereco,
+                c.bairro AS colab_bairro, c.cidade AS colab_cidade,
+                c.estado AS colab_estado, c.cep AS colab_cep,
                 ca.nome AS cargo_nome,
                 COALESCE(comp.apelido, comp.nome_fantasia, comp.razao_social) AS empresa_nome,
                 comp.razao_social AS empresa_razao_social,
@@ -119,7 +129,16 @@ export class DocsPadronizadosController {
                 comp.rua AS empresa_rua,
                 comp.numero AS empresa_numero,
                 comp.bairro AS empresa_bairro,
-                comp.foto_fachada_url AS empresa_foto_fachada
+                comp.cep AS empresa_cep,
+                comp.foto_fachada_url AS empresa_foto_fachada,
+                (
+                  SELECT jsonb_agg(jsonb_build_object('nome', e.nome, 'ca', e.ca) ORDER BY e.nome)
+                  FROM rh_epis_epcs e
+                  WHERE e.id = ANY(
+                    ARRAY(SELECT jsonb_array_elements_text(COALESCE(ca.epis_epcs_obrigatorios_ids, '[]'::jsonb))::int)
+                  )
+                  AND e.tipo = 'epi' AND e.ativo = true
+                ) AS epis_lista_json
          FROM rh_colaboradores c
          LEFT JOIN rh_cargos ca ON ca.id = c.cargo_id
          LEFT JOIN rh_empresas comp ON comp.id = c.company_id
@@ -163,11 +182,21 @@ export class DocsPadronizadosController {
         return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
       };
 
-      // Endereço da empresa (rua, nº - bairro) montado a partir do rh_empresas
-      const partesEnd: string[] = [];
-      if (colab.empresa_rua) partesEnd.push(colab.empresa_rua + (colab.empresa_numero ? `, ${colab.empresa_numero}` : ''));
-      if (colab.empresa_bairro) partesEnd.push(colab.empresa_bairro);
-      const empresaEndereco = partesEnd.join(' - ');
+      // Endereço da empresa = rua + ", " + numero (bairro/CEP têm vars próprias)
+      const empresaEndereco = colab.empresa_rua
+        ? colab.empresa_rua + (colab.empresa_numero ? `, ${colab.empresa_numero}` : '')
+        : '';
+
+      // Lista de EPIs obrigatórios do cargo (array estruturado vindo de jsonb_agg).
+      // Usado tanto pra montar o texto plano de $EPIS_DO_CARGO$ quanto pra
+      // alimentar a tabela ($EPIS_TABELA$ — token tratado no frontend, não
+      // substituído aqui — render via resultado.epis_lista).
+      const episLista: { nome: string; ca: string | null }[] = Array.isArray(colab.epis_lista_json)
+        ? colab.epis_lista_json
+        : [];
+      const episDoCargoTexto = episLista.length
+        ? episLista.map(e => `(  ) ${e.nome}`).join('\n')
+        : '(nenhum EPI obrigatório cadastrado para este cargo)';
 
       const vars: Record<string, string> = {
         '$NOME$':         colab.nome || '',
@@ -179,11 +208,18 @@ export class DocsPadronizadosController {
         '$SERIE_CTPS$':   colab.serie_ctps || '',
         '$ADMISSAO$':     formatData(colab.data_admissao),
         '$ENDERECO$':     colab.endereco || '',
+        '$COLAB_BAIRRO$': colab.colab_bairro || '',
+        '$COLAB_CIDADE$': colab.colab_cidade || '',
+        '$COLAB_ESTADO$': colab.colab_estado || '',
+        '$COLAB_CEP$':    colab.colab_cep || '',
         '$DATA_HOJE$':    `${dd}/${mm}/${yyyy}`,
         '$DATA_EXTENSO$': dataExtenso,
         '$EMPRESA_NOME$': colab.empresa_nome || '',
         '$EMPRESA_CNPJ$': colab.empresa_cnpj || '',
         '$EMPRESA_ENDERECO$': empresaEndereco,
+        '$EMPRESA_BAIRRO$': colab.empresa_bairro || '',
+        '$EMPRESA_CEP$': colab.empresa_cep || '',
+        '$EPIS_DO_CARGO$': episDoCargoTexto,
         '$CIDADE$':       colab.empresa_cidade || '',
         '$ESTADO$':       colab.empresa_estado || '',
       };
@@ -203,6 +239,7 @@ export class DocsPadronizadosController {
         logo_url: logoUrl,
         empresa_nome: colab.empresa_nome,
         colaborador: { id: colab.id, nome: colab.nome },
+        epis_lista: episLista, // usado pelo token $EPIS_TABELA$ (renderizado no front)
         gerado_em: hoje.toISOString(),
       });
     } catch (e: any) {

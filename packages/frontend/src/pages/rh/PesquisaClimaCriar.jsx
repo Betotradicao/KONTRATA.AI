@@ -94,7 +94,11 @@ export default function PesquisaClimaCriar() {
         cor: edit.cor, icone: edit.icone,
         anonima: edit.anonima
       });
-      await api.put(`/pesquisa-clima/modelos/${edit.id}/perguntas`, { perguntas: edit.perguntas });
+      // Renumera `ordem` pela posição final no array. Sem isso, o drag&drop
+      // reorganiza o array mas cada pergunta mantém seu `ordem` original →
+      // backend grava ordem antiga e ao recarregar volta pro lugar anterior.
+      const perguntasOrdenadas = (edit.perguntas || []).map((p, i) => ({ ...p, ordem: i + 1 }));
+      await api.put(`/pesquisa-clima/modelos/${edit.id}/perguntas`, { perguntas: perguntasOrdenadas });
       toast.success('Pesquisa salva');
       await carregar();
     } catch (e) { toast.error(e.response?.data?.error || 'Erro ao salvar'); }

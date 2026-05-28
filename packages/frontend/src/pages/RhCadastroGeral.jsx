@@ -509,6 +509,28 @@ export default function RhCadastroGeral() {
       }
       return novo;
     });
+
+    // CEP: quando completar 8 dígitos, busca no ViaCEP e preenche rua/bairro/cidade/UF.
+    // Mantém o valor atual se a API não retornar aquele campo (CEPs gerais às vezes
+    // não trazem logradouro).
+    if (field === 'cep') {
+      const cepLimpo = String(value || '').replace(/\D/g, '');
+      if (cepLimpo.length === 8) {
+        fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (!data || data.erro) return;
+            setFormData(prev => ({
+              ...prev,
+              endereco: data.logradouro || prev.endereco,
+              bairro:   data.bairro     || prev.bairro,
+              cidade:   data.localidade || prev.cidade,
+              estado:   data.uf         || prev.estado,
+            }));
+          })
+          .catch(() => { /* silencia erros de rede */ });
+      }
+    }
   };
 
   // Input class helper

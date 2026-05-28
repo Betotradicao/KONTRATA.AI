@@ -8,6 +8,7 @@ import { RhApontamentosController } from '../controllers/rh-apontamentos.control
 import { RhEmpresasController } from '../controllers/rh-empresas.controller';
 import { RhEscalaController } from '../controllers/rh-escala.controller';
 import { RhFolhaController } from '../controllers/rh-folha.controller';
+import { RhFichasAdmissaoController } from '../controllers/rh-fichas-admissao.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router: Router = Router();
@@ -297,5 +298,13 @@ router.delete('/escala/licencas/:id', authenticateToken, RhEscalaController.dele
 router.get('/escala/excessoes', authenticateToken, RhEscalaController.listarExcessoes);
 router.post('/escala/excessoes', authenticateToken, RhEscalaController.criarExcessao);
 router.delete('/escala/excessoes/:id', authenticateToken, RhEscalaController.deletarExcessao);
+
+// Fichas de Admissão (1ª FASE — RH preenche, candidato completa via link público)
+router.get('/fichas-admissao', authenticateToken, RhFichasAdmissaoController.listar);
+router.get('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.obter);
+router.post('/fichas-admissao', authenticateToken, RhFichasAdmissaoController.criar);
+router.put('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.atualizar);
+router.delete('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.deletar);
+router.post('/fichas-admissao/:id/gerar-link', authenticateToken, RhFichasAdmissaoController.gerarLink);
 
 export default router;
