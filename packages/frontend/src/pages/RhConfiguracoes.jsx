@@ -1936,6 +1936,18 @@ function DocsPadronizadosTab() {
   // Recarrega sempre que troca a sub-aba (1ª/2ª fase)
   useEffect(() => { carregar(); }, [faseAtiva]);
 
+  // Pré-carrega motivos de advertência quando ta na fase 4 — pra mostrar
+  // o painel lateral junto com "Variáveis disponíveis" (sem precisar abrir Gerar)
+  useEffect(() => {
+    if (faseAtiva !== 4) return;
+    (async () => {
+      try {
+        const rm = await api.get('/rh/configuracoes/motivos-advertencia');
+        setMotivosAdv(Array.isArray(rm.data) ? rm.data : []);
+      } catch (e) { console.error(e); }
+    })();
+  }, [faseAtiva]);
+
   // Quando troca de aba, carrega doc completo
   useEffect(() => {
     if (abaAtiva === 'novo') {
@@ -2255,18 +2267,50 @@ function DocsPadronizadosTab() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase text-gray-600 mb-2 block">Variáveis disponíveis</label>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 space-y-1 sticky top-2">
-                  {VARIAVEIS.map(v => (
-                    <button key={v.tag} type="button"
-                      onClick={() => setDocEditado({ ...docEditado, conteudo: (docEditado.conteudo || '') + v.tag })}
-                      className="w-full text-left p-2 hover:bg-orange-50 rounded border border-transparent hover:border-orange-200">
-                      <span className="inline-block bg-orange-100 text-orange-800 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded tracking-normal">{v.tag}</span>
-                      <div className="text-gray-600 mt-1 text-xs leading-snug">{v.desc}</div>
-                    </button>
-                  ))}
+              <div className="space-y-4 sticky top-2">
+                <div>
+                  <label className="text-xs font-bold uppercase text-gray-600 mb-2 block">Variáveis disponíveis</label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 space-y-1">
+                    {VARIAVEIS.map(v => (
+                      <button key={v.tag} type="button"
+                        onClick={() => setDocEditado({ ...docEditado, conteudo: (docEditado.conteudo || '') + v.tag })}
+                        className="w-full text-left p-2 hover:bg-orange-50 rounded border border-transparent hover:border-orange-200">
+                        <span className="inline-block bg-orange-100 text-orange-800 font-mono text-[13px] font-semibold px-1.5 py-0.5 rounded tracking-normal">{v.tag}</span>
+                        <div className="text-gray-600 mt-1 text-xs leading-snug">{v.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Motivos de Advertência — só na fase 4. Painel lateral pra
+                    visualizar os motivos cadastrados sem sair da tela. */}
+                {faseAtiva === 4 && (
+                  <div>
+                    <label className="text-xs font-bold uppercase text-gray-600 mb-2 block">
+                      Motivos cadastrados <span className="text-amber-700 normal-case font-normal">(use aba "Motivos Advert." pra editar)</span>
+                    </label>
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1 max-h-[400px] overflow-y-auto">
+                      {motivosAdv.length === 0 ? (
+                        <div className="text-xs text-amber-700 px-2 py-3 text-center">
+                          Nenhum motivo cadastrado. Use a aba <strong>Motivos Advert.</strong> pra cadastrar.
+                        </div>
+                      ) : motivosAdv.map(m => (
+                        <div key={m.id} className="p-2 bg-white rounded border border-amber-200">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="text-[12px] font-semibold text-amber-900 leading-tight">⚠️ {m.nome}</div>
+                            {m.artigo && (
+                              <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-gray-600 mt-1 leading-snug">{m.texto}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      O RH escolhe um destes ao gerar o doc — o texto + embasamento vão pra <span className="font-mono text-amber-700">$MOTIVO_ADVERTENCIA$</span>.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
