@@ -2310,6 +2310,56 @@ function DocsPadronizadosTab() {
                     placeholder="Use $NOME$, $CPF$, $DATA_EXTENSO$, etc..."
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono" />
                 </div>
+
+                {/* Motivos de Advertência — só na fase 4. Dentro da coluna do
+                    editor, logo abaixo do textarea (em 2 colunas pra encaixar
+                    melhor na largura disponível). */}
+                {faseAtiva === 4 && (
+                  <div className="border-t-2 border-amber-200 pt-3 mt-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-amber-900">⚠️ Motivos de Advertência</h3>
+                        <p className="text-[11px] text-gray-500">O RH escolhe um destes ao gerar o doc — texto + embasamento vão pra <span className="font-mono text-amber-700">$MOTIVO_ADVERTENCIA$</span>.</p>
+                      </div>
+                      <button type="button"
+                        onClick={() => setMotivoModal({ nome: '', texto: '', artigo: '' })}
+                        className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1 whitespace-nowrap">
+                        ➕ Novo Motivo
+                      </button>
+                    </div>
+                    {motivosAdv.length === 0 ? (
+                      <div className="text-center py-6 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg">
+                        Nenhum motivo cadastrado. Clique em <strong>+ Novo Motivo</strong> pra começar.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {motivosAdv.map(m => (
+                          <div key={m.id} className="p-2 bg-amber-50 border border-amber-200 rounded hover:border-amber-400 transition group relative">
+                            <div className="flex items-start justify-between gap-2 mb-1 pr-12">
+                              <div className="text-xs font-bold text-amber-900 leading-tight flex-1">⚠️ {m.nome}</div>
+                              {m.artigo && (
+                                <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-gray-700 leading-snug line-clamp-2">{m.texto}</div>
+                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition flex gap-1">
+                              <button type="button" onClick={() => setMotivoModal({ ...m })}
+                                title="Editar"
+                                className="bg-white border border-gray-300 hover:bg-blue-50 hover:border-blue-300 text-blue-600 rounded p-1 text-xs">
+                                ✏️
+                              </button>
+                              <button type="button" onClick={() => excluirMotivo(m)}
+                                title="Excluir"
+                                className="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 rounded p-1 text-xs">
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -2326,55 +2376,6 @@ function DocsPadronizadosTab() {
                 </div>
               </div>
             </div>
-
-            {/* Motivos de Advertência — só na fase 4. Painel abaixo do editor,
-                com CRUD inline (criar/editar/excluir) sem precisar trocar de aba. */}
-            {faseAtiva === 4 && (
-              <div className="mt-6 border-t-2 border-amber-200 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2">⚠️ Motivos de Advertência</h3>
-                    <p className="text-xs text-gray-500">O RH escolhe um destes ao gerar o doc — texto + embasamento vão pra <span className="font-mono text-amber-700">$MOTIVO_ADVERTENCIA$</span>.</p>
-                  </div>
-                  <button type="button"
-                    onClick={() => setMotivoModal({ nome: '', texto: '', artigo: '' })}
-                    className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-2 rounded shadow flex items-center gap-1">
-                    ➕ Novo Motivo
-                  </button>
-                </div>
-                {motivosAdv.length === 0 ? (
-                  <div className="text-center py-6 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg">
-                    Nenhum motivo cadastrado. Clique em <strong>+ Novo Motivo</strong> pra começar.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {motivosAdv.map(m => (
-                      <div key={m.id} className="p-3 bg-amber-50 border border-amber-200 rounded-lg hover:border-amber-400 transition group relative">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <div className="text-xs font-bold text-amber-900 leading-tight flex-1">⚠️ {m.nome}</div>
-                          {m.artigo && (
-                            <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-mono px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-gray-700 leading-snug line-clamp-3">{m.texto}</div>
-                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition flex gap-1">
-                          <button type="button" onClick={() => setMotivoModal({ ...m })}
-                            title="Editar"
-                            className="bg-white border border-gray-300 hover:bg-blue-50 hover:border-blue-300 text-blue-600 rounded p-1 text-xs">
-                            ✏️
-                          </button>
-                          <button type="button" onClick={() => excluirMotivo(m)}
-                            title="Excluir"
-                            className="bg-white border border-gray-300 hover:bg-red-50 hover:border-red-300 text-red-600 rounded p-1 text-xs">
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
