@@ -136,6 +136,7 @@ export class RhFichasAdmissaoController {
           typeof b.contribuicao_sindical === 'boolean' ? b.contribuicao_sindical : null,
           typeof b.vale_transporte === 'boolean' ? b.vale_transporte : null,
           b.status ?? null,
+          b.candidato_dados ? JSON.stringify(b.candidato_dados) : null,
           id
         ]
       );
