@@ -2338,7 +2338,7 @@ function DocsPadronizadosTab() {
                             <div className="flex items-start justify-between gap-2 mb-1.5 pr-14">
                               <div className="text-sm font-bold text-amber-900 leading-tight flex-1">⚠️ {m.nome}</div>
                               {m.artigo && (
-                                <span className="inline-block bg-amber-100 text-amber-900 text-[14px] font-mono font-bold px-2 py-1 rounded whitespace-nowrap">{m.artigo}</span>
+                                <span className="inline-block bg-amber-100 text-amber-900 text-[12px] font-mono font-bold px-1.5 py-0.5 rounded whitespace-nowrap">{m.artigo}</span>
                               )}
                             </div>
                             <div className="text-[13px] text-gray-800 leading-snug">{m.texto}</div>
