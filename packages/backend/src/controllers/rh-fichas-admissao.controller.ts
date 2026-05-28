@@ -302,6 +302,15 @@ export class RhFichasAdmissaoController {
       // Foto do candidato (base64 vindo do link público, já redimensionada).
       const fotoUrl = dados.foto_url || null;
 
+      // Sanitiza CPF: remove tudo que não é dígito e limita a 14 chars (proteção
+      // contra entradas malformadas do candidato — ex: "(99)281199.383-1" estourava
+      // VARCHAR(14) e quebrava o INSERT silenciosamente).
+      const sanitizeCpf = (cpf: any) => {
+        if (!cpf) return null;
+        const d = String(cpf).replace(/\D/g, '').slice(0, 14);
+        return d || null;
+      };
+
       // Opções vêm do candidato (não mais da ficha do RH).
       // Aceita boolean (legado) OU string 'SIM'/'NAO' (formato atual).
       const opc  = dados.opcoes_candidato || {};
@@ -316,7 +325,8 @@ export class RhFichasAdmissaoController {
            nome, cpf, rg, data_nascimento, sexo, estado_civil, nacionalidade, naturalidade,
            telefone, celular, email,
            cep, endereco, numero, complemento, bairro, cidade, estado,
-           matricula, cargo_id, empresa_id, company_id, jornada_id, escolaridade_id,
+           matricula, cargo_id, company_id, jornada_id, escolaridade_id,
+           escala_id, escala_domingo_id, regime_trabalho_id, departamento_id,
            data_admissao, salario, status,
            vale_transporte,
            banco, agencia, conta, tipo_conta, pix,
@@ -326,21 +336,28 @@ export class RhFichasAdmissaoController {
            $1, $2, $3, $4, $5, $6, $7, $8,
            $9, $10, $11,
            $12, $13, $14, $15, $16, $17, $18,
-           $19, $20, NULL, $21, $22, NULL,
-           $23, $24, 'ativo',
-           $25,
-           $26, $27, $28, $29, $30,
-           $31, $32, $33, $34,
-           $35, $36
+           $19, $20, $21, $22, $23,
+           $24, $25, $26, $27,
+           $28, $29, 'ativo',
+           $30,
+           $31, $32, $33, $34, $35,
+           $36, $37, $38, $39,
+           $40, $41
          ) RETURNING id`,
         [
-          pess.nome || f.candidato_nome, pess.cpf || null, pess.rg || null,
-          pess.data_nascimento || null, pess.sexo || null, pess.estado_civil || null,
+          pess.nome || f.candidato_nome, sanitizeCpf(pess.cpf), pess.rg || null,
+          pess.data_nascimento || null,
+          // Normaliza sexo: 'MASCULINO' → 'M', 'FEMININO' → 'F'; mantém 'M'/'F' se já
+          (() => { const s = String(pess.sexo || '').toUpperCase(); return s.startsWith('M') ? 'M' : s.startsWith('F') ? 'F' : null; })(),
+          pess.estado_civil || null,
           pess.nacionalidade || null, pess.naturalidade || null,
           cont.telefone || null, cont.celular || f.candidato_celular || null, cont.email || f.candidato_email || null,
           end.cep || null, end.rua || null, end.numero || null, end.complemento || null,
           end.bairro || null, end.cidade || null, end.estado || null,
           `FICHA-${id}`, f.cargo_id || null, f.company_id || null, f.jornada_id || null,
+          // escolaridade_id pode vir como int direto ou string ("medio_completo") — só passa se for número
+          (dados.escolaridade?.escolaridade_id && !isNaN(Number(dados.escolaridade.escolaridade_id))) ? Number(dados.escolaridade.escolaridade_id) : null,
+          f.escala_id || null, f.escala_domingo_id || null, f.regime_trabalho_id || null, f.departamento_id || null,
           f.data_admissao || null, f.salario || null,
           valeTransporte,
           bnc.banco || null, bnc.agencia || null, bnc.conta || null, bnc.tipo_conta || null, bnc.pix || null,
@@ -381,7 +398,7 @@ export class RhFichasAdmissaoController {
             doc.titulo_zona || null, doc.titulo_secao || null, doc.titulo_emissao || null,
             doc.reservista_uf || null, doc.reservista_emissao || null,
             doc.cnh || null, doc.cnh_categoria || null, doc.cnh_uf || null, doc.cnh_validade || null,
-            conj.nome || null, conj.cpf || null, conj.data_nascimento || null, conj.data_casamento || null,
+            conj.nome || null, sanitizeCpf(conj.cpf), conj.data_nascimento || null, conj.data_casamento || null,
             est.pais_nacionalidade || null, est.condicao_ingresso || null, est.data_chegada || null,
             !!est.filhos_brasileiros, est.filhos_brasileiros_qtd || null, !!est.casado_brasileiro,
             est.portaria_naturalizacao || null, est.data_naturalizacao || null,
@@ -401,7 +418,7 @@ export class RhFichasAdmissaoController {
                 dependente_ir, dependente_sf)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
             [
-              novo.id, d.nome, d.parentesco || null, d.sexo || null, d.cpf || null,
+              novo.id, d.nome, d.parentesco || null, d.sexo || null, sanitizeCpf(d.cpf),
               d.data_nascimento || null,
               d.certidao_numero || null, d.certidao_data || null,
               d.certidao_cartorio || null, d.certidao_folha || null,
@@ -410,7 +427,7 @@ export class RhFichasAdmissaoController {
           );
         }
       } catch (extraErr) {
-        console.warn('[criarColaborador] falha ao gravar campos extras/dependentes:', (extraErr as Error).message);
+        console.error('[criarColaborador] falha ao gravar campos extras/dependentes:', extraErr);
       }
 
       await AppDataSource.query(

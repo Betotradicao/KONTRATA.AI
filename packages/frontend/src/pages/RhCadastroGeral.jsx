@@ -419,7 +419,16 @@ export default function RhCadastroGeral() {
         rg: colaborador.rg || '',
         data_nascimento: colaborador.data_nascimento?.split('T')[0] || '',
         sexo: colaborador.sexo || '',
-        estado_civil: colaborador.estado_civil || '',
+        estado_civil: (() => {
+          // Normaliza valores legados ("Casado(a)", "Casado", "casado") pro padrão UPPERCASE
+          const v = String(colaborador.estado_civil || '').toUpperCase().replace(/\(A\)/g, '').replace(/\s+/g, '_').trim();
+          if (v.startsWith('SOLT')) return 'SOLTEIRO';
+          if (v.startsWith('CAS')) return 'CASADO';
+          if (v.startsWith('DIVOR')) return 'DIVORCIADO';
+          if (v.startsWith('VI')) return 'VIUVO';
+          if (v.includes('UNIAO')) return 'UNIAO_ESTAVEL';
+          return colaborador.estado_civil || '';
+        })(),
         nacionalidade: colaborador.nacionalidade || '',
         naturalidade: colaborador.naturalidade || '',
         escolaridade_id: colaborador.escolaridade_id || '',
@@ -1199,11 +1208,11 @@ export default function RhCadastroGeral() {
                         <label className={labelClass}>Estado Civil</label>
                         <select className={selectClass} value={formData.estado_civil} onChange={(e) => handleChange('estado_civil', e.target.value)}>
                           <option value="">Selecione...</option>
-                          <option value="Solteiro(a)">Solteiro(a)</option>
-                          <option value="Casado(a)">Casado(a)</option>
-                          <option value="Divorciado(a)">Divorciado(a)</option>
-                          <option value="Viuvo(a)">Viuvo(a)</option>
-                          <option value="Uniao Estavel">Uniao Estavel</option>
+                          <option value="SOLTEIRO">Solteiro(a)</option>
+                          <option value="CASADO">Casado(a)</option>
+                          <option value="DIVORCIADO">Divorciado(a)</option>
+                          <option value="VIUVO">Viúvo(a)</option>
+                          <option value="UNIAO_ESTAVEL">União Estável</option>
                         </select>
                       </div>
                       <div>

@@ -187,30 +187,31 @@ export default function FichasAdmissaoSection() {
       ? `<img src="${cd.foto_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #6d28d9"/>`
       : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:24px">📷</div>';
 
-    const linha = (lbl, val) => `<div style="font-size:9pt"><span style="color:#666;font-size:7pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
+    const linha = (lbl, val) => `<div style="font-size:7pt;line-height:1.25"><span style="color:#888;font-size:6pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
 
     w.document.write(`<!DOCTYPE html><html><head><title>Ficha de Admissão - ${fmt(ficha.candidato_nome)}</title>
 <style>
-  @page { size: A4; margin: 12mm }
-  body { font-family: Arial, sans-serif; font-size: 10pt; color: #222; margin: 0 }
-  h1 { font-size: 14pt; text-align: center; margin: 0 0 4px; color: #6d28d9 }
-  h2 { font-size: 11pt; margin: 12px 0 4px; padding: 4px 8px; background: #f3e8ff; color: #6d28d9; border-left: 4px solid #6d28d9 }
-  .header { display: flex; gap: 16px; align-items: center; border-bottom: 2px solid #6d28d9; padding-bottom: 10px; margin-bottom: 8px }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 12px }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 12px }
-  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 12px }
-  .dep { border: 1px solid #ddd; padding: 6px; margin-top: 6px; border-radius: 4px }
-  .sig { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px }
-  .sig div { border-top: 1px solid #000; padding-top: 4px; text-align: center; font-size: 9pt }
-  table { width: 100%; border-collapse: collapse; font-size: 9pt }
-  td { padding: 2px 4px }
+  @page { size: A4; margin: 8mm }
+  body { font-family: Arial, sans-serif; font-size: 7.5pt; color: #222; margin: 0; line-height: 1.2 }
+  h1 { font-size: 11pt; text-align: center; margin: 0 0 2px; color: #6d28d9 }
+  h2 { font-size: 8pt; margin: 5px 0 2px; padding: 2px 6px; background: #f3e8ff; color: #6d28d9; border-left: 3px solid #6d28d9 }
+  .header { display: flex; gap: 10px; align-items: center; border-bottom: 1.5px solid #6d28d9; padding-bottom: 5px; margin-bottom: 4px }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px 10px }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px 10px }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 10px }
+  .dep { border: 1px solid #ddd; padding: 3px 5px; margin-top: 3px; border-radius: 3px }
+  .sig { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px }
+  .sig div { border-top: 1px solid #000; padding-top: 2px; text-align: center; font-size: 7pt }
+  table { width: 100%; border-collapse: collapse; font-size: 7pt }
+  td { padding: 1px 3px }
+  .header img, .header div[style*="border-radius"] { width: 60px !important; height: 60px !important }
 </style></head><body>
   <div class="header">
     ${fotoHtml}
     <div style="flex:1">
       <h1>FICHA DE ADMISSÃO</h1>
-      <div style="text-align:center;font-size:9pt">${fmt(ficha.candidato_nome)} — ${fmt(ficha.cargo_nome)}</div>
-      <div style="text-align:center;font-size:8pt;color:#666">${fmt(ficha.empresa_nome)} ${ficha.empresa_cnpj ? `· CNPJ ${ficha.empresa_cnpj}` : ''}</div>
+      <div style="text-align:center;font-size:7.5pt"><strong>${fmt(ficha.candidato_nome)}</strong> — ${fmt(ficha.cargo_nome)}</div>
+      <div style="text-align:center;font-size:6.5pt;color:#666">${fmt(ficha.empresa_nome)} ${ficha.empresa_cnpj ? `· CNPJ ${ficha.empresa_cnpj}` : ''}</div>
     </div>
   </div>
 
@@ -416,14 +417,25 @@ export default function FichasAdmissaoSection() {
             {fichas.map(f => (
               <div key={f.id} className="border border-gray-200 rounded-lg p-3 hover:border-emerald-300 transition">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-gray-800 truncate">{f.candidato_nome}</span>
-                      {statusBadge(f.status)}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      {[f.cargo_nome, f.empresa_nome, f.data_admissao ? `Admissão: ${new Date(f.data_admissao).toLocaleDateString('pt-BR')}` : null]
-                        .filter(Boolean).join(' · ')}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {/* Avatar do candidato — usa a foto se houver, senão um placeholder */}
+                    {f.candidato_dados?.foto_url ? (
+                      <img src={f.candidato_dados.foto_url} alt={f.candidato_nome}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 flex-shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-gray-200 flex-shrink-0 text-xl">
+                        👤
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm text-gray-800 truncate">{f.candidato_nome}</span>
+                        {statusBadge(f.status)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {[f.cargo_nome, f.empresa_nome, f.data_admissao ? `Admissão: ${new Date(f.data_admissao).toLocaleDateString('pt-BR')}` : null]
+                          .filter(Boolean).join(' · ')}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
