@@ -227,14 +227,6 @@ export class PesquisaClimaController {
       if (rodada.abre_em && new Date(rodada.abre_em) > agora) return res.status(403).json({ error: 'Pesquisa ainda nao abriu' });
       if (rodada.fecha_em && new Date(rodada.fecha_em) < agora) return res.status(403).json({ error: 'Pesquisa encerrada' });
 
-      // Checa se este device ja respondeu
-      const ipHash = sha((req.ip || '') + ':ip');
-      const uaHash = sha((req.get('user-agent') || '') + ':ua');
-      const [existing] = await AppDataSource.query(
-        `SELECT id FROM pesquisa_respostas WHERE rodada_id = $1 AND ip_hash = $2 AND user_agent_hash = $3 LIMIT 1`,
-        [rodada.id, ipHash, uaHash]
-      );
-
       const perguntas = await AppDataSource.query(
         `SELECT id, secao, ordem, tipo, enunciado, obrigatoria, configuracao
          FROM pesquisa_perguntas WHERE modelo_id = $1 ORDER BY ordem ASC, id ASC`,
@@ -248,10 +240,13 @@ export class PesquisaClimaController {
       const brand: Record<string, string> = {};
       for (const c of brandConfigs) brand[c.key] = c.value;
 
+      // Nao bloqueia mais por IP+UA na carga — gerava falsos positivos quando
+      // multiplos respondentes acessavam de redes parecidas / mesmo navegador.
+      // O frontend ainda faz a checagem soft via localStorage.
       res.json({
         rodada: { id: rodada.id, nome: rodada.nome, modelo_nome: rodada.modelo_nome, modelo_descricao: rodada.modelo_descricao, cor: rodada.cor, icone: rodada.icone, anonima: rodada.anonima },
         perguntas,
-        ja_respondeu: !!existing,
+        ja_respondeu: false,
         brand: {
           name: brand.client_brand_name || null,
           logo_url: brand.client_logo_url || null,
@@ -264,46 +259,80 @@ export class PesquisaClimaController {
   }
 
   static async publicoSubmeter(req: Request, res: Response) {
-    try {
-      const token = req.params.token;
-      const { respostas, tempo_segundos } = req.body;
-      if (!Array.isArray(respostas)) return res.status(400).json({ error: 'respostas array obrigatorio' });
+    const token = req.params.token;
+    const { respostas, tempo_segundos } = req.body;
+    if (!Array.isArray(respostas)) return res.status(400).json({ error: 'respostas array obrigatorio' });
+    // Defesa em profundidade: nao cria cabecalho se nao veio resposta nenhuma.
+    // Isso evitava cabecalhos orfaos com 0 itens quando o frontend mandava []
+    // (ja vimos isso acontecer em producao — perda silenciosa de dados).
+    if (respostas.length === 0) {
+      return res.status(400).json({ error: 'Voce precisa responder antes de enviar' });
+    }
 
-      const [rodada] = await AppDataSource.query(
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const [rodada] = await queryRunner.query(
         `SELECT id, modelo_id, aberta, abre_em, fecha_em FROM pesquisa_rodadas WHERE token_publico = $1`,
         [token]
       );
-      if (!rodada) return res.status(404).json({ error: 'Pesquisa nao encontrada' });
-      if (!rodada.aberta) return res.status(403).json({ error: 'Pesquisa fechada' });
+      if (!rodada) { await queryRunner.rollbackTransaction(); return res.status(404).json({ error: 'Pesquisa nao encontrada' }); }
+      if (!rodada.aberta) { await queryRunner.rollbackTransaction(); return res.status(403).json({ error: 'Pesquisa fechada' }); }
       const agora = new Date();
-      if (rodada.fecha_em && new Date(rodada.fecha_em) < agora) return res.status(403).json({ error: 'Pesquisa encerrada' });
+      if (rodada.fecha_em && new Date(rodada.fecha_em) < agora) {
+        await queryRunner.rollbackTransaction();
+        return res.status(403).json({ error: 'Pesquisa encerrada' });
+      }
 
-      // Valida obrigatorias
-      const perguntas = await AppDataSource.query(
+      const perguntas = await queryRunner.query(
         `SELECT id, tipo, obrigatoria, configuracao FROM pesquisa_perguntas WHERE modelo_id = $1`,
         [rodada.modelo_id]
       );
       const respostasMap: Record<number, any> = {};
       respostas.forEach((r: any) => { respostasMap[r.pergunta_id] = r; });
 
-      // Anti-duplicata: hash IP + UserAgent
+      // Validacao de obrigatoriedade no backend (defesa em profundidade).
+      // Espelha o isVazio do frontend pra que mesmo um cliente bugado / fora-do-ar
+      // nao consiga gravar pesquisa incompleta.
+      const isItemVazio = (p: any, r: any): boolean => {
+        if (!r) return true;
+        const v = r.valor;
+        if (v === undefined || v === null || v === '') return true;
+        if (Array.isArray(v) && v.length === 0) return true;
+        if (typeof v === 'string' && /^outro:\s*$/i.test(v)) return true;
+        if (Array.isArray(v) && v.some((x: any) => typeof x === 'string' && /^outro:\s*$/i.test(x))) return true;
+        if (p.tipo === 'rating_5_matriz') {
+          const criterios = (p.configuracao && p.configuracao.criterios) || [];
+          if (typeof v !== 'object' || Array.isArray(v)) return true;
+          return criterios.some((c: string) => v[c] === undefined || v[c] === null || v[c] === '');
+        }
+        return false;
+      };
+      const faltando = perguntas
+        .filter((p: any) => p.obrigatoria && isItemVazio(p, respostasMap[p.id]));
+      if (faltando.length > 0) {
+        await queryRunner.rollbackTransaction();
+        return res.status(400).json({
+          error: 'Responda todas as perguntas obrigatorias antes de enviar',
+          perguntas_faltando: faltando.map((p: any) => p.id),
+        });
+      }
+
+      // Cabecalho da resposta. ip_hash/ua_hash ficam so como auditoria leve
+      // (NAO usado mais como bloqueio anti-duplicata).
       const ipHash = sha((req.ip || '') + ':ip');
       const uaHash = sha((req.get('user-agent') || '') + ':ua');
-      const [existing] = await AppDataSource.query(
-        `SELECT id FROM pesquisa_respostas WHERE rodada_id = $1 AND ip_hash = $2 AND user_agent_hash = $3 LIMIT 1`,
-        [rodada.id, ipHash, uaHash]
-      );
-      if (existing) return res.status(409).json({ error: 'Voce ja respondeu esta pesquisa neste dispositivo' });
-
-      // Cria cabecalho da resposta
-      const [resp] = await AppDataSource.query(
+      const [resp] = await queryRunner.query(
         `INSERT INTO pesquisa_respostas (rodada_id, ip_hash, user_agent_hash, tempo_segundos)
          VALUES ($1, $2, $3, $4) RETURNING id`,
         [rodada.id, ipHash, uaHash, tempo_segundos || null]
       );
       const respostaId = resp.id;
 
-      // Salva itens
+      // Itens. Tudo dentro da mesma transacao — se algum insert falhar,
+      // rollback descarta o cabecalho tambem (sem orfaos).
       for (const p of perguntas) {
         const r = respostasMap[p.id];
         if (!r) continue;
@@ -313,7 +342,6 @@ export class PesquisaClimaController {
         let valorMatriz: any = null;
         if (p.tipo === 'rating_5_matriz') {
           valorMatriz = r.valor || {};
-          // calcula media pra facilitar dashboard
           const vals = Object.values(valorMatriz).map((v: any) => Number(v) || 0).filter(v => v > 0);
           if (vals.length > 0) valorNumerico = vals.reduce((a, b) => a + b, 0) / vals.length;
         } else if (p.tipo === 'nps_0_10' || p.tipo === 'rating_5' || p.tipo === 'rating_10') {
@@ -325,7 +353,7 @@ export class PesquisaClimaController {
         } else if (p.tipo === 'texto_curto' || p.tipo === 'texto_longo') {
           valorTexto = String(r.valor || '').slice(0, 4000);
         }
-        await AppDataSource.query(
+        await queryRunner.query(
           `INSERT INTO pesquisa_resp_itens
            (resposta_id, pergunta_id, valor_numerico, valor_texto, valor_opcoes, valor_matriz, colaborador_id_avaliado, setor_id_avaliado)
            VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8)`,
@@ -336,8 +364,8 @@ export class PesquisaClimaController {
         );
       }
 
-      // Atualiza contadores agregados na rodada
-      await AppDataSource.query(`
+      // Contadores agregados na rodada (dentro da transacao tambem)
+      await queryRunner.query(`
         UPDATE pesquisa_rodadas SET
           total_respostas = (SELECT COUNT(*) FROM pesquisa_respostas WHERE rodada_id = $1),
           nps_medio = (
@@ -351,10 +379,14 @@ export class PesquisaClimaController {
         WHERE id = $1
       `, [rodada.id]);
 
+      await queryRunner.commitTransaction();
       res.json({ success: true });
     } catch (e: any) {
+      try { await queryRunner.rollbackTransaction(); } catch { /* */ }
       console.error('[PesquisaClima] publicoSubmeter:', e);
       res.status(500).json({ error: e.message });
+    } finally {
+      await queryRunner.release();
     }
   }
 
