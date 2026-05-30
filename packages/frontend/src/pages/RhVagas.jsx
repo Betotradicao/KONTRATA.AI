@@ -46,6 +46,10 @@ const initialForm = {
   experiencia_meses_minimo: '',
   turnos: [],
   jornada_id: '',
+  hora_entrada: '',
+  hora_almoco_ini: '',
+  hora_almoco_fim: '',
+  hora_saida: '',
 };
 
 const novoSelecionado = (curriculo) => ({
@@ -197,6 +201,10 @@ export default function RhVagas() {
         experiencia_meses_minimo: vaga.experiencia_meses_minimo != null ? String(vaga.experiencia_meses_minimo) : '',
         turnos: Array.isArray(vaga.turnos) ? vaga.turnos : [],
         jornada_id: vaga.jornada_id || '',
+        hora_entrada:    vaga.hora_entrada ? String(vaga.hora_entrada).substring(0, 5) : '',
+        hora_almoco_ini: vaga.hora_almoco_ini ? String(vaga.hora_almoco_ini).substring(0, 5) : '',
+        hora_almoco_fim: vaga.hora_almoco_fim ? String(vaga.hora_almoco_fim).substring(0, 5) : '',
+        hora_saida:      vaga.hora_saida ? String(vaga.hora_saida).substring(0, 5) : '',
       });
     } else {
       setEditando(null);
@@ -1410,6 +1418,39 @@ export default function RhVagas() {
                       Cadastre jornadas em Configurações RH → Jornadas
                     </span>
                   </div>
+
+                  {/* Horarios especificos da vaga — aparecem so quando uma jornada
+                      e escolhida. Vao gravar como hora_entrada/almoco/saida e
+                      aparecer pro candidato no anuncio publico. */}
+                  {formData.jornada_id && (
+                    <div className="md:col-span-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="text-xs font-bold text-blue-900 mb-2 uppercase">🕐 Horários desta vaga</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-700 mb-1">Entrada</label>
+                          <input type="time" name="hora_entrada" value={formData.hora_entrada} onChange={handleChange}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-700 mb-1">Almoço Início</label>
+                          <input type="time" name="hora_almoco_ini" value={formData.hora_almoco_ini} onChange={handleChange}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-700 mb-1">Almoço Fim</label>
+                          <input type="time" name="hora_almoco_fim" value={formData.hora_almoco_fim} onChange={handleChange}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-700 mb-1">Saída</label>
+                          <input type="time" name="hora_saida" value={formData.hora_saida} onChange={handleChange}
+                            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-blue-700 mt-2">Esses horários ficam visíveis pro candidato no anúncio da vaga.</p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">📅 Data Abertura</label>
                     <input
