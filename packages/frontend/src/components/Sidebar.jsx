@@ -408,7 +408,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           expandable: true,
           subItems: [
             { id: 'rh-clima-nr1', submenuId: 'rh-clima-nr1', title: '🧠 ANÁLISE NR-1', path: '/rh/pesquisa-clima/nr1' },
-            { id: 'rh-clima-analise', submenuId: 'rh-clima-analise', title: 'ANÁLISE PESQUISAS', path: '/rh/pesquisa-clima/analise' },
+            { id: 'rh-clima-analise', submenuId: 'rh-clima-analise', title: 'APLICAÇÃO PESQUISAS', path: '/rh/pesquisa-clima/analise' },
             { id: 'rh-clima-criar', submenuId: 'rh-clima-criar', title: 'CRIAR PESQUISAS', path: '/rh/pesquisa-clima/criar' }
           ]
         },
@@ -420,6 +420,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           expandable: true,
           subItems: [
             { id: 'rh-treinamentos-cadastro', submenuId: 'rh-cadastro-treinamento', title: 'CADASTRAR TREINAMENTO', path: '/rh/treinamentos' },
+            { id: 'rh-treinamentos-calendario', submenuId: 'rh-cadastro-treinamento', title: 'CALENDÁRIO MENSAL', path: '/rh/treinamentos/calendario' },
             { id: 'rh-presenca', submenuId: 'rh-presenca', title: 'CONTROLE DE PRESENÇA', path: '/rh/presenca' },
             { id: 'rh-certificados', submenuId: 'rh-certificados', title: 'CERTIFICADOS', path: '/rh/certificados' }
           ]

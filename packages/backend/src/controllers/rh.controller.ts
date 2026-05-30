@@ -976,13 +976,16 @@ export class RhController {
         params.push(colaborador_id);
       }
       const rows = await AppDataSource.query(
-        `SELECT t.*, c.nome AS colaborador_nome, tt.nome AS tipo_treinamento_nome, st.nome AS status_nome, st.cor AS status_cor
+        `SELECT t.*, c.nome AS colaborador_nome, tt.nome AS tipo_treinamento_nome,
+                st.nome AS status_nome, st.cor AS status_cor,
+                e.razao_social AS empresa_nome
          FROM rh_treinamentos t
          LEFT JOIN rh_colaboradores c ON c.id = t.colaborador_id
          LEFT JOIN rh_tipos_treinamento tt ON tt.id = t.tipo_treinamento_id
          LEFT JOIN rh_status_treinamento st ON st.id = t.status_id
+         LEFT JOIN rh_empresas e ON e.id = t.empresa_id
          ${where}
-         ORDER BY t.data_inicio DESC`,
+         ORDER BY t.data_inicio DESC, t.hora_inicio DESC`,
         params
       );
       res.json(rows);
@@ -994,11 +997,12 @@ export class RhController {
 
   static async criarTreinamento(req: AuthRequest, res: Response) {
     try {
-      const { colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, carga_horaria, data_inicio, data_fim, custo, status_id, certificado_url, observacoes } = req.body;
+      const { empresa_id, colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, local_tipo, carga_horaria, data_inicio, data_fim, hora_inicio, hora_fim, custo, status_id, certificado_url, observacoes } = req.body;
       const result = await AppDataSource.query(
-        `INSERT INTO rh_treinamentos (colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, carga_horaria, data_inicio, data_fim, custo, status_id, certificado_url, observacoes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-        [colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, carga_horaria, data_inicio, data_fim, custo, status_id, certificado_url, observacoes]
+        `INSERT INTO rh_treinamentos
+           (empresa_id, colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, local_tipo, carga_horaria, data_inicio, data_fim, hora_inicio, hora_fim, custo, status_id, certificado_url, observacoes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+        [empresa_id || null, colaborador_id || null, tipo_treinamento_id || null, nome_treinamento, instrutor || null, instituicao || null, local || null, local_tipo || null, carga_horaria || null, data_inicio || null, data_fim || null, hora_inicio || null, hora_fim || null, custo || null, status_id || null, certificado_url || null, observacoes || null]
       );
       res.status(201).json(result[0]);
     } catch (error) {
@@ -1010,11 +1014,14 @@ export class RhController {
   static async atualizarTreinamento(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, carga_horaria, data_inicio, data_fim, custo, status_id, certificado_url, observacoes } = req.body;
+      const { empresa_id, colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, local_tipo, carga_horaria, data_inicio, data_fim, hora_inicio, hora_fim, custo, status_id, certificado_url, observacoes } = req.body;
       const result = await AppDataSource.query(
-        `UPDATE rh_treinamentos SET colaborador_id=$1, tipo_treinamento_id=$2, nome_treinamento=$3, instrutor=$4, instituicao=$5, local=$6, carga_horaria=$7, data_inicio=$8, data_fim=$9, custo=$10, status_id=$11, certificado_url=$12, observacoes=$13
-         WHERE id=$14 RETURNING *`,
-        [colaborador_id, tipo_treinamento_id, nome_treinamento, instrutor, instituicao, local, carga_horaria, data_inicio, data_fim, custo, status_id, certificado_url, observacoes, id]
+        `UPDATE rh_treinamentos SET
+           empresa_id=$1, colaborador_id=$2, tipo_treinamento_id=$3, nome_treinamento=$4, instrutor=$5,
+           instituicao=$6, local=$7, local_tipo=$8, carga_horaria=$9, data_inicio=$10, data_fim=$11,
+           hora_inicio=$12, hora_fim=$13, custo=$14, status_id=$15, certificado_url=$16, observacoes=$17
+         WHERE id=$18 RETURNING *`,
+        [empresa_id || null, colaborador_id || null, tipo_treinamento_id || null, nome_treinamento, instrutor || null, instituicao || null, local || null, local_tipo || null, carga_horaria || null, data_inicio || null, data_fim || null, hora_inicio || null, hora_fim || null, custo || null, status_id || null, certificado_url || null, observacoes || null, id]
       );
       if (result.length === 0) return res.status(404).json({ error: 'Treinamento nao encontrado' });
       res.json(result[0]);

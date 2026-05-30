@@ -14,24 +14,62 @@ export default function PesquisaClimaAnalise() {
   const [rodadas, setRodadas] = useState([]);
   const [criandoRodada, setCriandoRodada] = useState(false);
   const [novaRodadaNome, setNovaRodadaNome] = useState('');
+  const [novaRodadaDepto, setNovaRodadaDepto] = useState('');
   const [dashRodada, setDashRodada] = useState(null);
+
+  // Filtro global por empresa (loja). Cada pesquisa fica segmentada por loja.
+  const [empresas, setEmpresas] = useState([]);
+  const [empresaSel, setEmpresaSel] = useState('');
+  const [departamentos, setDepartamentos] = useState([]);
+  const [colaboradores, setColaboradores] = useState([]);
 
   useEffect(() => { (async () => {
     try {
-      const r = await api.get('/pesquisa-clima/modelos');
-      setModelos(Array.isArray(r.data) ? r.data : []);
+      const asArr = (resp, key) => {
+        const d = resp?.data;
+        if (Array.isArray(d)) return d;
+        if (key && Array.isArray(d?.[key])) return d[key];
+        if (Array.isArray(d?.data)) return d.data;
+        return [];
+      };
+      const [mR, eR, dR, cR] = await Promise.all([
+        api.get('/pesquisa-clima/modelos'),
+        api.get('/rh/empresas'),
+        api.get('/rh/configuracoes/departamentos'),
+        api.get('/rh/colaboradores?status=ativo&limit=500'),
+      ]);
+      setModelos(asArr(mR));
+      const empList = asArr(eR, 'empresas');
+      setEmpresas(empList);
+      setDepartamentos(asArr(dR));
+      setColaboradores(asArr(cR, 'colaboradores'));
+      if (empList.length > 0) {
+        const principal = empList.find(x => x.isPrincipal) || empList[0];
+        setEmpresaSel(String(principal.id));
+      }
     } catch { toast.error('Erro ao carregar'); }
   })(); }, []);
+
+  // Mostra TODOS os setores cadastrados (rh_departamentos e global).
+  void colaboradores;
+  const setoresDaEmpresa = departamentos;
 
   const abrirModelo = async (m) => {
     setModeloAberto(m);
     setPerguntasModelo([]);
     try {
+      const params = { modelo_id: m.id };
+      if (empresaSel) params.empresa_id = empresaSel;
       const [rR, rM] = await Promise.all([
-        api.get('/pesquisa-clima/rodadas', { params: { modelo_id: m.id } }),
+        api.get('/pesquisa-clima/rodadas', { params }),
         api.get(`/pesquisa-clima/modelos/${m.id}`).catch(() => ({ data: {} })),
       ]);
-      setRodadas(Array.isArray(rR.data) ? rR.data : []);
+      const todasRodadas = Array.isArray(rR.data) ? rR.data : [];
+      // Filtra no frontend tambem (backend pode nao filtrar ainda)
+      const filtradas = empresaSel
+        ? todasRodadas.filter(r => !r.departamento_id || setoresDaEmpresa.some(s => s.id === r.departamento_id))
+        : todasRodadas;
+      setRodadas(filtradas);
       setPerguntasModelo(Array.isArray(rM.data?.perguntas) ? rM.data.perguntas : []);
     } catch { toast.error('Erro ao carregar'); }
   };
@@ -39,9 +77,13 @@ export default function PesquisaClimaAnalise() {
   const criarRodada = async () => {
     if (!novaRodadaNome.trim() || !modeloAberto) return;
     try {
-      await api.post('/pesquisa-clima/rodadas', { modelo_id: modeloAberto.id, nome: novaRodadaNome.trim() });
+      await api.post('/pesquisa-clima/rodadas', {
+        modelo_id: modeloAberto.id,
+        nome: novaRodadaNome.trim(),
+        departamento_id: novaRodadaDepto || null,
+      });
       toast.success('Rodada criada');
-      setNovaRodadaNome(''); setCriandoRodada(false);
+      setNovaRodadaNome(''); setNovaRodadaDepto(''); setCriandoRodada(false);
       abrirModelo(modeloAberto);
     } catch (e) { toast.error(e.response?.data?.error || 'Erro'); }
   };
@@ -99,10 +141,20 @@ export default function PesquisaClimaAnalise() {
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <h1 className="text-2xl font-bold">📊 Análise de Pesquisas</h1>
+              <h1 className="text-2xl font-bold">📊 Aplicação Pesquisas</h1>
               <p className="text-purple-100 text-sm">Acompanhe rodadas, evolução temporal e dashboards comparativos.</p>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2 border border-white/30">
+              <span className="text-xs font-semibold uppercase tracking-wide">🏪 Loja:</span>
+              <select value={empresaSel} onChange={e => { setEmpresaSel(e.target.value); if (modeloAberto) setModeloAberto(null); }}
+                className="bg-white text-gray-800 px-3 py-1.5 rounded text-sm font-medium min-w-[200px]">
+                {empresas.length === 0 && <option value="">(carregando...)</option>}
+                {empresas.map(e => (
+                  <option key={e.id} value={e.id}>{e.apelido || e.nomeFantasia || e.razaoSocial || '(sem nome)'}</option>
+                ))}
+              </select>
             </div>
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-purple-700">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,15 +244,31 @@ export default function PesquisaClimaAnalise() {
 
               {criandoRodada && (
                 <div className="bg-white rounded-lg shadow p-4 mb-4 border-2 border-rose-300">
-                  <label className="block text-sm font-bold mb-1">Nome da rodada</label>
-                  <input type="text" value={novaRodadaNome}
-                    onChange={e => setNovaRodadaNome(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && criarRodada()}
-                    placeholder="Ex: 1º Trimestre 2026 / Avaliação Maio/2026"
-                    className="w-full border rounded px-3 py-2 mb-2" autoFocus />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-sm font-bold mb-1">Nome da rodada</label>
+                      <input type="text" value={novaRodadaNome}
+                        onChange={e => setNovaRodadaNome(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && criarRodada()}
+                        placeholder="Ex: 1º Trimestre 2026 / Avaliação Maio/2026"
+                        className="w-full border rounded px-3 py-2" autoFocus />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold mb-1">Setor (grupo) <span className="text-gray-400 font-normal">opcional</span></label>
+                      <select value={novaRodadaDepto}
+                        onChange={e => setNovaRodadaDepto(e.target.value)}
+                        className="w-full border rounded px-3 py-2 bg-white">
+                        <option value="">Todos os setores da loja</option>
+                        {setoresDaEmpresa.map(d => (
+                          <option key={d.id} value={d.id}>{d.nome}</option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-gray-500 mt-1">Pra NR-1, escolha o setor pra que o resultado fique segmentado por GES.</p>
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <button onClick={criarRodada} className="bg-rose-500 text-white px-4 py-2 rounded font-bold">Criar Rodada</button>
-                    <button onClick={() => { setCriandoRodada(false); setNovaRodadaNome(''); }} className="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
+                    <button onClick={() => { setCriandoRodada(false); setNovaRodadaNome(''); setNovaRodadaDepto(''); }} className="bg-gray-200 px-4 py-2 rounded">Cancelar</button>
                   </div>
                 </div>
               )}

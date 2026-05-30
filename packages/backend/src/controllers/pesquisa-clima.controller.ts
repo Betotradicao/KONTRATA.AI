@@ -159,13 +159,13 @@ export class PesquisaClimaController {
 
   static async criarRodada(req: AuthRequest, res: Response) {
     try {
-      const { modelo_id, nome, abre_em, fecha_em } = req.body;
+      const { modelo_id, nome, abre_em, fecha_em, departamento_id } = req.body;
       if (!modelo_id || !nome?.trim()) return res.status(400).json({ error: 'modelo_id e nome obrigatorios' });
       const token = crypto.randomBytes(20).toString('hex');
       const [r] = await AppDataSource.query(
-        `INSERT INTO pesquisa_rodadas (modelo_id, nome, token_publico, abre_em, fecha_em, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [modelo_id, nome.trim(), token, abre_em || null, fecha_em || null, (req as any).user?.id || null]
+        `INSERT INTO pesquisa_rodadas (modelo_id, nome, token_publico, abre_em, fecha_em, created_by, departamento_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [modelo_id, nome.trim(), token, abre_em || null, fecha_em || null, (req as any).user?.id || null, departamento_id || null]
       );
       res.status(201).json(r);
     } catch (e: any) {

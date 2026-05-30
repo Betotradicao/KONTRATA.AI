@@ -919,11 +919,7 @@ export default function RhCadastroGeral() {
                             {colab.cargo_nome || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {colab.setor_nome ? (
-                              <span className="inline-block px-2 py-0.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-full text-xs font-semibold">
-                                {colab.setor_nome}
-                              </span>
-                            ) : <span className="text-gray-300">—</span>}
+                            {colab.setor_nome || colab.setor_departamento_nome || '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {colab.escolaridade_nome || '-'}

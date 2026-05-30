@@ -76,7 +76,7 @@ export class Nr1Controller {
   /** Lista planos com filtros opcionais */
   static async listarPlanos(req: AuthRequest, res: Response) {
     try {
-      const { status, dimensao } = req.query;
+      const { status, dimensao, empresa_id } = req.query;
       const params: any[] = [];
       const wheres: string[] = [];
       if (status) {
@@ -87,12 +87,19 @@ export class Nr1Controller {
         params.push(dimensao);
         wheres.push(`p.dimensao_nr1 = $${params.length}::text`);
       }
+      if (empresa_id) {
+        params.push(empresa_id);
+        wheres.push(`p.empresa_id = $${params.length}::uuid`);
+      }
       const where = wheres.length > 0 ? `WHERE ${wheres.join(' AND ')}` : '';
       const rows = await AppDataSource.query(
-        `SELECT p.*, s.titulo AS sugestao_titulo, r.nome AS rodada_nome
+        `SELECT p.*, s.titulo AS sugestao_titulo, r.nome AS rodada_nome,
+                e.apelido AS empresa_apelido, d.nome AS departamento_nome
          FROM rh_nr1_planos_acao p
          LEFT JOIN rh_nr1_sugestoes_acao s ON s.id = p.sugestao_id
          LEFT JOIN pesquisa_rodadas r ON r.id = p.rodada_id
+         LEFT JOIN rh_empresas e ON e.id = p.empresa_id
+         LEFT JOIN rh_departamentos d ON d.id = p.departamento_id
          ${where}
          ORDER BY
            CASE p.status WHEN 'pendente' THEN 0 WHEN 'em_andamento' THEN 1 WHEN 'concluido' THEN 2 ELSE 3 END,
@@ -114,6 +121,7 @@ export class Nr1Controller {
         sugestao_id, dimensao_nr1, titulo, descricao,
         setor_alvo, rodada_id, responsavel, prazo_data,
         status, observacoes,
+        empresa_id, departamento_id,
       } = req.body;
 
       if (!dimensao_nr1 || !titulo) {
@@ -124,8 +132,8 @@ export class Nr1Controller {
 
       const [row] = await AppDataSource.query(
         `INSERT INTO rh_nr1_planos_acao
-           (sugestao_id, dimensao_nr1, titulo, descricao, setor_alvo, rodada_id, responsavel, prazo_data, status, observacoes, created_by)
-         VALUES ($1::int, $2::text, $3::text, $4::text, $5::text, $6::int, $7::text, $8::date, $9::text, $10::text, $11::text)
+           (sugestao_id, dimensao_nr1, titulo, descricao, setor_alvo, rodada_id, responsavel, prazo_data, status, observacoes, created_by, empresa_id, departamento_id)
+         VALUES ($1::int, $2::text, $3::text, $4::text, $5::text, $6::int, $7::text, $8::date, $9::text, $10::text, $11::text, $12::uuid, $13::int)
          RETURNING *`,
         [
           sugestao_id || null,
@@ -139,6 +147,8 @@ export class Nr1Controller {
           status || 'pendente',
           observacoes || null,
           userId ? String(userId) : null,
+          empresa_id || null,
+          departamento_id || null,
         ]
       );
       res.status(201).json(row);
@@ -155,21 +165,24 @@ export class Nr1Controller {
       const {
         titulo, descricao, setor_alvo, responsavel,
         prazo_data, status, observacoes, evidencia_url,
+        empresa_id, departamento_id,
       } = req.body;
 
       const concluiu = status === 'concluido';
       const [row] = await AppDataSource.query(
         `UPDATE rh_nr1_planos_acao SET
-           titulo        = COALESCE($1::text, titulo),
-           descricao     = COALESCE($2::text, descricao),
-           setor_alvo    = COALESCE($3::text, setor_alvo),
-           responsavel   = COALESCE($4::text, responsavel),
-           prazo_data    = COALESCE($5::date, prazo_data),
-           status        = COALESCE($6::text, status),
-           observacoes   = COALESCE($7::text, observacoes),
-           evidencia_url = COALESCE($8::text, evidencia_url),
-           concluido_em  = CASE WHEN $9::boolean THEN NOW() ELSE concluido_em END,
-           updated_at    = NOW()
+           titulo          = COALESCE($1::text, titulo),
+           descricao       = COALESCE($2::text, descricao),
+           setor_alvo      = COALESCE($3::text, setor_alvo),
+           responsavel     = COALESCE($4::text, responsavel),
+           prazo_data      = COALESCE($5::date, prazo_data),
+           status          = COALESCE($6::text, status),
+           observacoes     = COALESCE($7::text, observacoes),
+           evidencia_url   = COALESCE($8::text, evidencia_url),
+           empresa_id      = COALESCE($11::uuid, empresa_id),
+           departamento_id = COALESCE($12::int, departamento_id),
+           concluido_em    = CASE WHEN $9::boolean THEN NOW() ELSE concluido_em END,
+           updated_at      = NOW()
          WHERE id = $10::int
          RETURNING *`,
         [
@@ -183,6 +196,8 @@ export class Nr1Controller {
           evidencia_url || null,
           concluiu,
           id,
+          empresa_id || null,
+          departamento_id || null,
         ]
       );
       if (!row) return res.status(404).json({ error: 'Plano nao encontrado' });

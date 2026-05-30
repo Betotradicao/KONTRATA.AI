@@ -42,6 +42,8 @@ import RhMetodoDisc from './pages/RhMetodoDisc';
 import RhMetodoDiscResultados from './pages/RhMetodoDiscResultados';
 import RhVagas from './pages/RhVagas';
 import RhTreinamentos from './pages/RhTreinamentos';
+import RhTreinamentosCalendario from './pages/RhTreinamentosCalendario';
+import RhCertificados from './pages/RhCertificados';
 import RhRecrutadorIA from './pages/RhRecrutadorIA';
 import RhPlaceholder from './pages/RhPlaceholder';
 
@@ -105,6 +107,8 @@ function App() {
 
               {/* RH — Treinamentos */}
               <Route path="/rh/treinamentos" element={<ProtectedRoute moduleId="rh-cadastro-treinamento"><RhTreinamentos /></ProtectedRoute>} />
+              <Route path="/rh/treinamentos/calendario" element={<ProtectedRoute moduleId="rh-cadastro-treinamento"><RhTreinamentosCalendario /></ProtectedRoute>} />
+              <Route path="/rh/certificados" element={<ProtectedRoute moduleId="rh-certificados"><RhCertificados /></ProtectedRoute>} />
 
               {/* RH — Financeiro */}
               <Route path="/rh/lancamentos" element={<ProtectedRoute moduleId="rh-lancamentos"><RhLancamentos /></ProtectedRoute>} />

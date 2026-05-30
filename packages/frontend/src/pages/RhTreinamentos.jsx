@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
 import { api } from '../utils/api';
@@ -6,15 +7,19 @@ import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 
 const initialForm = {
+  empresa_id: '',
   colaborador_id: '',
   tipo_treinamento_id: '',
   nome_treinamento: '',
   instrutor: '',
   instituicao: '',
   local: '',
+  local_tipo: 'INTERNO',
   carga_horaria: '',
   data_inicio: '',
   data_fim: '',
+  hora_inicio: '',
+  hora_fim: '',
   custo: '',
   status_id: '',
   observacoes: '',
@@ -22,6 +27,7 @@ const initialForm = {
 
 export default function RhTreinamentos() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [treinamentos, setTreinamentos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +36,7 @@ export default function RhTreinamentos() {
   const [tipos, setTipos] = useState([]);
   const [statusList, setStatusList] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
 
   // Modal
   const [modalAberto, setModalAberto] = useState(false);
@@ -44,16 +51,25 @@ export default function RhTreinamentos() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [treiRes, tiposRes, statusRes, colabRes] = await Promise.all([
+      const [treiRes, tiposRes, statusRes, colabRes, empRes] = await Promise.all([
         api.get('/rh/treinamentos'),
         api.get('/rh/configuracoes/tipos-treinamento'),
         api.get('/rh/configuracoes/status-treinamento'),
         api.get('/rh/colaboradores?status=ativo&limit=500'),
+        api.get('/rh/empresas'),
       ]);
-      setTreinamentos(treiRes.data || []);
-      setTipos(tiposRes.data || []);
-      setStatusList(statusRes.data || []);
-      setColaboradores(colabRes.data.colaboradores || colabRes.data || []);
+      const asArray = (resp, key) => {
+        const d = resp?.data;
+        if (Array.isArray(d)) return d;
+        if (key && Array.isArray(d?.[key])) return d[key];
+        if (Array.isArray(d?.data)) return d.data;
+        return [];
+      };
+      setTreinamentos(asArray(treiRes));
+      setTipos(asArray(tiposRes));
+      setStatusList(asArray(statusRes));
+      setColaboradores(asArray(colabRes, 'colaboradores'));
+      setEmpresas(asArray(empRes, 'empresas'));
     } catch (err) {
       toast.error('Erro ao carregar treinamentos');
       console.error(err);
@@ -71,15 +87,19 @@ export default function RhTreinamentos() {
     if (treinamento) {
       setEditando(treinamento);
       setFormData({
+        empresa_id: treinamento.empresa_id || '',
         colaborador_id: treinamento.colaborador_id || '',
         tipo_treinamento_id: treinamento.tipo_treinamento_id || '',
         nome_treinamento: treinamento.nome_treinamento || '',
         instrutor: treinamento.instrutor || '',
         instituicao: treinamento.instituicao || '',
         local: treinamento.local || '',
+        local_tipo: treinamento.local_tipo || 'INTERNO',
         carga_horaria: treinamento.carga_horaria || '',
         data_inicio: treinamento.data_inicio ? treinamento.data_inicio.substring(0, 10) : '',
         data_fim: treinamento.data_fim ? treinamento.data_fim.substring(0, 10) : '',
+        hora_inicio: treinamento.hora_inicio ? treinamento.hora_inicio.substring(0, 5) : '',
+        hora_fim: treinamento.hora_fim ? treinamento.hora_fim.substring(0, 5) : '',
         custo: treinamento.custo || '',
         status_id: treinamento.status_id || '',
         observacoes: treinamento.observacoes || '',
@@ -97,10 +117,20 @@ export default function RhTreinamentos() {
     setFormData(initialForm);
   };
 
+  // Campos que NAO devem ser maiusculizados (numericos/dates/times/selects vazios)
+  const NAO_UPPER = new Set(['custo', 'carga_horaria', 'data_inicio', 'data_fim', 'hora_inicio', 'hora_fim']);
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const v = (typeof value === 'string' && !NAO_UPPER.has(name)) ? value.toUpperCase() : value;
+    setFormData((prev) => ({ ...prev, [name]: v }));
   };
+
+  // Quando muda o colaborador, exibimos Setor/Função vindos do registro dele.
+  // Esses campos sao read-only no modal — derivados, nao salvos na ficha do
+  // treinamento (a fonte da verdade fica em rh_colaboradores).
+  const colabSelecionado = colaboradores.find(c => String(c.id) === String(formData.colaborador_id));
+  const setorDoColab = colabSelecionado?.setor_nome || colabSelecionado?.setor_departamento_nome || '';
+  const cargoDoColab = colabSelecionado?.cargo_nome || '';
 
   const handleSalvar = async () => {
     if (!formData.nome_treinamento.trim()) {
@@ -174,6 +204,12 @@ export default function RhTreinamentos() {
               <p className="text-orange-100 text-sm mt-1">Gestao de treinamentos e capacitacoes</p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/rh/treinamentos/calendario')}
+                className="bg-white/20 hover:bg-white/30 text-white border border-white/40 px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-1"
+              >
+                📅 Calendário
+              </button>
               <button
                 onClick={() => abrirModal()}
                 className="bg-white text-orange-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-50 transition"
@@ -274,7 +310,7 @@ export default function RhTreinamentos() {
         {/* Modal */}
         {modalAberto && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-gray-900">{editando ? 'Editar Treinamento' : 'Novo Treinamento'}</h2>
                 <button onClick={fecharModal} className="text-gray-400 hover:text-gray-600">
@@ -287,6 +323,20 @@ export default function RhTreinamentos() {
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Loja</label>
+                    <select
+                      name="empresa_id"
+                      value={formData.empresa_id}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">SELECIONE...</option>
+                      {empresas.map((e) => (
+                        <option key={e.id} value={e.id}>{e.apelido || e.nomeFantasia || e.razaoSocial || '(sem nome)'}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Colaborador</label>
                     <select
                       name="colaborador_id"
@@ -294,11 +344,42 @@ export default function RhTreinamentos() {
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     >
-                      <option value="">Selecione...</option>
+                      <option value="">SELECIONE...</option>
                       {colaboradores.map((c) => (
                         <option key={c.id} value={c.id}>{c.nome}</option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Setor</label>
+                    <input
+                      type="text"
+                      value={setorDoColab}
+                      readOnly
+                      placeholder="— ESCOLHA O COLABORADOR —"
+                      className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-700 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Função / Cargo</label>
+                    <input
+                      type="text"
+                      value={cargoDoColab}
+                      readOnly
+                      placeholder="— ESCOLHA O COLABORADOR —"
+                      className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-700 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tema do Treinamento *</label>
+                    <input
+                      type="text"
+                      name="nome_treinamento"
+                      value={formData.nome_treinamento}
+                      onChange={handleChange}
+                      placeholder="EX: NR-35 TRABALHO EM ALTURA"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Treinamento</label>
@@ -308,22 +389,63 @@ export default function RhTreinamentos() {
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     >
-                      <option value="">Selecione...</option>
+                      <option value="">SELECIONE...</option>
                       {tipos.map((t) => (
                         <option key={t.id} value={t.id}>{t.nome}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Treinamento *</label>
-                    <input
-                      type="text"
-                      name="nome_treinamento"
-                      value={formData.nome_treinamento}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Local *</label>
+                    <select
+                      name="local_tipo"
+                      value={formData.local_tipo}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
+                    >
+                      <option value="INTERNO">INTERNO (NA EMPRESA)</option>
+                      <option value="EXTERNO">EXTERNO (FORA DA EMPRESA)</option>
+                    </select>
                   </div>
+                  {formData.local_tipo === 'EXTERNO' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Escola / Instituição</label>
+                        <input
+                          type="text"
+                          name="instituicao"
+                          value={formData.instituicao}
+                          onChange={handleChange}
+                          placeholder="EX: SENAC, SESI..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Endereço / Local Externo</label>
+                        <input
+                          type="text"
+                          name="local"
+                          value={formData.local}
+                          onChange={handleChange}
+                          placeholder="EX: RUA X, 123 - SALA 4"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                      </div>
+                    </>
+                  )}
+                  {formData.local_tipo === 'INTERNO' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sala / Local Interno</label>
+                      <input
+                        type="text"
+                        name="local"
+                        value={formData.local}
+                        onChange={handleChange}
+                        placeholder="EX: SALA DE TREINAMENTO, REFEITÓRIO"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Instrutor</label>
                     <input
@@ -335,38 +457,7 @@ export default function RhTreinamentos() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Instituicao</label>
-                    <input
-                      type="text"
-                      name="instituicao"
-                      value={formData.instituicao}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Local</label>
-                    <input
-                      type="text"
-                      name="local"
-                      value={formData.local}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horaria (h)</label>
-                    <input
-                      type="number"
-                      name="carga_horaria"
-                      value={formData.carga_horaria}
-                      onChange={handleChange}
-                      min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Inicio</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
                     <input
                       type="date"
                       name="data_inicio"
@@ -382,6 +473,38 @@ export default function RhTreinamentos() {
                       name="data_fim"
                       value={formData.data_fim}
                       onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horário Início</label>
+                    <input
+                      type="time"
+                      name="hora_inicio"
+                      value={formData.hora_inicio}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horário Fim</label>
+                    <input
+                      type="time"
+                      name="hora_fim"
+                      value={formData.hora_fim}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária (h)</label>
+                    <input
+                      type="number"
+                      name="carga_horaria"
+                      value={formData.carga_horaria}
+                      onChange={handleChange}
+                      min="0"
+                      step="0.5"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     />
                   </div>
@@ -405,19 +528,19 @@ export default function RhTreinamentos() {
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     >
-                      <option value="">Selecione...</option>
+                      <option value="">SELECIONE...</option>
                       {statusList.map((s) => (
                         <option key={s.id} value={s.id}>{s.nome}</option>
                       ))}
                     </select>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Observacoes</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
                     <textarea
                       name="observacoes"
                       value={formData.observacoes}
                       onChange={handleChange}
-                      rows={3}
+                      rows={2}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     />
                   </div>

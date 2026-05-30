@@ -63,15 +63,66 @@ export default function AnaliseNr1() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [aba, setAba] = useState('diagnostico');
 
+  // Empresa global — TODAS as analises NR-1 ficam por loja (cada loja tem seu
+  // PGR psicossocial proprio, conforme exigencia da NR-1). Setor (departamento)
+  // do colaborador da empresa selecionada.
+  const [empresas, setEmpresas] = useState([]);
+  const [empresaSel, setEmpresaSel] = useState('');
+  const [departamentos, setDepartamentos] = useState([]);  // todos
+  const [colaboradores, setColaboradores] = useState([]);  // pra derivar setores por empresa
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [empR, depR, colR] = await Promise.all([
+          api.get('/rh/empresas'),
+          api.get('/rh/configuracoes/departamentos'),
+          api.get('/rh/colaboradores?status=ativo&limit=500'),
+        ]);
+        const asArr = (resp, key) => {
+          const d = resp?.data;
+          if (Array.isArray(d)) return d;
+          if (key && Array.isArray(d?.[key])) return d[key];
+          if (Array.isArray(d?.data)) return d.data;
+          return [];
+        };
+        const empList = asArr(empR, 'empresas');
+        setEmpresas(empList);
+        setDepartamentos(asArr(depR));
+        setColaboradores(asArr(colR, 'colaboradores'));
+        // Default: empresa principal ou primeira
+        if (empList.length > 0) {
+          const principal = empList.find(x => x.isPrincipal) || empList[0];
+          setEmpresaSel(String(principal.id));
+        }
+      } catch (e) { console.error(e); }
+    })();
+  }, []);
+
+  // Mostra TODOS os setores cadastrados (rh_departamentos e global, nao por empresa).
+  // colaboradores fica disponivel pra outras heuristicas se precisar.
+  void colaboradores;
+  const empresaCtx = { empresaSel, empresas, departamentos };
+
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
       <div className="flex-1 overflow-y-auto">
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h1 className="text-2xl font-bold">🧠 Análise NR-1</h1>
               <p className="text-orange-100 text-sm">Diagnóstico de riscos psicossociais (NR-1) — farol por dimensão, sugestões e planos de ação</p>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2 border border-white/30">
+              <span className="text-xs font-semibold uppercase tracking-wide">🏪 Loja:</span>
+              <select value={empresaSel} onChange={e => setEmpresaSel(e.target.value)}
+                className="bg-white text-gray-800 px-3 py-1.5 rounded text-sm font-medium min-w-[200px]">
+                {empresas.length === 0 && <option value="">(carregando...)</option>}
+                {empresas.map(e => (
+                  <option key={e.id} value={e.id}>{e.apelido || e.nomeFantasia || e.razaoSocial || '(sem nome)'}</option>
+                ))}
+              </select>
             </div>
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-purple-700">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,29 +148,32 @@ export default function AnaliseNr1() {
         </div>
 
         <div className="p-4 md:p-6">
-          {aba === 'diagnostico' && <AbaDiagnostico />}
-          {aba === 'sugestoes' && <AbaSugestoes />}
-          {aba === 'planos' && <AbaPlanos />}
+          {aba === 'diagnostico' && <AbaDiagnostico empresaCtx={empresaCtx} />}
+          {aba === 'sugestoes' && <AbaSugestoes empresaCtx={empresaCtx} />}
+          {aba === 'planos' && <AbaPlanos empresaCtx={empresaCtx} />}
         </div>
       </div>
     </div>
   );
 }
 
-function AbaDiagnostico() {
+function AbaDiagnostico({ empresaCtx }) {
   const [loading, setLoading] = useState(true);
   const [modeloId, setModeloId] = useState(null);
   const [data, setData] = useState(null);
+  const empresaSel = empresaCtx?.empresaSel;
 
   useEffect(() => {
     (async () => {
       try {
+        setLoading(true);
         const r = await api.get('/pesquisa-clima/modelos');
         const modelos = Array.isArray(r.data) ? r.data : [];
         const nr1 = modelos.find(m => /NR-1/i.test(m.nome) || /Riscos Psicossociais/i.test(m.nome));
         if (!nr1) { setLoading(false); return; }
         setModeloId(nr1.id);
-        const d = await api.get(`/pesquisa-clima/nr1/diagnostico/${nr1.id}`);
+        const qs = empresaSel ? `?empresa_id=${empresaSel}` : '';
+        const d = await api.get(`/pesquisa-clima/nr1/diagnostico/${nr1.id}${qs}`);
         setData(d.data);
       } catch (e) {
         console.error(e);
@@ -127,7 +181,7 @@ function AbaDiagnostico() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [empresaSel]);
 
   if (loading) return <div className="p-12 text-center text-gray-400">Carregando diagnóstico...</div>;
   if (!modeloId) return <div className="p-12 text-center text-gray-500">Template NR-1 não encontrado.</div>;
@@ -320,7 +374,7 @@ const CATEGORIA_LABEL = {
   canal:          { label: 'Canal de Escuta', color: 'teal',   icon: '📞' },
 };
 
-function AbaSugestoes() {
+function AbaSugestoes({ empresaCtx }) { // eslint-disable-line no-unused-vars
   const [sugestoes, setSugestoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroDim, setFiltroDim] = useState('');
@@ -725,7 +779,7 @@ const STATUS_LABEL = {
   cancelado:     { label: 'Cancelado',     color: 'gray',    icon: '✖' },
 };
 
-function AbaPlanos() {
+function AbaPlanos({ empresaCtx }) {
   const [planos, setPlanos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState('');
@@ -734,13 +788,17 @@ function AbaPlanos() {
 
   const carregar = async () => {
     try {
-      const url = filtroStatus ? `/pesquisa-clima/nr1/planos?status=${filtroStatus}` : '/pesquisa-clima/nr1/planos';
+      const params = new URLSearchParams();
+      if (filtroStatus) params.append('status', filtroStatus);
+      if (empresaCtx?.empresaSel) params.append('empresa_id', empresaCtx.empresaSel);
+      const qs = params.toString();
+      const url = `/pesquisa-clima/nr1/planos${qs ? '?' + qs : ''}`;
       const r = await api.get(url);
       setPlanos(Array.isArray(r.data) ? r.data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [filtroStatus]);
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [filtroStatus, empresaCtx?.empresaSel]);
 
   if (loading) return <div className="p-12 text-center text-gray-400">Carregando planos...</div>;
 
@@ -836,6 +894,7 @@ function AbaPlanos() {
         <ModalNovoPlano
           plano={editPlano}
           sugestao={novoPlano?.sugestao}
+          empresaCtx={empresaCtx}
           onClose={() => { setNovoPlano(null); setEditPlano(null); }}
           onSaved={() => { setNovoPlano(null); setEditPlano(null); carregar(); }}
         />
@@ -848,23 +907,25 @@ function AbaPlanos() {
 // MODAL — NOVO/EDITAR PLANO
 // ============================================================
 
-function ModalNovoPlano({ sugestao, plano, onClose, onSaved }) {
+function ModalNovoPlano({ sugestao, plano, empresaCtx, onClose, onSaved }) {
   const editando = !!plano?.id;
   const prazoDefault = sugestao?.prazo_sugerido_dias
     ? new Date(Date.now() + sugestao.prazo_sugerido_dias * 86400000).toISOString().slice(0, 10)
     : '';
 
   const [form, setForm] = useState({
-    id:           plano?.id || null,
-    sugestao_id:  sugestao?.id || plano?.sugestao_id || null,
-    dimensao_nr1: sugestao?.dimensao_nr1 || plano?.dimensao_nr1 || '',
-    titulo:       sugestao?.titulo || plano?.titulo || '',
-    descricao:    sugestao?.descricao || plano?.descricao || '',
-    setor_alvo:   plano?.setor_alvo || '',
-    responsavel:  plano?.responsavel || '',
-    prazo_data:   plano?.prazo_data?.slice(0, 10) || prazoDefault,
-    status:       plano?.status || 'pendente',
-    observacoes:  plano?.observacoes || '',
+    id:              plano?.id || null,
+    sugestao_id:     sugestao?.id || plano?.sugestao_id || null,
+    dimensao_nr1:    sugestao?.dimensao_nr1 || plano?.dimensao_nr1 || '',
+    titulo:          sugestao?.titulo || plano?.titulo || '',
+    descricao:       sugestao?.descricao || plano?.descricao || '',
+    setor_alvo:      plano?.setor_alvo || '',
+    responsavel:     plano?.responsavel || '',
+    prazo_data:      plano?.prazo_data?.slice(0, 10) || prazoDefault,
+    status:          plano?.status || 'pendente',
+    observacoes:     plano?.observacoes || '',
+    empresa_id:      plano?.empresa_id || empresaCtx?.empresaSel || '',
+    departamento_id: plano?.departamento_id || '',
   });
   const [salvando, setSalvando] = useState(false);
 
@@ -916,10 +977,31 @@ function ModalNovoPlano({ sugestao, plano, onClose, onSaved }) {
               </select>
             </div>
             <div>
+              <label className="text-xs font-semibold uppercase text-gray-500">Loja *</label>
+              <select value={form.empresa_id}
+                onChange={e => setForm({ ...form, empresa_id: e.target.value, departamento_id: '' })}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+                <option value="">SELECIONE...</option>
+                {(empresaCtx?.empresas || []).map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.apelido || emp.nomeFantasia || emp.razaoSocial || '(sem nome)'}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="text-xs font-semibold uppercase text-gray-500">Setor-alvo</label>
-              <input type="text" value={form.setor_alvo} onChange={e => setForm({ ...form, setor_alvo: e.target.value })}
-                placeholder="Ex: Açougue, todos, Frente de Caixa..."
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" />
+              <select value={form.departamento_id}
+                onChange={e => {
+                  const id = e.target.value;
+                  const dep = (empresaCtx?.departamentos || []).find(d => String(d.id) === id);
+                  setForm({ ...form, departamento_id: id, setor_alvo: dep?.nome || form.setor_alvo });
+                }}
+                disabled={!form.empresa_id}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm disabled:bg-gray-100">
+                <option value="">{form.empresa_id ? 'TODOS OS SETORES' : 'ESCOLHA A LOJA PRIMEIRO'}</option>
+                {(empresaCtx?.departamentos || []).map(d => (
+                  <option key={d.id} value={d.id}>{d.nome}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-xs font-semibold uppercase text-gray-500">Responsável</label>
