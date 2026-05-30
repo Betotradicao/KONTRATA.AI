@@ -463,15 +463,17 @@ function useTooltip() {
 // Cada criterio mostra 5 barrinhas coladas (EXCELENTE/BOM/REGULAR/RUIM/PESSIMO)
 function BarrasAgrupadasMatriz({ distribuicao, medias, labels }) {
   const tooltip = useTooltip();
-  // labels do banco vem na ordem [EXCELENTE,BOM,REGULAR,RUIM,PESSIMO] (nota 5..1)
-  // mas no banco a chave eh 1..5 — entao label[nota-1] eh: label[0]=EXCELENTE pra nota=5, etc
-  // Padronizo: a nota mais alta (5) usa label[0] e cor verde
+  // labels[i] corresponde direto a nota (i+1): labels[0]=EXCELENTE pra nota=1,
+  // labels[4]=PESSIMO pra nota=5 — mesmo mapeamento usado no input em
+  // PesquisaPublica.jsx: clique no botao "EXCELENTE" (labels[0]) salva n=1.
+  // Bug anterior invertia o mapping → quem marcou EXCELENTE aparecia como
+  // PESSIMO no grafico (e vice-versa).
   const niveis = [
-    { nota: 5, label: labels[0] || 'Excelente', cor: CORES_ESCALA[4] }, // verde
-    { nota: 4, label: labels[1] || 'Bom',       cor: CORES_ESCALA[3] }, // lima
+    { nota: 1, label: labels[0] || 'Excelente', cor: CORES_ESCALA[4] }, // verde
+    { nota: 2, label: labels[1] || 'Bom',       cor: CORES_ESCALA[3] }, // lima
     { nota: 3, label: labels[2] || 'Regular',   cor: CORES_ESCALA[2] }, // amarelo
-    { nota: 2, label: labels[3] || 'Ruim',      cor: CORES_ESCALA[1] }, // laranja
-    { nota: 1, label: labels[4] || 'Péssimo',   cor: CORES_ESCALA[0] }, // vermelho
+    { nota: 4, label: labels[3] || 'Ruim',      cor: CORES_ESCALA[1] }, // laranja
+    { nota: 5, label: labels[4] || 'Péssimo',   cor: CORES_ESCALA[0] }, // vermelho
   ];
 
   const criterios = Object.keys(distribuicao || medias || {});
