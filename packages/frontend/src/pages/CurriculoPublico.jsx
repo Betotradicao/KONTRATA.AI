@@ -680,6 +680,37 @@ export default function CurriculoPublico() {
                           </section>
                         )}
 
+                        {/* Horarios especificos da vaga (entrada/almoco/saida) */}
+                        {(v.hora_entrada || v.hora_saida || v.hora_almoco_ini) && (
+                          <section className="mb-2 mt-3">
+                            <h4 className="text-sm font-bold text-gray-900 mb-1.5 flex items-center gap-1.5">⏱️ Horário desta vaga</h4>
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs space-y-1">
+                              {v.hora_entrada && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-blue-900 font-semibold">Entrada:</span>
+                                  <span className="text-blue-700 font-mono font-bold">{String(v.hora_entrada).substring(0, 5)}</span>
+                                </div>
+                              )}
+                              {(v.hora_almoco_ini || v.hora_almoco_fim) && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-blue-900 font-semibold">Almoço:</span>
+                                  <span className="text-blue-700 font-mono font-bold">
+                                    {v.hora_almoco_ini ? String(v.hora_almoco_ini).substring(0, 5) : '--:--'}
+                                    {' às '}
+                                    {v.hora_almoco_fim ? String(v.hora_almoco_fim).substring(0, 5) : '--:--'}
+                                  </span>
+                                </div>
+                              )}
+                              {v.hora_saida && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-blue-900 font-semibold">Saída:</span>
+                                  <span className="text-blue-700 font-mono font-bold">{String(v.hora_saida).substring(0, 5)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </section>
+                        )}
+
                         {/* Data de postagem */}
                         {dias && (
                           <p className="text-[11px] text-gray-400 mt-3 pt-3 border-t border-gray-100">Postada {dias}</p>
