@@ -35,6 +35,8 @@ import RhDepartamentoPessoal from './pages/RhDepartamentoPessoal';
 import RhLancamentos from './pages/RhLancamentos';
 import RhEscala from './pages/RhEscala';
 import RhEscalaTemplate from './pages/RhEscalaTemplate';
+import RhEscalaRegrasSetor from './pages/RhEscalaRegrasSetor';
+import RhEscalaMemoria from './pages/RhEscalaMemoria';
 import RhEscalaEventos from './pages/RhEscalaEventos';
 import RhFolhaPagamento from './pages/RhFolhaPagamento';
 import RhConfiguracoes from './pages/RhConfiguracoes';
@@ -43,6 +45,7 @@ import RhMetodoDiscResultados from './pages/RhMetodoDiscResultados';
 import RhVagas from './pages/RhVagas';
 import RhTreinamentos from './pages/RhTreinamentos';
 import RhTreinamentosCalendario from './pages/RhTreinamentosCalendario';
+import RhTreinamentosBiblioteca from './pages/RhTreinamentosBiblioteca';
 import RhCertificados from './pages/RhCertificados';
 import RhRecrutadorIA from './pages/RhRecrutadorIA';
 import RhPlaceholder from './pages/RhPlaceholder';
@@ -50,6 +53,7 @@ import RhPlaceholder from './pages/RhPlaceholder';
 // Subpasta rh/
 import ModeloCurriculo from './pages/rh/ModeloCurriculo';
 import BancoCurriculos from './pages/rh/BancoCurriculos';
+import RhEntrevistasIA from './pages/RhEntrevistasIA';
 import PesquisaClimaCriar from './pages/rh/PesquisaClimaCriar';
 import PesquisaClimaAnalise from './pages/rh/PesquisaClimaAnalise';
 import AnaliseNr1 from './pages/rh/AnaliseNr1';
@@ -95,6 +99,7 @@ function App() {
 
               {/* RH — Curriculos / Recrutamento (cada subitem tem moduleId especifico) */}
               <Route path="/rh/curriculos" element={<ProtectedRoute moduleId="rh-curriculo-banco"><BancoCurriculos /></ProtectedRoute>} />
+              <Route path="/rh/entrevistas-ia" element={<ProtectedRoute moduleId="rh-curriculo-banco"><RhEntrevistasIA /></ProtectedRoute>} />
               <Route path="/rh/modelo-curriculo" element={<ProtectedRoute moduleId="rh-curriculo-modelo"><ModeloCurriculo /></ProtectedRoute>} />
               <Route path="/rh/vagas" element={<ProtectedRoute moduleId="rh-vagas"><RhVagas /></ProtectedRoute>} />
               <Route path="/rh/recrutador" element={<ProtectedRoute moduleId="rh-recrutador-ia"><RhRecrutadorIA /></ProtectedRoute>} />
@@ -108,6 +113,7 @@ function App() {
               {/* RH — Treinamentos */}
               <Route path="/rh/treinamentos" element={<ProtectedRoute moduleId="rh-cadastro-treinamento"><RhTreinamentos /></ProtectedRoute>} />
               <Route path="/rh/treinamentos/calendario" element={<ProtectedRoute moduleId="rh-cadastro-treinamento"><RhTreinamentosCalendario /></ProtectedRoute>} />
+              <Route path="/rh/treinamentos/biblioteca" element={<ProtectedRoute moduleId="rh-cadastro-treinamento"><RhTreinamentosBiblioteca /></ProtectedRoute>} />
               <Route path="/rh/certificados" element={<ProtectedRoute moduleId="rh-certificados"><RhCertificados /></ProtectedRoute>} />
 
               {/* RH — Financeiro */}
@@ -116,7 +122,9 @@ function App() {
 
               {/* RH — Escala de Trabalho */}
               <Route path="/rh/escala" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscala /></ProtectedRoute>} />
-              <Route path="/rh/escala/template" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscalaTemplate /></ProtectedRoute>} />
+              <Route path="/rh/escala/template/:colaboradorId" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscalaTemplate /></ProtectedRoute>} />
+              <Route path="/rh/escala/regras-setor" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscalaRegrasSetor /></ProtectedRoute>} />
+              <Route path="/rh/escala/memoria" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscalaMemoria /></ProtectedRoute>} />
               <Route path="/rh/escala/eventos" element={<ProtectedRoute moduleId="rh-escala-eventos"><RhEscalaEventos /></ProtectedRoute>} />
 
               {/* RH — Departamento Pessoal */}

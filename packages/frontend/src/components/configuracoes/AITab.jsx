@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
+import AgenteEscalaConfig from './AgenteEscalaConfig';
+import AgenteRecrutadorConfig from './AgenteRecrutadorConfig';
 
 // Modelos disponíveis
 const MODELS = [
@@ -206,6 +208,7 @@ function Toggle({ label, desc, checked, onChange }) {
 }
 
 export default function AITab() {
+  const [secaoAtiva, setSecaoAtiva] = useState('chave'); // 'chave' | 'agente_escala'
   const [aiSubTab, setAiSubTab] = useState('oferta');
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -462,10 +465,51 @@ export default function AITab() {
           </svg>
         </div>
         <div>
-          <h2 className="text-xl font-bold text-gray-900">ChatGPT / OpenAI</h2>
-          <p className="text-sm text-gray-500">Configure a chave de API e o modelo da inteligencia artificial</p>
+          <h2 className="text-xl font-bold text-gray-900">Inteligência Artificial</h2>
+          <p className="text-sm text-gray-500">Chave da OpenAI + configuração dos agentes IA</p>
         </div>
       </div>
+
+      {/* Sub-abas: CHAVE API | AGENTE DE ESCALA */}
+      <div className="border-b border-gray-200">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setSecaoAtiva('chave')}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition ${
+              secaoAtiva === 'chave'
+                ? 'border-emerald-500 text-emerald-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            🔑 Chave API
+          </button>
+          <button
+            onClick={() => setSecaoAtiva('agente_escala')}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition ${
+              secaoAtiva === 'agente_escala'
+                ? 'border-purple-500 text-purple-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            🤖 Agente de Escala
+          </button>
+          <button
+            onClick={() => setSecaoAtiva('agente_recrutador')}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition ${
+              secaoAtiva === 'agente_recrutador'
+                ? 'border-orange-500 text-orange-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            🧑‍💼 Agente Recrutador
+          </button>
+        </div>
+      </div>
+
+      {secaoAtiva === 'agente_escala' && <AgenteEscalaConfig />}
+      {secaoAtiva === 'agente_recrutador' && <AgenteRecrutadorConfig />}
+
+      {secaoAtiva === 'chave' && (<>
 
       {/* Campo API Key (compartilhado) */}
       <div>
@@ -591,670 +635,6 @@ export default function AITab() {
         </div>
       )}
 
-      {/* Sub-abas: Oferta no Radar | Radar IA */}
-      <div className="border-b border-gray-200">
-        <div className="flex">
-          <button
-            onClick={() => setAiSubTab('oferta')}
-            className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
-              aiSubTab === 'oferta'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Oferta no Radar
-          </button>
-          <button
-            onClick={() => setAiSubTab('radar')}
-            className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
-              aiSubTab === 'radar'
-                ? 'border-emerald-500 text-emerald-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Radar IA
-          </button>
-        </div>
-      </div>
-
-      {/* ===== Conteudo: Oferta no Radar ===== */}
-      {aiSubTab === 'oferta' && (
-        <div className="space-y-6">
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <h3 className="font-semibold text-orange-800">Oferta no Radar</h3>
-                <p className="text-sm text-orange-700 mt-1">
-                  A IA analisa automaticamente as mensagens recebidas de fornecedores e concorrentes via WhatsApp, extraindo produtos e precos de textos, imagens (encartes), PDFs e planilhas Excel.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Modelo para processamento */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Modelo da IA (Processamento de Ofertas)
-            </label>
-            <p className="text-xs text-gray-400 mb-3">Modelo usado para extrair produtos e precos de imagens e textos complexos. GPT-4o Mini e recomendado por ser mais economico.</p>
-            <ModelSelector
-              models={MODELS}
-              selected={garimpadorModel}
-              onSelect={(id) => {
-                setGarimpadorModel(id);
-                api.post('/config/configurations', { openai_garimpador_model: id }).catch(() => {});
-              }}
-              accentColor="orange"
-            />
-          </div>
-
-          {/* Toggles de processamento */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Opcoes de Processamento
-            </label>
-            <div className="bg-white border border-gray-200 rounded-lg px-4">
-              <Toggle
-                label="Processar mensagens automaticamente"
-                desc="Ao receber uma mensagem, a IA extrai produtos e precos automaticamente"
-                checked={garimpadorAuto}
-                onChange={setGarimpadorAuto}
-              />
-              <Toggle
-                label="Extrair texto de imagens (Vision)"
-                desc="Usa GPT Vision para ler encartes, fotos de tabelas de precos e ofertas"
-                checked={garimpadorImagens}
-                onChange={setGarimpadorImagens}
-              />
-              <Toggle
-                label="Processar PDFs recebidos"
-                desc="Extrai texto de documentos PDF e identifica produtos e precos"
-                checked={garimpadorPdf}
-                onChange={setGarimpadorPdf}
-              />
-              <Toggle
-                label="Processar planilhas Excel recebidas"
-                desc="Le planilhas .xls/.xlsx e extrai dados de produtos e precos"
-                checked={garimpadorExcel}
-                onChange={setGarimpadorExcel}
-              />
-            </div>
-          </div>
-
-          {/* ===== Testar Matching + Reprocessar ===== */}
-          <div className="border border-orange-200 rounded-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 border-b border-orange-200">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                Testar Matching de Produtos
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">Busca hibrida: VectorStore (embedding) + Trigram (texto) + GPT (avaliacao)</p>
-            </div>
-
-            <div className="p-4 space-y-4">
-              {/* Area de Teste */}
-              <div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={matchTestInput}
-                    onChange={(e) => setMatchTestInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleTestMatch()}
-                    placeholder="Ex: OLEO DE SOJA SOYA 900ML, CERVEJA SKOL LATA 350ML"
-                    className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400"
-                  />
-                  <button
-                    onClick={handleTestMatch}
-                    disabled={matchTestLoading || !matchTestInput.trim()}
-                    className="px-4 py-2 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 transition text-sm"
-                  >
-                    {matchTestLoading ? 'Buscando...' : 'Testar'}
-                  </button>
-                </div>
-
-                {matchTestResult && (
-                  <div className="mt-3 space-y-2">
-                    {/* Decomposicao */}
-                    {matchTestResult.decomposicao && (
-                      <div className="bg-gray-50 border rounded-lg p-3">
-                        <p className="text-xs font-semibold text-gray-600 mb-1.5">Decomposicao:</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {matchTestResult.decomposicao.marcas?.map((m, i) => (
-                            <span key={`m${i}`} className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                              {'\u{1F3F7}'} {m}
-                              {matchTestResult.decomposicao.marcaFonte && (
-                                <span className="ml-1 text-[10px] opacity-60">
-                                  ({matchTestResult.decomposicao.marcaFonte === 'oracle' ? 'Oracle' :
-                                    matchTestResult.decomposicao.marcaFonte === 'posicional' ? 'Auto' : 'Lista'})
-                                </span>
-                              )}
-                            </span>
-                          ))}
-                          {matchTestResult.decomposicao.gramaturas?.map((g, i) => (
-                            <span key={`g${i}`} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">{'\u{2696}'} {g.textoOriginal}</span>
-                          ))}
-                          {matchTestResult.decomposicao.embalagens?.map((e, i) => (
-                            <span key={`e${i}`} className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">{'\u{1F4E6}'} {e}</span>
-                          ))}
-                          {matchTestResult.decomposicao.variantes?.map((v, i) => (
-                            <span key={`v${i}`} className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">{'\u{1F3A8}'} {v}</span>
-                          ))}
-                          {matchTestResult.decomposicao.descricao?.map((d, i) => (
-                            <span key={`d${i}`} className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">{'\u{1F4DD}'} {d}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Produto encontrado */}
-                    {matchTestResult.produtoEncontrado ? (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-green-800">{matchTestResult.produtoEncontrado.descricao}</p>
-                            <p className="text-xs text-green-600 mt-0.5">
-                              Custo: R$ {Number(matchTestResult.produtoEncontrado.preco_custo || 0).toFixed(2).replace('.', ',')}
-                              {' | '}Venda: R$ {Number(matchTestResult.produtoEncontrado.preco_venda || 0).toFixed(2).replace('.', ',')}
-                              {' | '}Curva: {matchTestResult.produtoEncontrado.curva || '-'}
-                            </p>
-                          </div>
-                          {matchTestResult.produtoEncontrado.matchScore > 0 && (
-                            <span className={`px-2 py-1 rounded text-sm font-bold ${
-                              matchTestResult.produtoEncontrado.matchScore >= 80 ? 'bg-green-200 text-green-800' :
-                              matchTestResult.produtoEncontrado.matchScore >= 50 ? 'bg-yellow-200 text-yellow-800' :
-                              'bg-orange-200 text-orange-800'
-                            }`}>
-                              {matchTestResult.produtoEncontrado.matchScore}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ) : matchTestResult.success === false ? (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-                        Erro: {matchTestResult.error}
-                      </div>
-                    ) : (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
-                        Nenhum produto encontrado no Oracle
-                      </div>
-                    )}
-
-                    {/* Candidatos analisados */}
-                    {matchTestResult.candidatos && matchTestResult.candidatos.length > 0 && (
-                      <details className="bg-gray-50 border rounded-lg p-3">
-                        <summary className="text-xs font-semibold text-gray-600 cursor-pointer hover:text-gray-800">
-                          {matchTestResult.candidatos.length} candidatos analisados pela IA
-                        </summary>
-                        <div className="mt-2 space-y-1">
-                          {matchTestResult.candidatos.map((cand, ci) => (
-                            <div key={ci} className="text-xs text-gray-600 flex items-center gap-2 py-0.5">
-                              <span className="text-gray-400 w-4 text-right">{ci + 1}.</span>
-                              <span className="flex-1">{cand.descricao}</span>
-                              {cand.similarity != null && (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                  cand.similarity >= 0.8 ? 'bg-green-100 text-green-700' :
-                                  cand.similarity >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-gray-200 text-gray-500'
-                                }`}>
-                                  {Math.round(cand.similarity * 100)}%
-                                </span>
-                              )}
-                              {cand.grupo && (
-                                <span className="text-gray-400 text-[10px]">{cand.grupo}</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Reprocessar */}
-              <div className="border-t border-gray-200 pt-3 flex items-center gap-3">
-                <button
-                  onClick={handleReprocessar}
-                  disabled={reprocessando}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition"
-                >
-                  {reprocessando ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Reprocessando...
-                    </>
-                  ) : 'Reprocessar Nao Encontrados (Hoje)'}
-                </button>
-                <span className="text-xs text-gray-400">Reprocessa mensagens de hoje que possuem produtos nao encontrados</span>
-              </div>
-
-              {/* Resultado do reprocessamento */}
-              {reprocessResult && (
-                <div className={`p-3 rounded-lg text-sm ${reprocessResult.success ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
-                  {reprocessResult.success
-                    ? `Reprocessamento concluido: ${reprocessResult.reprocessadas} de ${reprocessResult.total} mensagens reprocessadas${reprocessResult.erros > 0 ? `, ${reprocessResult.erros} erros` : ''}`
-                    : `Erro: ${reprocessResult.error}`
-                  }
-                </div>
-              )}
-            </div>
-          </div>
-          {/* ===== Prompts de IA (Matching) ===== */}
-          <div className="border border-purple-200 rounded-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 p-4 border-b border-purple-200">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Prompts de IA (Oferta no Radar)
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">Prompts usados pela IA para extrair e identificar produtos. Edite para ajustar o comportamento.</p>
-            </div>
-
-            <div className="p-4 space-y-4">
-              {/* Prompt Extracao de Imagem */}
-              <div>
-                <button
-                  onClick={() => setShowPromptsExtracao(!showPromptsExtracao)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-800">Prompt de Extracao de Imagem</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Instrui a IA a extrair produtos e precos das imagens recebidas via WhatsApp</p>
-                  </div>
-                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${showPromptsExtracao ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {showPromptsExtracao && (
-                  <div className="mt-2">
-                    <textarea
-                      value={promptExtracaoImagem}
-                      onChange={(e) => setPromptExtracaoImagem(e.target.value)}
-                      rows={8}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-purple-400 focus:border-purple-400 resize-y"
-                    />
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-xs text-gray-400">A IA recebe a imagem e deve retornar JSON array com produtos e precos</p>
-                      <button onClick={() => setPromptExtracaoImagem(DEFAULT_PROMPTS.extracao_imagem)} className="text-xs text-purple-500 hover:text-purple-700 underline">Restaurar padrao</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Prompt Matching SQL */}
-              <div>
-                <button
-                  onClick={() => setShowPromptsSql(!showPromptsSql)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-800">Prompt de Matching (Busca SQL)</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Usado quando candidatos vem da busca SQL LIKE no Oracle</p>
-                  </div>
-                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${showPromptsSql ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {showPromptsSql && (
-                  <div className="mt-2">
-                    <textarea
-                      value={promptMatchingSql}
-                      onChange={(e) => setPromptMatchingSql(e.target.value)}
-                      rows={10}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-purple-400 focus:border-purple-400 resize-y"
-                    />
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-xs text-gray-400">Variaveis: produto buscado + lista numerada de candidatos. Deve retornar numero ou 0.</p>
-                      <button onClick={() => setPromptMatchingSql(DEFAULT_PROMPTS.matching_sql)} className="text-xs text-purple-500 hover:text-purple-700 underline">Restaurar padrao</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Prompt Matching Vetorial */}
-              <div>
-                <button
-                  onClick={() => setShowPromptsVetorial(!showPromptsVetorial)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-800">Prompt de Matching (Busca Vetorial)</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Usado quando candidatos vem da busca por similaridade vetorial (VectorStore)</p>
-                  </div>
-                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${showPromptsVetorial ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {showPromptsVetorial && (
-                  <div className="mt-2">
-                    <textarea
-                      value={promptMatchingVetorial}
-                      onChange={(e) => setPromptMatchingVetorial(e.target.value)}
-                      rows={10}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-purple-400 focus:border-purple-400 resize-y"
-                    />
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-xs text-gray-400">Candidatos incluem: descricao, secao, grupo, custo, fornecedor e % similaridade</p>
-                      <button onClick={() => setPromptMatchingVetorial(DEFAULT_PROMPTS.matching_vetorial)} className="text-xs text-purple-500 hover:text-purple-700 underline">Restaurar padrao</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Prompt Decomposicao */}
-              <div>
-                <button
-                  onClick={() => setShowPromptsDecomp(!showPromptsDecomp)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-800">Prompt de Decomposicao de Produto</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Decompoe a descricao do produto em marca, tipo, gramatura, embalagem e variante</p>
-                  </div>
-                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${showPromptsDecomp ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {showPromptsDecomp && (
-                  <div className="mt-2">
-                    <textarea
-                      value={promptDecomposicao}
-                      onChange={(e) => setPromptDecomposicao(e.target.value)}
-                      rows={8}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-purple-400 focus:border-purple-400 resize-y"
-                    />
-                    <div className="flex justify-between items-center mt-1">
-                      <p className="text-xs text-gray-400">A IA deve retornar JSON puro: {`{"marca":"","tipo":"","gramatura":"","embalagem":"","variante":"","quantidade":""}`}</p>
-                      <button onClick={() => setPromptDecomposicao(DEFAULT_PROMPTS.decomposicao)} className="text-xs text-purple-500 hover:text-purple-700 underline">Restaurar padrao</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Botao salvar prompts */}
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  onClick={() => {
-                    setPromptMatchingSql(DEFAULT_PROMPTS.matching_sql);
-                    setPromptMatchingVetorial(DEFAULT_PROMPTS.matching_vetorial);
-                    setPromptDecomposicao(DEFAULT_PROMPTS.decomposicao);
-                    setPromptExtracaoImagem(DEFAULT_PROMPTS.extracao_imagem);
-                  }}
-                  className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Restaurar Todos ao Padrao
-                </button>
-                <div className="flex items-center gap-3">
-                  {promptsSaved && (
-                    <span className="text-sm text-green-600 font-medium flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-                      Salvo!
-                    </span>
-                  )}
-                  <button
-                    onClick={handleSavePrompts}
-                    disabled={promptsSaving}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                  >
-                    {promptsSaving ? 'Salvando...' : 'Salvar Prompts'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ===== Base de Produtos Vetorial (VectorStore) ===== */}
-          <div className="border border-blue-200 rounded-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-blue-200">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                </svg>
-                Base de Produtos Vetorial (VectorStore)
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">Sincroniza os produtos do Oracle para busca inteligente por similaridade. Melhora drasticamente a precisao do matching.</p>
-            </div>
-
-            <div className="p-4 space-y-4">
-              {/* Stats */}
-              {vectorStats && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-blue-700">{vectorStats.total || 0}</p>
-                    <p className="text-xs text-blue-600 mt-0.5">Produtos no cache</p>
-                  </div>
-                  <div className="bg-green-50 border border-green-100 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-green-700">{vectorStats.comEmbedding || 0}</p>
-                    <p className="text-xs text-green-600 mt-0.5">Com embedding</p>
-                  </div>
-                  <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-orange-700">{(vectorStats.total || 0) - (vectorStats.comEmbedding || 0)}</p>
-                    <p className="text-xs text-orange-600 mt-0.5">Sem embedding</p>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 text-center">
-                    <p className="text-sm font-bold text-gray-700">{vectorStats.ultimaSync ? new Date(vectorStats.ultimaSync).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Nunca'}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Ultima sincronizacao</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Configuracao de agendamento */}
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Agendamento da Sincronizacao</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Frequencia */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Frequencia</label>
-                    <select
-                      value={vectorSyncFreq}
-                      onChange={(e) => setVectorSyncFreq(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                    >
-                      <option value="diario">Diario</option>
-                      <option value="semanal">Semanal</option>
-                      <option value="mensal">Mensal</option>
-                    </select>
-                  </div>
-
-                  {/* Dia (condicional) */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      {vectorSyncFreq === 'semanal' ? 'Dia da Semana' : vectorSyncFreq === 'mensal' ? 'Dia do Mes' : 'Dia'}
-                    </label>
-                    {vectorSyncFreq === 'semanal' ? (
-                      <select
-                        value={vectorSyncDia}
-                        onChange={(e) => setVectorSyncDia(parseInt(e.target.value))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                      >
-                        <option value={0}>Domingo</option>
-                        <option value={1}>Segunda-feira</option>
-                        <option value={2}>Terca-feira</option>
-                        <option value={3}>Quarta-feira</option>
-                        <option value={4}>Quinta-feira</option>
-                        <option value={5}>Sexta-feira</option>
-                        <option value={6}>Sabado</option>
-                      </select>
-                    ) : vectorSyncFreq === 'mensal' ? (
-                      <select
-                        value={vectorSyncDia}
-                        onChange={(e) => setVectorSyncDia(parseInt(e.target.value))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                      >
-                        {Array.from({ length: 28 }, (_, i) => (
-                          <option key={i + 1} value={i + 1}>Dia {i + 1}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-400 bg-gray-50">
-                        Todos os dias
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Horario */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Horario</label>
-                    <select
-                      value={vectorSyncHora}
-                      onChange={(e) => setVectorSyncHora(parseInt(e.target.value))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-                    >
-                      {Array.from({ length: 24 }, (_, i) => (
-                        <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Resumo */}
-                <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                  <p className="text-xs text-blue-700">
-                    {vectorSyncFreq === 'diario'
-                      ? `Sincronizacao diaria as ${String(vectorSyncHora).padStart(2, '0')}:00`
-                      : vectorSyncFreq === 'semanal'
-                      ? `Sincronizacao toda ${['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'][vectorSyncDia]} as ${String(vectorSyncHora).padStart(2, '0')}:00`
-                      : `Sincronizacao todo dia ${vectorSyncDia} as ${String(vectorSyncHora).padStart(2, '0')}:00`
-                    }
-                  </p>
-                </div>
-              </div>
-
-              {/* Botoes */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={saveVectorConfig}
-                  disabled={vectorConfigSaving}
-                  className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition text-sm"
-                >
-                  {vectorConfigSaving ? 'Salvando...' : vectorConfigSaved ? 'Salvo!' : 'Salvar Agendamento'}
-                </button>
-                <button
-                  onClick={handleVectorSync}
-                  disabled={vectorSyncing}
-                  className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition text-sm"
-                >
-                  {vectorSyncing ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Sincronizando...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Atualizar Agora
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Resultado do sync */}
-              {vectorSyncResult && (
-                <div className={`p-3 rounded-lg text-sm ${vectorSyncResult.success ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
-                  {vectorSyncResult.success
-                    ? `Sincronizacao concluida! ${vectorSyncResult.stats?.total || 0} produtos no cache, ${vectorSyncResult.stats?.comEmbedding || 0} com embedding.`
-                    : `Erro: ${vectorSyncResult.error}`
-                  }
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Conteudo: Radar IA ===== */}
-      {aiSubTab === 'radar' && (
-        <div className="space-y-6">
-          {/* Seletor de Modelo */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Modelo da IA (Consultor Radar IA)
-            </label>
-            <p className="text-xs text-gray-400 mb-3">Modelo usado pelo consultor flutuante (chat). GPT-4o e recomendado para analises mais completas.</p>
-            <ModelSelector
-              models={MODELS}
-              selected={selectedModel}
-              onSelect={(id) => {
-                setSelectedModel(id);
-                api.post('/config/configurations', { openai_model: id }).catch(() => {});
-              }}
-              accentColor="emerald"
-            />
-          </div>
-
-          {/* Script/Prompt da IA */}
-          <div className="pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700">Script do Consultor (System Prompt)</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Define como a IA se comporta, responde e analisa os dados</p>
-              </div>
-              <button
-                onClick={() => setShowPrompt(!showPrompt)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-              >
-                <svg className={`w-4 h-4 transition-transform ${showPrompt ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-                {showPrompt ? 'Ocultar' : 'Ver / Editar'}
-              </button>
-            </div>
-
-            {showPrompt && (
-              <div className="space-y-3">
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-xs text-amber-700">
-                      Este e o "cerebro" da IA. Ele define a personalidade, formato das respostas, benchmarks e estrategias de analise.
-                      A data atual e adicionada automaticamente pelo sistema. Edite com cuidado!
-                    </p>
-                  </div>
-                </div>
-
-                <textarea
-                  value={customPrompt || DEFAULT_PROMPT}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                  rows={20}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm font-mono leading-relaxed bg-gray-50"
-                  placeholder="Digite o prompt customizado..."
-                />
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleResetPrompt}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Restaurar Padrao
-                  </button>
-                  <span className="text-xs text-gray-400">
-                    {customPrompt ? '(Usando prompt customizado)' : '(Usando prompt padrao)'}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Links OpenAI */}
       <div className="pt-4 border-t border-gray-200">
@@ -1290,6 +670,8 @@ export default function AITab() {
           </a>
         </div>
       </div>
+
+      </>)}
     </div>
   );
 }

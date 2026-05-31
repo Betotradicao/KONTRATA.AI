@@ -1,37 +1,24 @@
 # 🚧 Trabalho em Andamento
 
-## Sessão atual (2026-05-08)
+## Sessão 2026-05-28 — CONCLUÍDA ✅
 
-### Tarefa
-Planejando implementação de **whitelabel** — cliente Mameva quer revender com domínio próprio (`mameva.com.br`).
+### Ficha de Admissão (fluxo completo validado em prod)
+- Bug crítico do `criarColaborador` corrigido (commit `b302fab`) — agora copia escala, regime, departamento, escolaridade da ficha. Validado com Roberto (colab id=100 no Tradição).
+- Conta Salário não some mais após cadastrar colaborador (commit `5668f48`).
 
-**👉 DOC DE REFERÊNCIA: [[arquitetura/whitelabel]]**
-Se este chat cair, ler primeiro esse doc — tem estado atual + plano + rollback completo.
+### Doc Advertência (DOCS ADVERTÊNCIA, fase 4)
+- Seed do doc padronizado "Advertência" (commit `fc00866`)
+- Painel CRUD inline dos Motivos abaixo do editor (commit `43ed4f2` + ajustes `25cc5ba`/`51f1fad`/`754215c`)
+- Doc imprime em 1 folha A4 (commit `2e5d7d7`) — layout compacto detectado pelo título (`/advert/i`), só afeta Advertência. Filtro de parágrafos vazios em `buildConteudoHtml` beneficia todos.
 
-### Estado
-- ✅ Investigação feita: domínio hardcoded em `InstaladorVPS/install-multitenant.sh:134`
-- ✅ Levantamento dos 12 arquivos de UI com "Radar 360"/"Prevenção no Radar" hardcoded (lista no doc)
-- ✅ Confirmado: `client_brand_name` e `client_logo_url` em `configurations` JÁ existem (Logo.jsx + EmpresaConfigTab.jsx leem)
-- ✅ Doc criado: `obsidian-vault/arquitetura/whitelabel.md`
-- ✅ Index do vault atualizado com link
-- ⏸️ **Aguardando OK do usuário** pra começar a implementação fase 1 (3-4h)
+### Pesquisa de Clima — bug encontrado e corrigido
+- `rating_5_matriz` (matriz de critérios) deixava enviar com critérios em branco — objeto com 1 chave passava como "respondido". Fix em [PesquisaPublica.jsx:39](packages/frontend/src/pages/PesquisaPublica.jsx#L39) valida que todos os `cfg.criterios` têm valor. Commit `c29430f`.
 
-### Decisões pendentes
-- DPO Radar 360 continua sendo `dpo@prevencaonoradar.com.br` mesmo no whitelabel? (provavelmente sim — você é Operador real)
-- Cliente piloto: subdomínio real ou `mameva-teste.local` via hosts file?
+### Deploy
+- Advertência subiu em: **Tradição, Guibox, NovaCentral, Fratelli** (todos com migration rodada + seed confirmado no DB)
+- Re-deploy Tradição rodando em background pra pegar fix da pesquisa (`c29430f`)
+- **Nunes não tem Kontrata.ai** (só Prevenção no Radar) — fora do escopo
 
-### Próximo passo
-Esperar confirmação. Quando OK, fazer fase 1:
-1. Modificar instalador pra aceitar `CUSTOM_DOMAIN` opcional
-2. Trocar 12 hardcodes pra ler `client_brand_name` (com fallback "Radar 360")
-3. EmpresaConfigTab ganhar campos extras (cor primária, favicon, title, DPO email)
-
-### Pendências de outras tarefas
-- Deploy nos clientes restantes do commit `3b4be94` (fix módulos no banco): SuperVital, MaxValle, Nunes, Idealmix
-- Já no ar: novacentral, tradicao, mameva
-
-### Estado git
-Branch `TESTE`, tudo commitado/pushado. Últimos commits:
-- `3b4be94` fix(modulos): config sai do localStorage e vai pro banco
-- `c90b8f5` feat(rh-curriculos): coluna Idade + filtros normalizam acentos
-- `bd39e6d` feat(rh): vagas com selecao de candidatos + curriculo publico com vagas
+### Estado do git
+- Branch `KONTRATAAI` em sync com remote
+- Último commit: `c29430f` (fix pesquisa matriz)

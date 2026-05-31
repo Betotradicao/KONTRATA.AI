@@ -1012,9 +1012,19 @@ function EmpresasTab() {
                   <td className="px-4 py-2 text-sm text-gray-700">{c.cnpj || '-'}</td>
                   <td className="px-4 py-2 text-sm text-gray-700">{[c.cidade, c.estado].filter(Boolean).join('/') || '-'}</td>
                   <td className="px-4 py-2 text-right">
-                    <button onClick={() => abrirEdicao(c)} className="text-orange-600 hover:text-orange-800 text-sm font-medium mr-3">Editar</button>
+                    <button onClick={() => abrirEdicao(c)} title="Editar empresa"
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-600 hover:text-orange-800 mr-2 transition">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </button>
                     {!c.isPrincipal && (
-                      <button onClick={() => excluir(c)} className="text-red-600 hover:text-red-800 text-sm font-medium">Excluir</button>
+                      <button onClick={() => excluir(c)} title="Excluir empresa"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-800 transition">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/>
+                        </svg>
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -1249,7 +1259,7 @@ function TurnosTab() {
 
   const abrirNovo = () => setModal({
     codigo: '', nome: '', horaInicio: '', horaFim: '', totalHoras: '',
-    pausaHHMM: '00:00',
+    pausaInicio: '', pausaFim: '',
     tipo: 'turno', cor: '#FEF3C7',
   });
   const abrirEdicao = (t) => setModal({
@@ -1257,19 +1267,27 @@ function TurnosTab() {
     horaInicio: t.horaInicio ? t.horaInicio.slice(0,5) : '',
     horaFim: t.horaFim ? t.horaFim.slice(0,5) : '',
     totalHoras: t.totalHoras != null ? String(t.totalHoras) : '',
-    pausaHHMM: minutosParaHHMM(t.pausaMinutos || 0),
+    pausaInicio: t.pausaInicio ? t.pausaInicio.slice(0,5) : '',
+    pausaFim: t.pausaFim ? t.pausaFim.slice(0,5) : '',
     tipo: t.tipo || 'turno',
     cor: t.cor || '#FEF3C7',
   });
 
-  // Calcula horas liquidas: (fim - inicio) - pausa, resultado em horas decimais
-  const calcularHoras = (ini, fim, pausaHHMM) => {
-    if (!ini || !fim) return '';
-    const [h1, m1] = ini.split(':').map(Number);
-    const [h2, m2] = fim.split(':').map(Number);
+  // Diferenca em minutos entre 2 horarios HH:MM (positivo, atravessa meia-noite)
+  const diffMin = (a, b) => {
+    if (!a || !b) return 0;
+    const [h1, m1] = a.split(':').map(Number);
+    const [h2, m2] = b.split(':').map(Number);
     let min = (h2 * 60 + m2) - (h1 * 60 + m1);
-    if (min < 0) min += 24 * 60; // atravessa meia-noite
-    min -= hhmmParaMinutos(pausaHHMM || '00:00');
+    if (min < 0) min += 24 * 60;
+    return min;
+  };
+
+  // Calcula horas liquidas: (saida - entrada) - (pausaFim - pausaInicio)
+  const calcularHoras = (entrada, saida, pausaIni, pausaFim) => {
+    if (!entrada || !saida) return '';
+    let min = diffMin(entrada, saida);
+    min -= diffMin(pausaIni, pausaFim);
     if (min < 0) min = 0;
     return (min / 60).toFixed(2);
   };
@@ -1278,13 +1296,19 @@ function TurnosTab() {
     if (!modal.codigo?.trim() || !modal.nome?.trim()) { toast.error('Código e nome obrigatórios'); return; }
     setSalvando(true);
     try {
+      // pausa_minutos derivado da diferenca entre pausa_inicio e pausa_fim
+      const pausaMin = (modal.pausaInicio && modal.pausaFim)
+        ? (() => { const d = diffMin(modal.pausaInicio, modal.pausaFim); return d > 0 ? d : 0; })()
+        : 0;
       const payload = {
         codigo: modal.codigo.trim().toUpperCase(),
         nome: modal.nome.trim(),
         horaInicio: modal.horaInicio || null,
         horaFim: modal.horaFim || null,
         totalHoras: modal.totalHoras ? Number(modal.totalHoras) : null,
-        pausaMinutos: hhmmParaMinutos(modal.pausaHHMM || '00:00'),
+        pausaMinutos: pausaMin,
+        pausaInicio: modal.pausaInicio || null,
+        pausaFim: modal.pausaFim || null,
         tipo: modal.tipo,
         cor: modal.cor,
       };
@@ -1329,8 +1353,10 @@ function TurnosTab() {
                 <th className="text-left px-4 py-3 text-sm font-medium">Preview</th>
                 <th className="text-left px-4 py-3 text-sm font-medium">Código</th>
                 <th className="text-left px-4 py-3 text-sm font-medium">Nome</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">Horário</th>
-                <th className="text-left px-4 py-3 text-sm font-medium">Pausa</th>
+                <th className="text-center px-2 py-3 text-sm font-medium">Entrada</th>
+                <th className="text-center px-2 py-3 text-sm font-medium">Pausa Ini.</th>
+                <th className="text-center px-2 py-3 text-sm font-medium">Pausa Fim</th>
+                <th className="text-center px-2 py-3 text-sm font-medium">Saída</th>
                 <th className="text-left px-4 py-3 text-sm font-medium">Horas líq.</th>
                 <th className="text-left px-4 py-3 text-sm font-medium">Tipo</th>
                 <th className="text-right px-4 py-3 text-sm font-medium">Ações</th>
@@ -1346,11 +1372,17 @@ function TurnosTab() {
                   </td>
                   <td className="px-4 py-2 text-sm font-semibold text-gray-800">{t.codigo}</td>
                   <td className="px-4 py-2 text-sm text-gray-700">{t.nome}</td>
-                  <td className="px-4 py-2 text-sm text-gray-600">
-                    {t.horaInicio && t.horaFim ? `${t.horaInicio.slice(0,5)} – ${t.horaFim.slice(0,5)}` : '—'}
+                  <td className="px-2 py-2 text-sm text-gray-700 text-center font-mono">
+                    {t.horaInicio ? t.horaInicio.slice(0,5) : <span className="text-gray-300">—</span>}
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-600">
-                    {t.pausaMinutos > 0 ? minutosParaHHMM(t.pausaMinutos) : '—'}
+                  <td className="px-2 py-2 text-sm text-gray-700 text-center font-mono">
+                    {t.pausaInicio ? t.pausaInicio.slice(0,5) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-2 py-2 text-sm text-gray-700 text-center font-mono">
+                    {t.pausaFim ? t.pausaFim.slice(0,5) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-2 py-2 text-sm text-gray-700 text-center font-mono">
+                    {t.horaFim ? t.horaFim.slice(0,5) : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-2 text-sm text-gray-700 font-semibold">{t.totalHoras ? `${t.totalHoras}h` : '—'}</td>
                   <td className="px-4 py-2 text-xs">
@@ -1358,7 +1390,14 @@ function TurnosTab() {
                   </td>
                   <td className="px-4 py-2 text-right">
                     <button onClick={() => abrirEdicao(t)} className="text-orange-600 hover:text-orange-800 text-sm font-medium mr-3">Editar</button>
-                    <button onClick={() => excluir(t)} className="text-red-600 hover:text-red-800 text-sm font-medium">Excluir</button>
+                    {t.tipo === 'turno' ? (
+                      <button onClick={() => excluir(t)} className="text-red-600 hover:text-red-800 text-sm font-medium">Excluir</button>
+                    ) : (
+                      <span title="Tipo fixo do sistema — não pode ser excluído"
+                        className="text-gray-300 text-sm font-medium cursor-not-allowed inline-flex items-center gap-1">
+                        🔒 Fixo
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1403,39 +1442,49 @@ function TurnosTab() {
               </div>
               {modal.tipo === 'turno' && (
                 <>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
-                      <label className="text-xs uppercase text-gray-500 font-semibold">Hora início</label>
+                      <label className="text-xs uppercase text-gray-500 font-semibold">Horário de Entrada</label>
                       <input type="time" value={modal.horaInicio}
                         onChange={e => {
                           const ini = e.target.value;
-                          const horas = calcularHoras(ini, modal.horaFim, modal.pausaHHMM);
+                          const horas = calcularHoras(ini, modal.horaFim, modal.pausaInicio, modal.pausaFim);
                           setModal(m => ({ ...m, horaInicio: ini, totalHoras: horas }));
                         }}
                         className="w-full border rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="text-xs uppercase text-gray-500 font-semibold">Hora fim</label>
-                      <input type="time" value={modal.horaFim}
+                      <label className="text-xs uppercase text-gray-500 font-semibold">Pausa Início</label>
+                      <input type="time" value={modal.pausaInicio}
                         onChange={e => {
-                          const fim = e.target.value;
-                          const horas = calcularHoras(modal.horaInicio, fim, modal.pausaHHMM);
-                          setModal(m => ({ ...m, horaFim: fim, totalHoras: horas }));
+                          const pi = e.target.value;
+                          const horas = calcularHoras(modal.horaInicio, modal.horaFim, pi, modal.pausaFim);
+                          setModal(m => ({ ...m, pausaInicio: pi, totalHoras: horas }));
                         }}
                         className="w-full border rounded px-3 py-2 text-sm" />
                     </div>
                     <div>
-                      <label className="text-xs uppercase text-gray-500 font-semibold">Pausa obrigatória</label>
-                      <input type="time" value={modal.pausaHHMM}
+                      <label className="text-xs uppercase text-gray-500 font-semibold">Pausa Fim</label>
+                      <input type="time" value={modal.pausaFim}
                         onChange={e => {
-                          const p = e.target.value;
-                          const horas = calcularHoras(modal.horaInicio, modal.horaFim, p);
-                          setModal(m => ({ ...m, pausaHHMM: p, totalHoras: horas }));
+                          const pf = e.target.value;
+                          const horas = calcularHoras(modal.horaInicio, modal.horaFim, modal.pausaInicio, pf);
+                          setModal(m => ({ ...m, pausaFim: pf, totalHoras: horas }));
                         }}
                         className="w-full border rounded px-3 py-2 text-sm" />
-                      <p className="text-[10px] text-gray-500 mt-1">CLT: &gt;6h = 1:00 · 4-6h = 0:15</p>
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase text-gray-500 font-semibold">Horário de Saída</label>
+                      <input type="time" value={modal.horaFim}
+                        onChange={e => {
+                          const fim = e.target.value;
+                          const horas = calcularHoras(modal.horaInicio, fim, modal.pausaInicio, modal.pausaFim);
+                          setModal(m => ({ ...m, horaFim: fim, totalHoras: horas }));
+                        }}
+                        className="w-full border rounded px-3 py-2 text-sm" />
                     </div>
                   </div>
+                  <p className="text-[10px] text-gray-500 -mt-1">CLT: jornada &gt;6h exige pausa mínima 1h · 4-6h exige 15min</p>
                   <div className="bg-amber-50 border border-amber-200 rounded px-3 py-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-700 font-medium">Horas líquidas (descontada a pausa):</span>

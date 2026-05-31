@@ -9,6 +9,7 @@ import RadarLoading from '../components/RadarLoading';
 const initialForm = {
   empresa_id: '',
   colaborador_id: '',
+  colaborador_ids: [], // multi-select; quando >1, vira lote (cria 1 treinamento por colab)
   tipo_treinamento_id: '',
   nome_treinamento: '',
   instrutor: '',
@@ -37,6 +38,8 @@ export default function RhTreinamentos() {
   const [statusList, setStatusList] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [empresas, setEmpresas] = useState([]);
+  const [materiais, setMateriais] = useState([]);
+  const [origem, setOrigem] = useState('LIVRE'); // 'LIVRE' | 'PRONTO'
 
   // Modal
   const [modalAberto, setModalAberto] = useState(false);
@@ -51,12 +54,13 @@ export default function RhTreinamentos() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [treiRes, tiposRes, statusRes, colabRes, empRes] = await Promise.all([
+      const [treiRes, tiposRes, statusRes, colabRes, empRes, matRes] = await Promise.all([
         api.get('/rh/treinamentos'),
         api.get('/rh/configuracoes/tipos-treinamento'),
         api.get('/rh/configuracoes/status-treinamento'),
         api.get('/rh/colaboradores?status=ativo&limit=500'),
         api.get('/rh/empresas'),
+        api.get('/rh/treinamentos-materiais').catch(() => ({ data: [] })),
       ]);
       const asArray = (resp, key) => {
         const d = resp?.data;
@@ -70,6 +74,7 @@ export default function RhTreinamentos() {
       setStatusList(asArray(statusRes));
       setColaboradores(asArray(colabRes, 'colaboradores'));
       setEmpresas(asArray(empRes, 'empresas'));
+      setMateriais(asArray(matRes));
     } catch (err) {
       toast.error('Erro ao carregar treinamentos');
       console.error(err);
@@ -89,6 +94,7 @@ export default function RhTreinamentos() {
       setFormData({
         empresa_id: treinamento.empresa_id || '',
         colaborador_id: treinamento.colaborador_id || '',
+        colaborador_ids: treinamento.colaborador_id ? [treinamento.colaborador_id] : [],
         tipo_treinamento_id: treinamento.tipo_treinamento_id || '',
         nome_treinamento: treinamento.nome_treinamento || '',
         instrutor: treinamento.instrutor || '',
@@ -108,6 +114,7 @@ export default function RhTreinamentos() {
       setEditando(null);
       setFormData(initialForm);
     }
+    setOrigem('LIVRE'); // resetar pra LIVRE por padrao ao abrir modal
     setModalAberto(true);
   };
 
@@ -128,9 +135,31 @@ export default function RhTreinamentos() {
   // Quando muda o colaborador, exibimos Setor/Função vindos do registro dele.
   // Esses campos sao read-only no modal — derivados, nao salvos na ficha do
   // treinamento (a fonte da verdade fica em rh_colaboradores).
-  const colabSelecionado = colaboradores.find(c => String(c.id) === String(formData.colaborador_id));
-  const setorDoColab = colabSelecionado?.setor_nome || colabSelecionado?.setor_departamento_nome || '';
-  const cargoDoColab = colabSelecionado?.cargo_nome || '';
+  // Em modo LOTE (varios colabs selecionados), setor/funcao ficam "(varia)".
+  const isLote = (formData.colaborador_ids || []).length > 1;
+  const unicoColabId = isLote ? null : (formData.colaborador_ids?.[0] || formData.colaborador_id);
+  const colabSelecionado = colaboradores.find(c => String(c.id) === String(unicoColabId));
+  const setorDoColab = isLote ? '— VARIA —' : (colabSelecionado?.setor_nome || colabSelecionado?.setor_departamento_nome || '');
+  const cargoDoColab = isLote ? '— VARIA —' : (colabSelecionado?.cargo_nome || '');
+
+  // Toggle de selecao individual no multi-select
+  const toggleColab = (id) => {
+    const ids = formData.colaborador_ids || [];
+    const has = ids.some(x => String(x) === String(id));
+    const next = has ? ids.filter(x => String(x) !== String(id)) : [...ids, id];
+    setFormData(prev => ({ ...prev, colaborador_ids: next, colaborador_id: next.length === 1 ? next[0] : '' }));
+  };
+
+  // UI de busca dentro do multi-select
+  const [buscaColab, setBuscaColab] = useState('');
+  const [showColabPicker, setShowColabPicker] = useState(false);
+  const colabsFiltrados = colaboradores.filter(c =>
+    !buscaColab.trim() ||
+    (c.nome || '').toLowerCase().includes(buscaColab.toLowerCase())
+  );
+  const nomesSelecionados = (formData.colaborador_ids || [])
+    .map(id => colaboradores.find(c => String(c.id) === String(id))?.nome)
+    .filter(Boolean);
 
   const handleSalvar = async () => {
     if (!formData.nome_treinamento.trim()) {
@@ -140,11 +169,28 @@ export default function RhTreinamentos() {
     try {
       setSalvando(true);
       if (editando) {
+        // Edicao continua single (1 colaborador por linha)
         await api.put(`/rh/treinamentos/${editando.id}`, formData);
         toast.success('Treinamento atualizado com sucesso');
       } else {
-        await api.post('/rh/treinamentos', formData);
-        toast.success('Treinamento criado com sucesso');
+        // Criacao: se varios colaboradores selecionados, cria 1 treinamento por colab.
+        // Setor/Funcao sao derivados do colaborador (nao salvos aqui), entao podem variar.
+        const ids = (formData.colaborador_ids || []).filter(Boolean);
+        if (ids.length > 1) {
+          // Cria em lote — uma chamada por colaborador
+          let ok = 0, fail = 0;
+          for (const cid of ids) {
+            try {
+              await api.post('/rh/treinamentos', { ...formData, colaborador_id: cid });
+              ok++;
+            } catch (e) { fail++; console.error('Erro lote:', e); }
+          }
+          if (fail === 0) toast.success(`${ok} treinamentos criados`);
+          else toast.error(`${ok} criados, ${fail} falharam`);
+        } else {
+          await api.post('/rh/treinamentos', formData);
+          toast.success('Treinamento criado com sucesso');
+        }
       }
       fecharModal();
       fetchAll();
@@ -336,19 +382,54 @@ export default function RhTreinamentos() {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Colaborador</label>
-                    <select
-                      name="colaborador_id"
-                      value={formData.colaborador_id}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      <option value="">SELECIONE...</option>
-                      {colaboradores.map((c) => (
-                        <option key={c.id} value={c.id}>{c.nome}</option>
-                      ))}
-                    </select>
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Colaborador(es){nomesSelecionados.length > 0 && <span className="ml-2 text-xs font-bold text-orange-600">({nomesSelecionados.length} selecionado{nomesSelecionados.length > 1 ? 's' : ''})</span>}
+                    </label>
+                    <button type="button"
+                      onClick={() => setShowColabPicker(v => !v)}
+                      className="w-full text-left px-3 py-2 border border-gray-300 rounded-lg bg-white hover:border-orange-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm flex items-center justify-between">
+                      <span className="truncate">
+                        {nomesSelecionados.length === 0 && <span className="text-gray-400">SELECIONE...</span>}
+                        {nomesSelecionados.length === 1 && nomesSelecionados[0]}
+                        {nomesSelecionados.length > 1 && `${nomesSelecionados.length} colaboradores selecionados`}
+                      </span>
+                      <span className="text-gray-400 ml-2">{showColabPicker ? '▲' : '▼'}</span>
+                    </button>
+                    {showColabPicker && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-72 overflow-hidden flex flex-col">
+                        <div className="p-2 border-b border-gray-200 flex items-center gap-2">
+                          <input type="text" value={buscaColab} onChange={e => setBuscaColab(e.target.value)}
+                            placeholder="🔍 Buscar..."
+                            className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm" />
+                          <button type="button" onClick={() => setFormData(prev => ({ ...prev, colaborador_ids: [], colaborador_id: '' }))}
+                            className="text-xs text-red-600 hover:underline">Limpar</button>
+                        </div>
+                        <div className="overflow-y-auto flex-1">
+                          {colabsFiltrados.length === 0 && <div className="p-3 text-sm text-gray-400 text-center">Nenhum colaborador</div>}
+                          {colabsFiltrados.map((c) => {
+                            const checked = (formData.colaborador_ids || []).some(x => String(x) === String(c.id));
+                            return (
+                              <label key={c.id}
+                                className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-orange-50 text-sm ${checked ? 'bg-orange-50' : ''}`}>
+                                <input type="checkbox" checked={checked} onChange={() => toggleColab(c.id)}
+                                  className="w-4 h-4 accent-orange-500" />
+                                <span className={checked ? 'font-semibold text-orange-900' : ''}>{c.nome}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div className="p-2 border-t border-gray-200 bg-gray-50 text-right">
+                          <button type="button" onClick={() => setShowColabPicker(false)}
+                            className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-semibold">
+                            ✓ OK
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {isLote && (
+                      <p className="text-[10px] text-amber-700 mt-1 italic">⚠️ Lote: vai criar 1 treinamento pra cada colaborador. Setor/Função ficam ocultos pois variam.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Setor</label>
@@ -356,8 +437,9 @@ export default function RhTreinamentos() {
                       type="text"
                       value={setorDoColab}
                       readOnly
+                      disabled={isLote}
                       placeholder="— ESCOLHA O COLABORADOR —"
-                      className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-700 rounded-lg text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm ${isLote ? 'border-gray-200 bg-gray-100 text-gray-400 italic' : 'border-gray-200 bg-gray-50 text-gray-700'}`}
                     />
                   </div>
                   <div>
@@ -366,20 +448,63 @@ export default function RhTreinamentos() {
                       type="text"
                       value={cargoDoColab}
                       readOnly
+                      disabled={isLote}
                       placeholder="— ESCOLHA O COLABORADOR —"
-                      className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-700 rounded-lg text-sm"
+                      className={`w-full px-3 py-2 border rounded-lg text-sm ${isLote ? 'border-gray-200 bg-gray-100 text-gray-400 italic' : 'border-gray-200 bg-gray-50 text-gray-700'}`}
                     />
+                  </div>
+                  {/* Origem do treinamento: PRONTO (pega da Biblioteca) ou LIVRE (digita) */}
+                  <div className="md:col-span-2 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="origem_treinamento" value="PRONTO" checked={origem === 'PRONTO'}
+                          onChange={() => setOrigem('PRONTO')}
+                          className="w-4 h-4 accent-indigo-600" />
+                        <span className="text-sm font-semibold text-indigo-900">📚 PRONTO (da Biblioteca)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="origem_treinamento" value="LIVRE" checked={origem === 'LIVRE'}
+                          onChange={() => setOrigem('LIVRE')}
+                          className="w-4 h-4 accent-indigo-600" />
+                        <span className="text-sm font-semibold text-indigo-900">✏️ LIVRE (digite o tema)</span>
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-indigo-700 mt-1">
+                      PRONTO = escolha entre materiais já cadastrados em <strong>CADASTRAR TREINAMENTO</strong>.
+                      LIVRE = digite o tema do treinamento livremente.
+                    </p>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tema do Treinamento *</label>
-                    <input
-                      type="text"
-                      name="nome_treinamento"
-                      value={formData.nome_treinamento}
-                      onChange={handleChange}
-                      placeholder="EX: NR-35 TRABALHO EM ALTURA"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
+                    {origem === 'PRONTO' ? (
+                      <select
+                        name="nome_treinamento"
+                        value={formData.nome_treinamento}
+                        onChange={(e) => {
+                          // Quando escolhe da biblioteca, preenche o tema com o nome do material
+                          setFormData(prev => ({ ...prev, nome_treinamento: e.target.value }));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">SELECIONE DA BIBLIOTECA...</option>
+                        {materiais.length === 0 && (
+                          <option disabled>— BIBLIOTECA VAZIA — cadastre em "CADASTRAR TREINAMENTO" —</option>
+                        )}
+                        {materiais.map((m) => {
+                          const label = m.tema ? `${m.tema} — ${m.nome}` : m.nome;
+                          return <option key={m.id} value={label}>{label}</option>;
+                        })}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="nome_treinamento"
+                        value={formData.nome_treinamento}
+                        onChange={handleChange}
+                        placeholder="EX: NR-35 TRABALHO EM ALTURA"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Treinamento</label>

@@ -26,6 +26,12 @@ export class RhEscalaTurno {
   @Column({ name: 'pausa_minutos', type: 'int', default: 0 })
   pausaMinutos: number;
 
+  @Column({ name: 'pausa_inicio', type: 'time', nullable: true })
+  pausaInicio: string | null;
+
+  @Column({ name: 'pausa_fim', type: 'time', nullable: true })
+  pausaFim: string | null;
+
   @Column({ length: 20, default: 'turno' })
   tipo: string; // turno | folga | ferias | feriado | licenca
 

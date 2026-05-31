@@ -56,7 +56,7 @@ function fallbackCopia(texto, okMsg) {
  *   /rh/recrutador/enviar
  *   /rh/recrutador/entrevistas
  */
-export default function RhRecrutadorIA() {
+export default function RhRecrutadorIA({ embedded = false }) {
   const navigate = useNavigate();
   const { tab: tabParam } = useParams();
   const [tab, setTab] = useState(tabParam || 'treinar');
@@ -72,6 +72,35 @@ export default function RhRecrutadorIA() {
     { id: 'enviar', label: '📤 Enviar Entrevista' },
     { id: 'entrevistas', label: '📋 Entrevistas Realizadas' },
   ];
+
+  // Quando embedded (dentro de outra tela, ex: Configuracoes de REDE → IA),
+  // remove o Sidebar e o header roxo pra nao duplicar visual.
+  if (embedded) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="flex border-b overflow-x-auto">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                tab === t.id ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50' : 'text-gray-600 hover:text-orange-600'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="p-6">
+          {tab === 'vagas' && <TabVagas />}
+          {tab === 'perguntas' && <TabPerguntas />}
+          {tab === 'treinar' && <TabTreinar />}
+          {tab === 'enviar' && <TabEnviar />}
+          {tab === 'entrevistas' && <TabEntrevistas />}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -1302,7 +1331,7 @@ function TabEnviar() {
 // ============================================================================
 // TAB: ENTREVISTAS REALIZADAS
 // ============================================================================
-function TabEntrevistas() {
+export function TabEntrevistas() {
   const [entrevistas, setEntrevistas] = useState([]);
   const [filtroStatus, setFiltroStatus] = useState('');
   const [detalhe, setDetalhe] = useState(null);

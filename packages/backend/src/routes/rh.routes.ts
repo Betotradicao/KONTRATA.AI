@@ -7,6 +7,7 @@ import { RhDpController } from '../controllers/rh-dp.controller';
 import { RhApontamentosController } from '../controllers/rh-apontamentos.controller';
 import { RhEmpresasController } from '../controllers/rh-empresas.controller';
 import { RhEscalaController } from '../controllers/rh-escala.controller';
+import { RhEscalaMemoriaController } from '../controllers/rh-escala-memoria.controller';
 import { RhFolhaController } from '../controllers/rh-folha.controller';
 import { RhFichasAdmissaoController } from '../controllers/rh-fichas-admissao.controller';
 import { authenticateToken } from '../middleware/auth';
@@ -155,6 +156,12 @@ router.post('/treinamentos', authenticateToken, RhController.criarTreinamento);
 router.put('/treinamentos/:id', authenticateToken, RhController.atualizarTreinamento);
 router.delete('/treinamentos/:id', authenticateToken, RhController.deletarTreinamento);
 
+// Biblioteca de Materiais de Treinamento (slides, PDFs, etc)
+router.get('/treinamentos-materiais', authenticateToken, RhController.listarTreinamentosMateriais);
+router.post('/treinamentos-materiais', authenticateToken, uploadDoc.single('arquivo'), RhController.criarTreinamentoMaterial);
+router.put('/treinamentos-materiais/:id', authenticateToken, RhController.atualizarTreinamentoMaterial);
+router.delete('/treinamentos-materiais/:id', authenticateToken, RhController.deletarTreinamentoMaterial);
+
 // Vagas (Recrutamento)
 router.get('/vagas', authenticateToken, RhController.listarVagas);
 router.post('/vagas', authenticateToken, RhController.criarVaga);
@@ -286,6 +293,7 @@ router.post('/escala/cobertura', authenticateToken, RhEscalaController.salvarCob
 // Templates por colaborador
 router.get('/escala/templates/:colaboradorId', authenticateToken, RhEscalaController.obterTemplate);
 router.put('/escala/templates/:colaboradorId', authenticateToken, RhEscalaController.salvarTemplate);
+router.post('/escala/pre-preencher/:colaboradorId', authenticateToken, RhEscalaController.prePreencherMes);
 
 // Grid mensal
 router.get('/escala/grid', authenticateToken, RhEscalaController.obterGrid);
@@ -304,6 +312,34 @@ router.delete('/escala/licencas/:id', authenticateToken, RhEscalaController.dele
 router.get('/escala/excessoes', authenticateToken, RhEscalaController.listarExcessoes);
 router.post('/escala/excessoes', authenticateToken, RhEscalaController.criarExcessao);
 router.delete('/escala/excessoes/:id', authenticateToken, RhEscalaController.deletarExcessao);
+
+// Regras de cobertura por setor (base do motor IA de escala)
+router.get('/escala/regras-setor', authenticateToken, RhEscalaController.listarRegrasSetor);
+router.post('/escala/regras-setor', authenticateToken, RhEscalaController.salvarRegraSetor);
+router.delete('/escala/regras-setor/:id', authenticateToken, RhEscalaController.deletarRegraSetor);
+
+// Agente IA de Escala (chat com OpenAI)
+router.post('/escala/agente-ia/chat', authenticateToken, RhEscalaController.chatAgenteEscala);
+router.get('/escala/agente-ia/config', authenticateToken, RhEscalaController.getAgenteConfig);
+router.put('/escala/agente-ia/config', authenticateToken, RhEscalaController.putAgenteConfig);
+router.post('/escala/agente-ia/validar-senha', authenticateToken, RhEscalaController.validarSenhaAgente);
+router.post('/escala/agente-ia/executar-acao', authenticateToken, RhEscalaController.executarAcaoAgente);
+// Importar arquivo (PDF, Excel, imagem) pro agente analisar
+const uploadEscala = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+router.post(
+  '/escala/agente-ia/analisar-arquivo',
+  authenticateToken,
+  uploadEscala.single('arquivo'),
+  RhEscalaController.analisarArquivoAgente
+);
+
+// Vault de Memoria do Agente (notas markdown estilo Obsidian)
+router.get('/escala/memoria', authenticateToken, RhEscalaMemoriaController.listar);
+router.get('/escala/memoria/:slug', authenticateToken, RhEscalaMemoriaController.obter);
+router.post('/escala/memoria', authenticateToken, RhEscalaMemoriaController.criar);
+router.put('/escala/memoria/:id', authenticateToken, RhEscalaMemoriaController.atualizar);
+router.delete('/escala/memoria/:id', authenticateToken, RhEscalaMemoriaController.deletar);
+router.post('/escala/memoria/buscar-relevantes', authenticateToken, RhEscalaMemoriaController.buscarRelevantes);
 
 // Fichas de Admissão (1ª FASE — RH preenche, candidato completa via link público)
 // ROTAS PÚBLICAS (sem auth) — candidato acessa via token UUID

@@ -52,6 +52,15 @@ uploads/
 
 # Logs do backend
 packages/backend/backend.log
+
+# Temp / arquivos locais
+packages/backend/temp/
+packages/frontend/add-mobile-button.ps1
+.claude/REGRAS-SEGURANCA-CRIADAS.md
+
+# PDFs de pesquisa (nao versionar)
+PESQUISA DE CLIMA*.pdf
+Pesquisa de Satisfa*.pdf
 packages/backend/*.log
 logs/
 

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
+import { minioService } from '../services/minio.service';
 
 // ============================================================
 // Helpers pra gravar os campos "extras" do colaborador (alinhados à Ficha
@@ -1040,6 +1041,96 @@ export class RhController {
     } catch (error) {
       console.error('Delete treinamento error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  // ============================================================
+  // Biblioteca de Materiais de Treinamento (slides, PDFs, Word, vídeos...)
+  // Aqui o RH guarda assets reutilizáveis pra usar em treinamentos futuros.
+  // NÃO confundir com rh_treinamentos (uso real com colaborador/data/instrutor).
+  // ============================================================
+  static async listarTreinamentosMateriais(_req: AuthRequest, res: Response) {
+    try {
+      const rows = await AppDataSource.query(
+        `SELECT * FROM rh_treinamentos_materiais WHERE ativo = true ORDER BY tema ASC NULLS LAST, nome ASC`
+      );
+      res.json(rows);
+    } catch (error: any) {
+      console.error('[RH] listarTreinamentosMateriais:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async criarTreinamentoMaterial(req: AuthRequest, res: Response) {
+    try {
+      const file = (req as any).file;
+      const { nome, descricao, tema, tags } = req.body;
+      if (!file) return res.status(400).json({ error: 'Arquivo obrigatorio' });
+      if (!nome?.trim()) return res.status(400).json({ error: 'Nome obrigatorio' });
+
+      const ext = (file.originalname || 'bin').split('.').pop() || 'bin';
+      const objectName = `rh/treinamentos-materiais/${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
+      const url = await minioService.uploadFile(objectName, file.buffer, file.mimetype || 'application/octet-stream');
+
+      const userId = (req as any).user?.id || (req as any).user?.username || null;
+      const [row] = await AppDataSource.query(
+        `INSERT INTO rh_treinamentos_materiais
+           (nome, descricao, tema, tags, arquivo_url, arquivo_nome_original, mime_type, tamanho_bytes, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [
+          nome.trim(),
+          descricao || null,
+          tema || null,
+          tags || null,
+          url,
+          file.originalname,
+          file.mimetype,
+          file.size,
+          userId ? String(userId) : null,
+        ]
+      );
+      res.status(201).json(row);
+    } catch (error: any) {
+      console.error('[RH] criarTreinamentoMaterial:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async atualizarTreinamentoMaterial(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { nome, descricao, tema, tags } = req.body;
+      const [row] = await AppDataSource.query(
+        `UPDATE rh_treinamentos_materiais SET
+           nome = COALESCE($1, nome),
+           descricao = COALESCE($2, descricao),
+           tema = COALESCE($3, tema),
+           tags = COALESCE($4, tags),
+           updated_at = NOW()
+         WHERE id = $5 RETURNING *`,
+        [nome || null, descricao || null, tema || null, tags || null, id]
+      );
+      if (!row) return res.status(404).json({ error: 'Material nao encontrado' });
+      res.json(row);
+    } catch (error: any) {
+      console.error('[RH] atualizarTreinamentoMaterial:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async deletarTreinamentoMaterial(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      // Soft delete (mantem o arquivo no MinIO pra eventuais auditorias)
+      const [row] = await AppDataSource.query(
+        `UPDATE rh_treinamentos_materiais SET ativo = false, updated_at = NOW() WHERE id = $1 RETURNING id`,
+        [id]
+      );
+      if (!row) return res.status(404).json({ error: 'Material nao encontrado' });
+      res.json({ message: 'Material deletado' });
+    } catch (error: any) {
+      console.error('[RH] deletarTreinamentoMaterial:', error);
+      res.status(500).json({ error: error.message });
     }
   }
 
