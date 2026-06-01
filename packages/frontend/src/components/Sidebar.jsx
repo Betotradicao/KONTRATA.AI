@@ -610,10 +610,20 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
             }
             return true;
           }).map(subitem => {
-            // Se tem subItems, filtrar baseado em permissões de submenu
-            if (subitem.subItems && user?.type === 'employee' && subitem.moduleId) {
+            // Filtrar subItems por isModuleActive (respeita modules_config + visibilityMode)
+            // e por hasPermission (employees so veem o que tem acesso)
+            if (subitem.subItems) {
               const filteredSubItems = subitem.subItems.filter(subSubItem => {
-                return hasPermission(subitem.moduleId, subSubItem.submenuId || subSubItem.id);
+                // Modo TOTALMENTE INVISIVEL: oculta sub-subitens inativos
+                if (visibilityMode === 'hidden') {
+                  const ssKey = subSubItem.moduleId || subSubItem.id;
+                  if (ssKey && !isModuleActive(ssKey)) return false;
+                }
+                // Permissoes de employee
+                if (user?.type === 'employee' && subitem.moduleId) {
+                  return hasPermission(subitem.moduleId, subSubItem.submenuId || subSubItem.id);
+                }
+                return true;
               });
               return { ...subitem, subItems: filteredSubItems };
             }
