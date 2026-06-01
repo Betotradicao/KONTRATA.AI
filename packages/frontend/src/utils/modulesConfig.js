@@ -130,6 +130,7 @@ const PARENT_OF = {
   'rh-metodo-disc':          'rh-recrutamento',
   'rh-curriculo-modelo':     'rh-recrutamento',
   'rh-curriculo-banco':      'rh-recrutamento',
+  'rh-entrevistas-ia':       'rh-recrutamento',
   'rh-clima-analise':        'rh-pesquisa-clima',
   'rh-clima-criar':          'rh-pesquisa-clima',
   'rh-cadastro-treinamento': 'rh-treinamentos',

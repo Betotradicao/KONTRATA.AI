@@ -26,6 +26,7 @@ const SECTIONS = [
         { id: 'rh-metodo-disc', name: 'Método DISC' },
         { id: 'rh-curriculo-modelo', name: 'Modelo de Currículo' },
         { id: 'rh-curriculo-banco', name: 'Banco de Currículos' },
+        { id: 'rh-entrevistas-ia', name: 'Entrevistas Realizadas I.A' },
       ]},
       { id: 'rh-pesquisa-clima', name: 'Pesquisa de Clima', icon: '😊', subs: [
         { id: 'rh-clima-analise', name: 'Análise Pesquisas' },
