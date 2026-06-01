@@ -1,24 +1,32 @@
 # 🚧 Trabalho em Andamento
 
-## Sessão 2026-05-28 — CONCLUÍDA ✅
+## Sessão 30-31/05/2026 — Agente IA de Escala (Etapas 1 e 2 concluídas)
 
-### Ficha de Admissão (fluxo completo validado em prod)
-- Bug crítico do `criarColaborador` corrigido (commit `b302fab`) — agora copia escala, regime, departamento, escolaridade da ficha. Validado com Roberto (colab id=100 no Tradição).
-- Conta Salário não some mais após cadastrar colaborador (commit `5668f48`).
+### ✅ Entregue (commit `e7d410a` pushado pro origin/KONTRATAAI)
+- **Agente conversacional** no chat da Escala com persona/regras/saudação configuráveis em `Configurações de REDE → IA → Agente de Escala`
+- **Vault de Memória** (`rh_escala_memoria`): notas markdown estilo Obsidian, auto-save pelo agente, tags, backlinks `[[ref]]`
+- **Function calling via bloco ```executar`**: 4 ações ativas — `pre_preencher_mes`, `mudar_tipo_escala`, `lancar_turno_em_dia`, `limpar_dia`
+- **Validação por senha bcrypt** do usuário logado + cache 5min (banner verde 🔓 / amarelo 🔐)
+- **Auditoria** `rh_escala_agente_acoes` com ANTES/DEPOIS pra rollback futuro
+- **GPT-5/5-mini/5.2** suportados (usa `max_completion_tokens` em vez de `max_tokens`)
+- **Importar arquivo** no chat: PDF/Excel/imagem via Vision pro agente analisar escalas antigas
+- **Agente Recrutador embedded** na mesma aba de Configurações (remove header roxo quando embedded)
+- **Vault de Dados acessíveis**: tela transparência LGPD listando tabelas/campos que o agente vê
 
-### Doc Advertência (DOCS ADVERTÊNCIA, fase 4)
-- Seed do doc padronizado "Advertência" (commit `fc00866`)
-- Painel CRUD inline dos Motivos abaixo do editor (commit `43ed4f2` + ajustes `25cc5ba`/`51f1fad`/`754215c`)
-- Doc imprime em 1 folha A4 (commit `2e5d7d7`) — layout compacto detectado pelo título (`/advert/i`), só afeta Advertência. Filtro de parágrafos vazios em `buildConteudoHtml` beneficia todos.
+### 🔜 Próxima sessão — Etapa 3
+- [ ] Adicionar ações: `programar_ferias(colab, inicio, fim)`, `lancar_atestado(colab, dias, motivo)`, `criar_excecao(colab, data, tipo)`
+- [ ] Botão **"Desfazer última ação"** no chat — usa snapshot ANTES gravado em `rh_escala_agente_acoes`
+- [ ] Tela de **histórico de ações do agente** — quem pediu, o quê, quando, status, undo
+- [ ] (Futuro) Operations Research solver Python + OR-Tools pra geração automática completa
 
-### Pesquisa de Clima — bug encontrado e corrigido
-- `rating_5_matriz` (matriz de critérios) deixava enviar com critérios em branco — objeto com 1 chave passava como "respondido". Fix em [PesquisaPublica.jsx:39](packages/frontend/src/pages/PesquisaPublica.jsx#L39) valida que todos os `cfg.criterios` têm valor. Commit `c29430f`.
+### 🧠 Decisões da sessão
+- Persona vai pro system prompt (**afeta como pensa**), saudação é separada (**só recepção no chat**)
+- Agente salva memórias **sozinho** via bloco ` ```save-memoria` (não via botão)
+- Senha exigida **sempre** pra ações destrutivas, cache 5min depois
+- "GRID MENSAL" renomeado pra "ESCALA MENSAL"; itens removidos da sidebar: Memória do Agente, Recrutador IA, Férias/Licenças
+- Agente NÃO aprende sozinho — memória é simulada via Vault (mesmo princípio do ChatGPT Memory / Claude Projects)
 
-### Deploy
-- Advertência subiu em: **Tradição, Guibox, NovaCentral, Fratelli** (todos com migration rodada + seed confirmado no DB)
-- Re-deploy Tradição rodando em background pra pegar fix da pesquisa (`c29430f`)
-- **Nunes não tem Kontrata.ai** (só Prevenção no Radar) — fora do escopo
-
-### Estado do git
-- Branch `KONTRATAAI` em sync com remote
-- Último commit: `c29430f` (fix pesquisa matriz)
+### 📂 Arquivos-chave criados
+- Backend: `rh-escala.controller.ts` (chatAgenteEscala, executarAcaoAgente, validarSenhaAgente, analisarArquivoAgente), `rh-escala-memoria.controller.ts`
+- Frontend: `AgenteEscalaConfig.jsx`, `AgenteEscalaDados.jsx`, `AgenteRecrutadorConfig.jsx`, `RhEscalaMemoria.jsx`, `RhEntrevistasIA.jsx`, `RhEscalaRegrasSetor.jsx`
+- Migrations: 1785180000000 (memoria), 1785190000000 (agente_config), 1785200000000 (saudacao), 1785210000000 (acoes)
