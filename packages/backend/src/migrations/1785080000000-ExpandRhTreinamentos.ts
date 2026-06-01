@@ -14,8 +14,18 @@ export class ExpandRhTreinamentos1785080000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // rh_empresas.id é UUID — empresa_id precisa ser do mesmo tipo (FK não
     // implementável se os tipos divergem).
+    // Inclui colunas basicas (data_inicio, data_fim, etc) pra clientes que
+    // foram criados em snapshots antigos onde a tabela so tinha id/nome.
     await queryRunner.query(`
       ALTER TABLE rh_treinamentos
+      ADD COLUMN IF NOT EXISTS data_inicio DATE NULL,
+      ADD COLUMN IF NOT EXISTS data_fim DATE NULL,
+      ADD COLUMN IF NOT EXISTS local VARCHAR(255) NULL,
+      ADD COLUMN IF NOT EXISTS carga_horaria INTEGER NULL,
+      ADD COLUMN IF NOT EXISTS instrutor VARCHAR(255) NULL,
+      ADD COLUMN IF NOT EXISTS vagas_total INTEGER NULL,
+      ADD COLUMN IF NOT EXISTS observacoes TEXT NULL,
+      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'AGENDADO',
       ADD COLUMN IF NOT EXISTS empresa_id UUID NULL REFERENCES rh_empresas(id) ON DELETE SET NULL,
       ADD COLUMN IF NOT EXISTS local_tipo VARCHAR(10) NULL,
       ADD COLUMN IF NOT EXISTS hora_inicio TIME NULL,
