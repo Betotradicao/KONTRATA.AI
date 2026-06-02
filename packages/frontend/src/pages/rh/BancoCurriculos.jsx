@@ -628,6 +628,9 @@ export function DetalheCV({
   const st = STATUS_LABEL[cv.status] || STATUS_LABEL.novo;
   const salvarObs = () => onAtualizarObs(obs);
 
+  // === Foto expandida ao clicar ===
+  const [showFotoZoom, setShowFotoZoom] = useState(false);
+
   // === Migrar Loja ===
   const [showMigrarLoja, setShowMigrarLoja] = useState(false);
   const [lojasDisponiveis, setLojasDisponiveis] = useState([]);
@@ -685,7 +688,7 @@ export function DetalheCV({
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 sm:p-4" onClick={onFechar}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[95vh] min-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[95vh] min-h-[80vh] overflow-hidden flex flex-col area-imprimir-curriculo" onClick={e => e.stopPropagation()}>
         {/* Barra de ações do RH */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white p-4 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -697,7 +700,19 @@ export function DetalheCV({
             )}
             <span className="text-sm opacity-90">Recebido em {new Date(cv.created_at).toLocaleString('pt-BR')}</span>
           </div>
-          <button onClick={onFechar} className="text-white/80 hover:text-white text-3xl font-bold leading-none">×</button>
+          <div className="flex items-center gap-2 print:hidden">
+            <button
+              onClick={() => {
+                document.body.classList.add('printing-curriculo');
+                setTimeout(() => { window.print(); setTimeout(() => document.body.classList.remove('printing-curriculo'), 500); }, 100);
+              }}
+              title="Imprimir currículo em PDF"
+              className="bg-white/15 hover:bg-white/30 text-white text-sm font-bold px-3 py-1.5 rounded-lg border border-white/30 flex items-center gap-1.5"
+            >
+              🖨️ PDF
+            </button>
+            <button onClick={onFechar} className="text-white/80 hover:text-white text-3xl font-bold leading-none">×</button>
+          </div>
         </div>
 
         {/* CV — Layout 2 colunas (igual modelo Maria Sá Vieira) */}
@@ -709,7 +724,9 @@ export function DetalheCV({
               {/* Foto */}
               <div className="flex justify-center">
                 {cv.foto_url ? (
-                  <img src={cv.foto_url} alt="" className="w-36 h-36 rounded-full object-cover border-4 border-white/20" />
+                  <img src={cv.foto_url} alt="" onClick={() => setShowFotoZoom(true)}
+                    title="Clique pra ampliar"
+                    className="w-36 h-36 rounded-full object-cover border-4 border-white/20 cursor-zoom-in hover:border-white/60 transition" />
                 ) : (
                   <div className="w-36 h-36 rounded-full bg-slate-600 text-slate-300 flex items-center justify-center text-5xl font-bold border-4 border-white/20">
                     {cv.nome?.charAt(0).toUpperCase() || '?'}
@@ -1006,6 +1023,59 @@ export function DetalheCV({
           </div>
         </div>
       </div>
+
+      {/* Foto ampliada (clicar no avatar) */}
+      {showFotoZoom && cv.foto_url && (
+        <div className="fixed inset-0 bg-black/85 z-[70] flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setShowFotoZoom(false)}>
+          <img src={cv.foto_url} alt={cv.nome}
+            className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" />
+          <button onClick={() => setShowFotoZoom(false)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white text-5xl leading-none">×</button>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full">
+            {cv.nome}
+          </div>
+        </div>
+      )}
+
+      {/* CSS print: imprime SO o conteudo do modal usando visibility (nao display)
+          pra preservar a hierarquia React. Forca grid 2 colunas + cores
+          de fundo (slate-800 do aside) usando print-color-adjust: exact */}
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 0; }
+          html, body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body.printing-curriculo * { visibility: hidden !important; }
+          body.printing-curriculo .area-imprimir-curriculo,
+          body.printing-curriculo .area-imprimir-curriculo * { visibility: visible !important; }
+          body.printing-curriculo .area-imprimir-curriculo {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 100vh !important;
+            max-height: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+            display: block !important;
+          }
+          /* Forca o grid 2 colunas igual desktop (Tailwind md: nao ativa no print) */
+          body.printing-curriculo .area-imprimir-curriculo .grid {
+            display: grid !important;
+            grid-template-columns: 280px 1fr !important;
+          }
+          /* Garante que a aside escura imprime com fundo (Chrome respeita print-color-adjust) */
+          body.printing-curriculo .area-imprimir-curriculo aside {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          /* Permite o conteudo fluir entre paginas */
+          body.printing-curriculo .area-imprimir-curriculo .flex-1 { overflow: visible !important; }
+          body.printing-curriculo .print\\:hidden { display: none !important; }
+        }
+      `}</style>
 
       {/* Modal: Migrar Loja */}
       {showMigrarLoja && (
