@@ -307,26 +307,27 @@ export default function RhVagas() {
     }
   };
 
+  // Adiciona candidato pela vaga como INTERESSADO (status local "novo")
+  // — NAO mais como selecionado. Soh adiciona o vaga.id ao vagas_interesse_ids
+  // do curriculo. O RH ainda precisa clicar "Selecionar" depois pra escolher.
   const adicionarSelecionadoNaLinha = async (vaga) => {
     const buscaId = buscaCurriculoIdLinha[vaga.id] || '';
     const idNum = parseInt(String(buscaId).replace(/\D/g, ''), 10);
     if (!idNum) { toast.error('Informe o numero do curriculo'); return; }
-    const sels = Array.isArray(vaga.selecionados) ? vaga.selecionados : [];
-    if (sels.some(s => Number(s.curriculo_id) === idNum)) {
-      toast.error('Esse candidato ja esta na lista'); return;
-    }
     try {
       setAdicionandoLinha(true);
-      const resp = await api.get(`/curriculos/${idNum}`);
-      const data = resp?.data?.curriculo || resp?.data;
-      if (!data || !data.id) { toast.error('Curriculo nao encontrado'); return; }
-      await persistirSelecionadosVaga(vaga, [...sels, novoSelecionado(data)]);
+      const resp = await api.post(`/rh/vagas/${vaga.id}/adicionar-interesse`, { curriculo_id: idNum });
+      if (resp.data?.ja_estava) {
+        toast.error(`${resp.data.nome} ja estava nesta vaga`);
+      } else {
+        toast.success(`${resp.data?.nome || 'Candidato'} adicionado como interessado`);
+      }
       setBuscaCurriculoIdLinha(prev => ({ ...prev, [vaga.id]: '' }));
-      toast.success(`${data.nome} adicionado`);
+      await fetchAll();
     } catch (err) {
       const status = err?.response?.status;
       if (status === 404) toast.error('Curriculo nao encontrado');
-      else toast.error('Erro ao buscar curriculo');
+      else toast.error('Erro: ' + (err?.response?.data?.error || err.message));
     } finally {
       setAdicionandoLinha(false);
     }

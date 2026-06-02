@@ -477,7 +477,7 @@ export class CurriculosController {
   static async atualizarCurriculo(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const { status, avaliacao_rh, observacao_rh } = req.body;
+      const { status, avaliacao_rh, observacao_rh, cod_loja } = req.body;
       const repo = AppDataSource.getRepository(Curriculo);
       const cv = await repo.findOne({ where: { id } });
       if (!cv) return res.status(404).json({ success: false, error: 'Curriculo nao encontrado' });
@@ -496,6 +496,10 @@ export class CurriculosController {
         cv.avaliacao_rh = isNaN(n) ? null : Math.max(0, Math.min(5, n));
       }
       if (observacao_rh !== undefined) cv.observacao_rh = observacao_rh || null;
+      // Migrar curriculo de loja (botao "Migrar Loja" no modal de detalhe)
+      if (cod_loja !== undefined) {
+        cv.cod_loja = cod_loja != null && cod_loja !== '' ? Number(cod_loja) : null;
+      }
       await repo.save(cv);
       res.json({ success: true, curriculo: cv });
     } catch (e: any) {

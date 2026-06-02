@@ -1185,11 +1185,27 @@ export class RhController {
                     'email', c.email,
                     'cidade', c.cidade,
                     'created_at', c.created_at,
-                    'status', c.status,
+                    -- status_local: status DENTRO desta vaga (nao o global do curriculo).
+                    -- - 'contratado' se esta em v.selecionados com contratado=true
+                    -- - 'selecionado' se esta em v.selecionados (sem contratado)
+                    -- - 'novo' caso contrario (ignora status global do curriculo)
+                    'status', CASE
+                      WHEN EXISTS (
+                        SELECT 1 FROM jsonb_array_elements(COALESCE(v.selecionados, '[]'::jsonb)) sel
+                        WHERE (sel->>'curriculo_id')::int = c.id AND (sel->>'contratado')::boolean = true
+                      ) THEN 'contratado'
+                      WHEN EXISTS (
+                        SELECT 1 FROM jsonb_array_elements(COALESCE(v.selecionados, '[]'::jsonb)) sel
+                        WHERE (sel->>'curriculo_id')::int = c.id
+                      ) THEN 'selecionado'
+                      ELSE 'novo'
+                    END,
+                    'status_global', c.status,
                     'foto_url', c.foto_url
                   ) ORDER BY c.created_at DESC)
                    FROM curriculos c
-                   WHERE c.vagas_interesse_ids @> jsonb_build_array(v.id)),
+                   WHERE c.vagas_interesse_ids @> jsonb_build_array(v.id)
+                  ),
                   '[]'::json
                 ) AS interessados
          FROM rh_vagas v
@@ -1240,6 +1256,39 @@ export class RhController {
     } catch (error) {
       console.error('Update vaga error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  // POST /rh/vagas/:vagaId/adicionar-interesse
+  // Adiciona um curriculo como INTERESSADO (status local "novo") na vaga, via
+  // botao "Adicionar do Banco" da tela Vagas. Adiciona o vaga.id ao
+  // vagas_interesse_ids do curriculo — NAO mexe em selecionados (entao o status
+  // local na vaga fica "novo" ate o RH clicar Selecionar).
+  static async adicionarInteresseVaga(req: AuthRequest, res: Response) {
+    try {
+      const vagaId = parseInt(req.params.vagaId);
+      const { curriculo_id } = req.body;
+      if (!curriculo_id) return res.status(400).json({ error: 'curriculo_id obrigatorio' });
+
+      const [vaga] = await AppDataSource.query(`SELECT id FROM rh_vagas WHERE id = $1`, [vagaId]);
+      if (!vaga) return res.status(404).json({ error: 'Vaga nao encontrada' });
+
+      const [cv] = await AppDataSource.query(`SELECT id, nome, vagas_interesse_ids FROM curriculos WHERE id = $1`, [curriculo_id]);
+      if (!cv) return res.status(404).json({ error: 'Curriculo nao encontrado' });
+
+      const atual: number[] = Array.isArray(cv.vagas_interesse_ids) ? cv.vagas_interesse_ids : [];
+      if (atual.includes(vagaId)) {
+        return res.json({ success: true, ja_estava: true, nome: cv.nome });
+      }
+      const novo = [...atual, vagaId];
+      await AppDataSource.query(
+        `UPDATE curriculos SET vagas_interesse_ids = $1::jsonb WHERE id = $2`,
+        [JSON.stringify(novo), curriculo_id]
+      );
+      res.json({ success: true, nome: cv.nome });
+    } catch (e: any) {
+      console.error('[Rh] adicionarInteresseVaga:', e);
+      res.status(500).json({ error: e.message });
     }
   }
 

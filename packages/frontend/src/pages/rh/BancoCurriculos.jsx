@@ -628,6 +628,41 @@ export function DetalheCV({
   const st = STATUS_LABEL[cv.status] || STATUS_LABEL.novo;
   const salvarObs = () => onAtualizarObs(obs);
 
+  // === Migrar Loja ===
+  const [showMigrarLoja, setShowMigrarLoja] = useState(false);
+  const [lojasDisponiveis, setLojasDisponiveis] = useState([]);
+  const [lojaDestino, setLojaDestino] = useState('');
+  const [migrando, setMigrando] = useState(false);
+
+  useEffect(() => {
+    if (!showMigrarLoja) return;
+    api.get('/rh/empresas')
+      .then(r => {
+        const arr = Array.isArray(r.data) ? r.data : (r.data?.data || []);
+        setLojasDisponiveis(arr);
+      })
+      .catch(() => {});
+  }, [showMigrarLoja]);
+
+  const migrarLoja = async () => {
+    if (!lojaDestino) { alert('Selecione uma loja de destino'); return; }
+    if (String(lojaDestino) === String(cv.cod_loja)) { alert('Selecione uma loja DIFERENTE da atual'); return; }
+    setMigrando(true);
+    try {
+      await api.put(`/curriculos/${cv.id}`, { cod_loja: parseInt(lojaDestino) });
+      const loja = lojasDisponiveis.find(l => String(l.codLoja ?? l.cod_loja) === String(lojaDestino));
+      const nomeLoja = loja?.apelido || loja?.nomeFantasia || loja?.nome_fantasia || `Loja ${lojaDestino}`;
+      alert(`✅ ${cv.nome} migrada para: ${nomeLoja}`);
+      setShowMigrarLoja(false);
+      setLojaDestino('');
+      onFechar?.();
+    } catch (e) {
+      alert('❌ Erro: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setMigrando(false);
+    }
+  };
+
   // Busca entrevistas IA (pré-entrevista) deste candidato
   useEffect(() => {
     if (!cv?.id) return;
@@ -965,11 +1000,54 @@ export function DetalheCV({
             })}
           </div>
           <div className="flex gap-2">
+            <button onClick={() => setShowMigrarLoja(true)} className="text-sm px-4 py-2 border-2 border-purple-200 text-purple-700 rounded-lg font-bold hover:bg-purple-50">🔄 Migrar Loja</button>
             <button onClick={onExcluir} className="text-sm px-4 py-2 border-2 border-red-200 text-red-600 rounded-lg font-bold hover:bg-red-50">🗑️ Excluir</button>
             <button onClick={onFechar} className="text-sm px-4 py-2 bg-gray-200 rounded-lg font-bold hover:bg-gray-300">Fechar</button>
           </div>
         </div>
       </div>
+
+      {/* Modal: Migrar Loja */}
+      {showMigrarLoja && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={() => !migrando && setShowMigrarLoja(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 rounded-t-xl">
+              <h3 className="font-bold text-lg">🔄 Migrar candidata pra outra loja</h3>
+              <p className="text-xs opacity-90 mt-0.5">{cv.nome}</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                ℹ️ Isso muda a <strong>loja de origem</strong> do currículo no banco. A candidata vai sumir do filtro da loja atual e aparecer no filtro da loja escolhida.
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Loja atual</label>
+                <input value={`Loja ${cv.cod_loja ?? '—'}`} readOnly className="w-full bg-gray-50 border-2 border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Migrar para *</label>
+                <select value={lojaDestino} onChange={e => setLojaDestino(e.target.value)}
+                  className="w-full border-2 border-purple-300 focus:border-purple-500 rounded-lg px-3 py-2 text-sm outline-none">
+                  <option value="">Selecione a loja de destino...</option>
+                  {lojasDisponiveis
+                    .filter(l => (l.codLoja ?? l.cod_loja) != null && String(l.codLoja ?? l.cod_loja) !== String(cv.cod_loja))
+                    .map(l => (
+                      <option key={l.id ?? l.codLoja ?? l.cod_loja} value={l.codLoja ?? l.cod_loja}>
+                        Loja {l.codLoja ?? l.cod_loja} - {l.apelido || l.nomeFantasia || l.nome_fantasia || `Loja ${l.id}`}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button onClick={() => setShowMigrarLoja(false)} disabled={migrando} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded font-semibold">Cancelar</button>
+                <button onClick={migrarLoja} disabled={migrando || !lojaDestino}
+                  className="px-5 py-2 text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 text-white rounded-lg shadow">
+                  {migrando ? '⏳ Migrando...' : '🚀 Confirmar migração'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
