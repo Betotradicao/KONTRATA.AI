@@ -37,5 +37,6 @@ router.post('/rodadas', PesquisaClimaController.criarRodada);
 router.put('/rodadas/:id', PesquisaClimaController.atualizarRodada);
 router.delete('/rodadas/:id', PesquisaClimaController.deletarRodada);
 router.get('/rodadas/:id/dashboard', PesquisaClimaController.dashboardRodada);
+router.get('/rodadas/:id/analise-ia', PesquisaClimaController.analiseIaRodada);
 
 export default router;

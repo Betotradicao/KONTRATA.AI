@@ -7,12 +7,20 @@ import api from '../utils/api';
 // antes de responder, entao tudo que voce salvar aqui ele "lembra".
 
 const TIPOS = [
-  { key: 'colaborador', label: 'Colaboradores', icon: '👤', cor: 'indigo' },
-  { key: 'setor',       label: 'Setores',       icon: '🏪', cor: 'amber' },
-  { key: 'regra',       label: 'Regras',        icon: '📋', cor: 'emerald' },
-  { key: 'padrao',      label: 'Padrões',       icon: '🎯', cor: 'purple' },
-  { key: 'outro',       label: 'Outros',        icon: '📝', cor: 'gray' },
+  { key: 'cct_sindicato',        label: 'CCT / Sindicato',    icon: '⚖️', cor: 'red' },
+  { key: 'acordo_coletivo',      label: 'Acordo Coletivo',    icon: '🤝', cor: 'rose' },
+  { key: 'escala_historica',     label: 'Escalas Antigas',    icon: '📅', cor: 'blue' },
+  { key: 'regulamento_interno',  label: 'Regulamento',        icon: '📜', cor: 'orange' },
+  { key: 'restricao_colaborador', label: 'Restrições',        icon: '🩺', cor: 'pink' },
+  { key: 'colaborador',          label: 'Colaboradores',      icon: '👤', cor: 'indigo' },
+  { key: 'setor',                label: 'Setores',            icon: '🏪', cor: 'amber' },
+  { key: 'regra',                label: 'Regras',             icon: '📋', cor: 'emerald' },
+  { key: 'padrao',               label: 'Padrões',            icon: '🎯', cor: 'purple' },
+  { key: 'outro',                label: 'Outros',             icon: '📝', cor: 'gray' },
 ];
+
+// Tipos onde aceitamos upload de arquivo pra IA interpretar
+const TIPOS_UPLOAD = ['cct_sindicato', 'acordo_coletivo', 'escala_historica', 'regulamento_interno', 'restricao_colaborador'];
 
 function slugify(s) {
   return (s || '')
@@ -115,6 +123,33 @@ export default function RhEscalaMemoria() {
   const [form, setForm] = useState({ titulo: '', tipo: 'outro', tags: '', conteudo: '' });
   const [novoModal, setNovoModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadTipo, setUploadTipo] = useState('cct_sindicato');
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadProcessando, setUploadProcessando] = useState(false);
+  const [uploadResultado, setUploadResultado] = useState(null);
+
+  const handleUploadDoc = async () => {
+    if (!uploadFile) { alert('Selecione um arquivo'); return; }
+    setUploadProcessando(true); setUploadResultado(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', uploadFile);
+      fd.append('tipo', uploadTipo);
+      if (empresaId) fd.append('empresaId', empresaId);
+      const { data } = await api.post('/rh/escala/memoria/upload-doc', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000,
+      });
+      setUploadResultado(data);
+      // Recarrega lista
+      carregarLista();
+    } catch (e) {
+      alert('❌ Falha: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setUploadProcessando(false);
+    }
+  };
 
   useEffect(() => {
     api.get('/rh/empresas').then(r => {
@@ -256,12 +291,21 @@ export default function RhEscalaMemoria() {
             <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
               <span>🧠</span> Vault do Agente
             </h2>
-            <button
-              onClick={() => novaNota('outro')}
-              className="text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
-            >
-              + Nova
-            </button>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setShowUploadModal(true)}
+                title="Subir documento (PDF/Excel/Foto) — IA lê e estrutura"
+                className="text-xs px-2 py-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded hover:from-pink-600 hover:to-rose-600 font-bold shadow"
+              >
+                📎 Subir
+              </button>
+              <button
+                onClick={() => novaNota('outro')}
+                className="text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                + Nova
+              </button>
+            </div>
           </div>
           <select
             value={empresaId}
@@ -496,6 +540,151 @@ export default function RhEscalaMemoria() {
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setNovoModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
               <button onClick={salvarNova} className="px-4 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700">Criar nota</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Modal de Upload de Documento ===== */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => !uploadProcessando && setShowUploadModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white p-5 flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-lg">📎 Ensinar o agente</h2>
+                <p className="text-xs opacity-90">Suba documentos (PDF/Excel/Foto). A IA lê, estrutura e o HELLEN passa a usar.</p>
+              </div>
+              {!uploadProcessando && (
+                <button onClick={() => setShowUploadModal(false)} className="text-3xl leading-none opacity-90 hover:opacity-100">×</button>
+              )}
+            </div>
+
+            <div className="p-5 space-y-4">
+              {!uploadResultado && (
+                <>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">1. Que tipo de documento é?</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {TIPOS.filter(t => TIPOS_UPLOAD.includes(t.key)).map(t => (
+                        <button
+                          key={t.key}
+                          onClick={() => setUploadTipo(t.key)}
+                          className={`flex items-start gap-2 p-3 rounded-lg border-2 text-left transition ${
+                            uploadTipo === t.key
+                              ? 'border-pink-500 bg-pink-50'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }`}
+                        >
+                          <span className="text-2xl">{t.icon}</span>
+                          <div>
+                            <div className="font-bold text-sm text-gray-800">{t.label}</div>
+                            <div className="text-[11px] text-gray-500">
+                              {t.key === 'cct_sindicato' && 'Convenção Coletiva do sindicato — extrai jornada, intervalos, adicionais'}
+                              {t.key === 'acordo_coletivo' && 'Acordo coletivo específico empresa-sindicato'}
+                              {t.key === 'escala_historica' && 'Escalas antigas (PDF/Excel/foto) — IA aprende o padrão'}
+                              {t.key === 'regulamento_interno' && 'Regras internas (ex: açougueiro não trabalha domingo)'}
+                              {t.key === 'restricao_colaborador' && 'Atestados / restrições específicas de um colaborador'}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">2. Escolha o arquivo</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                      className="block w-full text-sm text-gray-700 file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-pink-100 file:text-pink-700 file:font-semibold hover:file:bg-pink-200 cursor-pointer"
+                    />
+                    {uploadFile && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        📄 {uploadFile.name} ({(uploadFile.size / 1024).toFixed(0)} KB)
+                      </p>
+                    )}
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      PDF, Excel, CSV ou foto (PNG/JPG). Máximo 30 MB. Fotos escaneadas são lidas via GPT-4o Vision.
+                    </p>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                    🤖 <strong>O que vai acontecer:</strong> a IA vai extrair o conteúdo, estruturar nos campos certos (jornada, intervalos, adicionais...) e salvar como uma nota no Vault. O HELLEN passa a consultar isso automaticamente toda vez que gerar ou validar uma escala.
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3 border-t">
+                    <button onClick={() => setShowUploadModal(false)} disabled={uploadProcessando} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+                    <button
+                      onClick={handleUploadDoc}
+                      disabled={!uploadFile || uploadProcessando}
+                      className="px-5 py-2 text-sm font-bold bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 text-white rounded-lg shadow"
+                    >
+                      {uploadProcessando ? '⏳ Processando (~30s)...' : '🚀 Enviar pra IA'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {uploadResultado && (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-4 text-center">
+                    <div className="text-5xl mb-2">✅</div>
+                    <p className="font-bold text-emerald-900">Documento processado!</p>
+                    <p className="text-xs text-emerald-700 mt-1">
+                      Extraído via <strong>{uploadResultado.meta?.fonte_extracao}</strong> ·
+                      {uploadResultado.meta?.chars_extraidos} caracteres
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold uppercase text-gray-500 mb-1">Nota criada no Vault</p>
+                    <p className="font-semibold text-gray-800">{uploadResultado.memoria?.titulo}</p>
+                    {uploadResultado.memoria?.tags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {uploadResultado.memoria.tags.map((tag, i) => (
+                          <span key={i} className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {uploadResultado.estrutura && Object.keys(uploadResultado.estrutura).length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold uppercase text-gray-500 mb-1">Dados estruturados extraídos</p>
+                      <pre className="bg-gray-50 border rounded-lg p-3 text-xs overflow-x-auto max-h-60">
+                        {JSON.stringify(uploadResultado.estrutura, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-3 border-t">
+                    <button
+                      onClick={() => {
+                        setUploadFile(null);
+                        setUploadResultado(null);
+                      }}
+                      className="px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded font-semibold"
+                    >
+                      📎 Subir outro
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUploadModal(false);
+                        setUploadFile(null);
+                        setUploadResultado(null);
+                        // Abre a nota recém-criada
+                        if (uploadResultado.memoria?.slug) {
+                          setSearchParams({ nota: uploadResultado.memoria.slug });
+                        }
+                      }}
+                      className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold"
+                    >
+                      ✅ Concluir
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

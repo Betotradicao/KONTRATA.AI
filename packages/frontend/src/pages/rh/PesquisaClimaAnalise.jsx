@@ -16,6 +16,8 @@ export default function PesquisaClimaAnalise() {
   const [novaRodadaNome, setNovaRodadaNome] = useState('');
   const [novaRodadaDepto, setNovaRodadaDepto] = useState('');
   const [dashRodada, setDashRodada] = useState(null);
+  const [feedbackIA, setFeedbackIA] = useState(null);
+  const [gerandoFeedback, setGerandoFeedback] = useState(false);
 
   // Filtro global por empresa (loja). Cada pesquisa fica segmentada por loja.
   const [empresas, setEmpresas] = useState([]);
@@ -136,6 +138,31 @@ export default function PesquisaClimaAnalise() {
     } catch (e) { toast.error('Erro ao abrir dashboard'); }
   };
 
+  // Feedback IA — análise IA da rodada com pontos fortes/fracos, SWOT e plano de ação
+  const verFeedbackIA = async (r) => {
+    if (gerandoFeedback) return;
+    setGerandoFeedback(true);
+    setFeedbackIA({ loading: true, rodada: r });
+    try {
+      const resp = await api.get(`/pesquisa-clima/rodadas/${r.id}/analise-ia`, { timeout: 240000 });
+      setFeedbackIA(resp.data);
+    } catch (e) {
+      toast.error('Erro: ' + (e.response?.data?.error || e.message));
+      setFeedbackIA(null);
+    } finally {
+      setGerandoFeedback(false);
+    }
+  };
+
+  const imprimirFeedback = () => {
+    // Adiciona classe pra ativar regras de print CSS
+    document.body.classList.add('printing-feedback-ia');
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.body.classList.remove('printing-feedback-ia'), 500);
+    }, 100);
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
@@ -165,7 +192,9 @@ export default function PesquisaClimaAnalise() {
         </div>
 
         <div className="p-4 md:p-6">
-          {dashRodada ? (
+          {feedbackIA ? (
+            <FeedbackIA data={feedbackIA} voltar={() => setFeedbackIA(null)} imprimir={imprimirFeedback} />
+          ) : dashRodada ? (
             <DashboardRodada data={dashRodada} voltar={() => setDashRodada(null)} />
           ) : !modeloAberto ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -316,6 +345,11 @@ export default function PesquisaClimaAnalise() {
                     <button onClick={() => verDashboard(r)} disabled={r.total_respostas === 0}
                       className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded text-sm font-bold disabled:opacity-50">
                       📊 Dashboard
+                    </button>
+                    <button onClick={() => verFeedbackIA(r)} disabled={r.total_respostas === 0 || gerandoFeedback}
+                      title="HELLEN analisa as respostas e devolve pontos fortes, fracos, SWOT e plano de ação"
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-3 py-1.5 rounded text-sm font-bold disabled:opacity-50 shadow">
+                      🤖 Feedback I.A.
                     </button>
                     <button onClick={() => excluirRodada(r)}
                       className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded text-sm">🗑️</button>
@@ -660,6 +694,246 @@ function Card({ label, value, cor }) {
     <div className={`rounded-lg border p-3 text-center ${cores[cor]}`}>
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-xs uppercase font-semibold">{label}</div>
+    </div>
+  );
+}
+
+// ============================================================
+// 🤖 FEEDBACK IA — análise completa da rodada com SWOT + plano de ação
+// ============================================================
+function FeedbackIA({ data, voltar, imprimir }) {
+  if (data?.loading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
+        <div className="text-6xl mb-4 animate-pulse">🤖</div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">HELLEN está analisando...</h2>
+        <p className="text-gray-500 text-sm">Pode levar até 1 minuto. Lendo {data.rodada?.total_respostas || ''} respostas, identificando padrões e gerando plano de ação.</p>
+      </div>
+    );
+  }
+
+  const { rodada, analise, gerado_em } = data;
+  if (!analise) return null;
+
+  const corPrioridade = {
+    urgente: 'bg-red-100 text-red-800 border-red-300',
+    alta: 'bg-orange-100 text-orange-800 border-orange-300',
+    media: 'bg-amber-100 text-amber-800 border-amber-300',
+    baixa: 'bg-slate-100 text-slate-700 border-slate-300',
+  };
+  const corSeveridade = {
+    alta: 'border-red-400 bg-red-50',
+    media: 'border-amber-400 bg-amber-50',
+    baixa: 'border-slate-300 bg-slate-50',
+  };
+
+  return (
+    <div className="space-y-4 feedback-ia-print">
+      {/* Cabeçalho c/ ações (escondido na impressão) */}
+      <div className="flex items-center justify-between print:hidden">
+        <button onClick={voltar} className="text-purple-700 hover:underline font-semibold">← Voltar</button>
+        <button onClick={imprimir} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold shadow flex items-center gap-2">
+          🖨️ Imprimir PDF
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        {/* Header — capa do relatório */}
+        <div className="bg-gradient-to-r from-purple-700 via-purple-600 to-pink-600 text-white p-6">
+          <p className="text-purple-200 text-sm uppercase tracking-wider mb-1">Análise Inteligente de Pesquisa</p>
+          <h1 className="text-3xl font-bold">{rodada.nome}</h1>
+          <p className="text-purple-100 mt-1">{rodada.modelo_nome} · {rodada.total_respostas} respostas analisadas</p>
+          <p className="text-purple-200 text-xs mt-2">🤖 Gerado pela HELLEN em {gerado_em ? new Date(gerado_em).toLocaleString('pt-BR') : '—'}</p>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Resumo Executivo */}
+          {analise.resumo_executivo && (
+            <section>
+              <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">📝 Resumo Executivo</h2>
+              <p className="text-gray-700 leading-relaxed bg-purple-50 border-l-4 border-purple-500 p-4 rounded-r-lg">{analise.resumo_executivo}</p>
+            </section>
+          )}
+
+          {/* Indicadores chave */}
+          {analise.indicadores_chave?.length > 0 && (
+            <section>
+              <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">📊 Indicadores-chave</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {analise.indicadores_chave.map((ind, i) => (
+                  <div key={i} className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                    <p className="text-xs uppercase text-purple-700 font-bold">{ind.nome}</p>
+                    <p className="text-3xl font-bold text-purple-900 my-1">{ind.valor}</p>
+                    <p className="text-xs text-gray-600">{ind.interpretacao}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Alertas críticos */}
+          {analise.alertas_criticos?.length > 0 && (
+            <section>
+              <h2 className="text-xl font-bold text-red-700 mb-3 flex items-center gap-2">🚨 Alertas Críticos</h2>
+              <div className="space-y-2">
+                {analise.alertas_criticos.map((a, i) => (
+                  <div key={i} className="bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg">
+                    <p className="font-bold text-red-900 text-sm uppercase">{(a.tipo || 'alerta').replace(/_/g, ' ')}</p>
+                    <p className="text-red-800 mt-1">{a.descricao}</p>
+                    {a.evidencia && <p className="text-xs text-red-600 mt-1 italic">Evidência: {a.evidencia}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Pontos fortes / fracos lado a lado */}
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {analise.pontos_fortes?.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <h3 className="text-lg font-bold text-emerald-900 mb-3 flex items-center gap-2">💪 Pontos Fortes</h3>
+                <ul className="space-y-3">
+                  {analise.pontos_fortes.map((p, i) => (
+                    <li key={i} className="bg-white border border-emerald-200 rounded p-3">
+                      <p className="font-bold text-emerald-900">{p.titulo}</p>
+                      {p.evidencia && <p className="text-xs text-emerald-700 mt-1">📌 {p.evidencia}</p>}
+                      {p.impacto && <p className="text-sm text-gray-700 mt-1">{p.impacto}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {analise.pontos_fracos?.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <h3 className="text-lg font-bold text-orange-900 mb-3 flex items-center gap-2">⚠️ Pontos Fracos</h3>
+                <ul className="space-y-3">
+                  {analise.pontos_fracos.map((p, i) => (
+                    <li key={i} className={`border-l-4 rounded p-3 ${corSeveridade[p.severidade] || 'border-orange-300 bg-white'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-bold text-gray-900">{p.titulo}</p>
+                        {p.severidade && (
+                          <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${p.severidade === 'alta' ? 'bg-red-200 text-red-800' : p.severidade === 'media' ? 'bg-amber-200 text-amber-800' : 'bg-slate-200 text-slate-700'}`}>{p.severidade}</span>
+                        )}
+                      </div>
+                      {p.evidencia && <p className="text-xs text-gray-600 mt-1">📌 {p.evidencia}</p>}
+                      {p.impacto && <p className="text-sm text-gray-700 mt-1">{p.impacto}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          {/* SWOT */}
+          {analise.swot && (
+            <section>
+              <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">🎯 Análise SWOT</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <SwotBlock titulo="💪 Forças" cor="emerald" itens={analise.swot.forcas} />
+                <SwotBlock titulo="⚠️ Fraquezas" cor="orange" itens={analise.swot.fraquezas} />
+                <SwotBlock titulo="🚀 Oportunidades" cor="blue" itens={analise.swot.oportunidades} />
+                <SwotBlock titulo="🛑 Ameaças" cor="red" itens={analise.swot.ameacas} />
+              </div>
+            </section>
+          )}
+
+          {/* Planos de Ação — DESTAQUE */}
+          {analise.planos_de_acao?.length > 0 && (
+            <section>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2 border-t pt-6">
+                🎯 Plano de Ação Concreto ({analise.planos_de_acao.length})
+              </h2>
+              <div className="space-y-3">
+                {analise.planos_de_acao.map((a, i) => (
+                  <div key={i} className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 flex items-start gap-3">
+                      <span className="bg-purple-600 text-white font-bold w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0">{i+1}</span>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 text-lg leading-tight">{a.titulo}</p>
+                        <div className="flex items-center flex-wrap gap-2 mt-2 text-xs">
+                          {a.prioridade && <span className={`px-2 py-0.5 rounded font-bold uppercase border ${corPrioridade[a.prioridade] || corPrioridade.media}`}>{a.prioridade}</span>}
+                          {a.categoria && <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-semibold">{a.categoria.replace(/_/g, ' ')}</span>}
+                          {a.prazo_dias !== undefined && a.prazo_dias !== null && <span className="text-gray-600">⏱️ {a.prazo_dias} dias</span>}
+                          {(a.custo_estimado_brl > 0) && <span className="text-gray-600">💰 R$ {Number(a.custo_estimado_brl).toLocaleString('pt-BR')}</span>}
+                          {a.custo_estimado_brl === 0 && <span className="text-emerald-700 font-bold">✓ CUSTO ZERO</span>}
+                          {a.responsavel_sugerido && <span className="text-gray-600">👤 {a.responsavel_sugerido}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-2 text-sm">
+                      {a.racional && (
+                        <div>
+                          <p className="text-xs font-bold uppercase text-gray-500 mb-1">Por quê</p>
+                          <p className="text-gray-700">{a.racional}</p>
+                        </div>
+                      )}
+                      {a.passos?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold uppercase text-gray-500 mb-1">Como fazer</p>
+                          <ol className="list-decimal list-inside space-y-0.5 text-gray-700">
+                            {a.passos.map((p, j) => <li key={j}>{p}</li>)}
+                          </ol>
+                        </div>
+                      )}
+                      {a.como_medir_sucesso && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded p-2 mt-2">
+                          <p className="text-xs font-bold uppercase text-emerald-800 mb-1">📈 Como medir sucesso</p>
+                          <p className="text-emerald-900 text-sm">{a.como_medir_sucesso}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Perguntas pra próxima */}
+          {analise.perguntas_para_proxima_pesquisa?.length > 0 && (
+            <section className="border-t pt-4">
+              <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">💡 Perguntas pra próxima rodada</h2>
+              <ul className="list-disc list-inside text-gray-700 space-y-1 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                {analise.perguntas_para_proxima_pesquisa.map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
+            </section>
+          )}
+
+          {/* Rodapé do relatório (aparece na impressão) */}
+          <section className="border-t pt-4 text-xs text-gray-400 text-center hidden print:block">
+            Gerado por HELLEN — Agente de IA do Kontrata.ai · {gerado_em ? new Date(gerado_em).toLocaleString('pt-BR') : ''}
+          </section>
+        </div>
+      </div>
+
+      {/* CSS print */}
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 15mm; }
+          body * { visibility: hidden; }
+          .feedback-ia-print, .feedback-ia-print * { visibility: visible; }
+          .feedback-ia-print { position: absolute; left: 0; top: 0; width: 100%; }
+          .print\\:hidden { display: none !important; }
+          .print\\:block { display: block !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function SwotBlock({ titulo, cor, itens }) {
+  const cores = {
+    emerald: 'bg-emerald-50 border-emerald-300 text-emerald-900',
+    orange: 'bg-orange-50 border-orange-300 text-orange-900',
+    blue: 'bg-blue-50 border-blue-300 text-blue-900',
+    red: 'bg-red-50 border-red-300 text-red-900',
+  };
+  return (
+    <div className={`border-2 rounded-lg p-3 ${cores[cor]}`}>
+      <h4 className="font-bold mb-2">{titulo}</h4>
+      <ul className="text-sm space-y-1 list-disc list-inside">
+        {(itens || []).map((it, i) => <li key={i}>{it}</li>)}
+        {(!itens || itens.length === 0) && <li className="opacity-50 italic">(nenhum)</li>}
+      </ul>
     </div>
   );
 }

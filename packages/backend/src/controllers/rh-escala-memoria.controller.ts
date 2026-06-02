@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../config/database';
+import { DocumentoEscalaService, TipoDocumento } from '../services/documento-escala.service';
 
 // "Vault" do Agente de Escala - notas markdown estilo Obsidian.
 // Tipos sugeridos: 'colaborador' | 'setor' | 'regra' | 'padrao' | 'outro'
@@ -157,6 +158,73 @@ export class RhEscalaMemoriaController {
     } catch (e: any) {
       console.error('[RhEscalaMemoria] atualizar:', e);
       res.status(500).json({ error: e.message });
+    }
+  }
+
+  // POST /rh/escala/memoria/upload-doc
+  // multipart/form-data: file + tipo + empresaId(opcional) + departamentoId(opcional)
+  // Le PDF/Excel/Imagem, extrai texto (Vision se for foto), estrutura via GPT, salva como memoria.
+  static async uploadDocumento(req: Request, res: Response) {
+    try {
+      const file = (req as any).file;
+      const { tipo, empresaId, departamentoId } = req.body;
+      if (!file) return res.status(400).json({ error: 'Arquivo obrigatorio' });
+      if (!tipo) return res.status(400).json({ error: 'tipo obrigatorio (cct_sindicato | escala_historica | regulamento_interno | acordo_coletivo | restricao_colaborador)' });
+
+      console.log(`[UploadDoc] Processando ${file.originalname} (${file.size} bytes, tipo=${tipo})`);
+
+      // 1) Extracao de texto
+      const extracao = await DocumentoEscalaService.extrairTexto(file.buffer, file.mimetype, file.originalname);
+      console.log(`[UploadDoc] Extraido ${extracao.textoBruto.length} chars via ${extracao.tipoFonte}`);
+
+      if (extracao.textoBruto.length < 30) {
+        return res.status(400).json({ error: 'Nao consegui extrair conteudo legivel do arquivo. Tente outro formato ou foto melhor.' });
+      }
+
+      // 2) Estruturacao GPT
+      const { estrutura, resumoHumano, titulo, tags } = await DocumentoEscalaService.estruturar(
+        extracao.textoBruto,
+        tipo as TipoDocumento
+      );
+
+      // 3) Salva em rh_escala_memoria
+      let slug = slugify(titulo);
+      // Evita conflito: append timestamp se ja existir
+      const [conflict] = await AppDataSource.query(
+        `SELECT id FROM rh_escala_memoria WHERE slug = $1 AND COALESCE(empresa_id::text,'') = COALESCE($2::text,'') LIMIT 1`,
+        [slug, empresaId || null]
+      );
+      if (conflict) slug = `${slug}-${Date.now()}`;
+
+      const [row] = await AppDataSource.query(
+        `INSERT INTO rh_escala_memoria (empresa_id, departamento_id, slug, titulo, tipo, tags, conteudo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          empresaId || null,
+          departamentoId || null,
+          slug,
+          titulo,
+          tipo,
+          tags,
+          resumoHumano,
+        ]
+      );
+
+      res.json({
+        success: true,
+        memoria: row,
+        estrutura,
+        meta: {
+          arquivo: file.originalname,
+          tamanho_bytes: file.size,
+          fonte_extracao: extracao.tipoFonte,
+          chars_extraidos: extracao.textoBruto.length,
+        },
+      });
+    } catch (e: any) {
+      console.error('[RhEscalaMemoria] uploadDocumento erro:', e);
+      res.status(500).json({ error: e.message || 'Falha ao processar documento' });
     }
   }
 

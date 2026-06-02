@@ -33,6 +33,144 @@ export default function RhEscala() {
   const [celulaEdit, setCelulaEdit] = useState(null); // { colaboradorId, data, codigoAtual }
   const [semanaFiltro, setSemanaFiltro] = useState('');  // '' = mes inteiro, '1','2','3'... = semana
 
+  // ============ IA: GERAR PROPOSTA ============
+  // showGerarIA = modal aberto. propostaIA = proposta atual (gerada+ajustada).
+  // chatHistorico = lista de pares pergunta/resposta do ajuste iterativo.
+  // gerandoIA = true durante chamada OpenAI. aplicandoIA = durante aplicar.
+  const [showGerarIA, setShowGerarIA] = useState(false);
+  const [propostaIA, setPropostaIA] = useState(null);
+  const [observacoesIA, setObservacoesIA] = useState('');
+  const [gerandoIA, setGerandoIA] = useState(false);
+  const [aplicandoIA, setAplicandoIA] = useState(false);
+  const [chatHistorico, setChatHistorico] = useState([]); // [{pergunta, resposta, ajuste}]
+  const [chatPergunta, setChatPergunta] = useState('');
+  const [sobrescreverIA, setSobrescreverIA] = useState(false);
+
+  // Mapa rapido: colaborador_id -> { data -> turno_codigo } pra renderizar amarelo na grid
+  const propostaMap = useMemo(() => {
+    if (!propostaIA?.lancamentos) return {};
+    const map = {};
+    propostaIA.lancamentos.forEach(l => {
+      if (!map[l.colaborador_id]) map[l.colaborador_id] = {};
+      map[l.colaborador_id][l.data] = l.turno_codigo;
+    });
+    return map;
+  }, [propostaIA]);
+
+  async function gerarPropostaIA() {
+    if (!companyId || !departamentoId) { alert('Selecione empresa e setor'); return; }
+    const [ano, mesNum] = mes.split('-');
+    setGerandoIA(true);
+    setChatHistorico([]);
+    try {
+      const { data } = await api.post('/rh/escala/agente-ia/gerar-proposta', {
+        empresaId: companyId,
+        departamentoId: parseInt(departamentoId),
+        mes: parseInt(mesNum),
+        ano: parseInt(ano),
+        observacoes: observacoesIA || undefined,
+      });
+      if (data?.success) {
+        setPropostaIA(data.proposta);
+        setObservacoesIA('');
+        setShowGerarIA(false);
+      } else {
+        alert('Falha: ' + (data?.error || 'desconhecido'));
+      }
+    } catch (e) {
+      alert('Erro: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setGerandoIA(false);
+    }
+  }
+
+  async function ajustarPropostaIA() {
+    if (!chatPergunta.trim() || !propostaIA) return;
+    const [ano, mesNum] = mes.split('-');
+    const perguntaAtual = chatPergunta;
+    setChatPergunta('');
+    setChatHistorico(h => [...h, { pergunta: perguntaAtual, resposta: '⏳ Pensando...', loading: true }]);
+    try {
+      const { data } = await api.post('/rh/escala/agente-ia/ajustar-proposta', {
+        empresaId: companyId,
+        departamentoId: parseInt(departamentoId),
+        mes: parseInt(mesNum),
+        ano: parseInt(ano),
+        propostaAtual: propostaIA,
+        mensagem: perguntaAtual,
+      });
+      if (data?.success && data.ajuste) {
+        // Aplica as mudanças do ajuste na proposta
+        const ajuste = data.ajuste;
+        if (ajuste.viavel !== false && Array.isArray(ajuste.lancamentos_alterados)) {
+          const novaProposta = { ...propostaIA };
+          // Atualiza/insere lançamentos alterados
+          ajuste.lancamentos_alterados.forEach(novo => {
+            const idx = novaProposta.lancamentos.findIndex(l =>
+              l.colaborador_id === novo.colaborador_id && l.data === novo.data
+            );
+            if (idx >= 0) novaProposta.lancamentos[idx] = novo;
+            else novaProposta.lancamentos.push(novo);
+          });
+          // Remove os pedidos pra remover
+          if (Array.isArray(ajuste.lancamentos_removidos)) {
+            ajuste.lancamentos_removidos.forEach(rm => {
+              novaProposta.lancamentos = novaProposta.lancamentos.filter(l =>
+                !(l.colaborador_id === rm.colaborador_id && l.data === rm.data)
+              );
+            });
+          }
+          setPropostaIA(novaProposta);
+        }
+        setChatHistorico(h => {
+          const c = [...h];
+          c[c.length - 1] = { pergunta: perguntaAtual, resposta: ajuste.explicacao || ajuste.interpretacao || 'Ajuste aplicado', ajuste, loading: false };
+          return c;
+        });
+      } else {
+        setChatHistorico(h => {
+          const c = [...h];
+          c[c.length - 1] = { pergunta: perguntaAtual, resposta: '❌ ' + (data?.error || 'falha'), loading: false };
+          return c;
+        });
+      }
+    } catch (e) {
+      setChatHistorico(h => {
+        const c = [...h];
+        c[c.length - 1] = { pergunta: perguntaAtual, resposta: '❌ ' + (e.response?.data?.error || e.message), loading: false };
+        return c;
+      });
+    }
+  }
+
+  async function aplicarPropostaIA() {
+    if (!propostaIA?.lancamentos?.length) return;
+    if (!confirm(`Aplicar ${propostaIA.lancamentos.length} lançamentos na escala?` +
+                 (sobrescreverIA ? '\n\n⚠️ Vai SOBRESCREVER lançamentos existentes.' : ''))) return;
+    const [ano, mesNum] = mes.split('-');
+    setAplicandoIA(true);
+    try {
+      const { data } = await api.post('/rh/escala/agente-ia/aplicar-proposta', {
+        empresaId: companyId,
+        departamentoId: parseInt(departamentoId),
+        mes: parseInt(mesNum),
+        ano: parseInt(ano),
+        lancamentos: propostaIA.lancamentos,
+        sobrescrever: sobrescreverIA,
+      });
+      if (data?.success) {
+        alert(`✅ Aplicado!\n${data.inseridos} novos · ${data.atualizados} atualizados · ${data.ignorados} ignorados`);
+        setPropostaIA(null);
+        setChatHistorico([]);
+        carregarGrid();
+      }
+    } catch (e) {
+      alert('Erro: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setAplicandoIA(false);
+    }
+  }
+
   // Calcula semanas do mes (Seg-Dom). Semana 1 comeca no dia 1 (mesmo se nao for segunda);
   // rompe no proximo domingo e semana 2 comeca na segunda seguinte.
   const semanasDoMes = useMemo(() => {
@@ -454,6 +592,14 @@ export default function RhEscala() {
               ⇅ Vertical
             </button>
           </div>
+          <button
+            onClick={() => setShowGerarIA(true)}
+            disabled={!departamentoId}
+            title={departamentoId ? 'HELLEN gera proposta de escala usando CCT + escalas antigas + regras' : 'Selecione um setor primeiro'}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 text-white rounded-lg text-sm font-bold shadow flex items-center gap-1.5"
+          >
+            🤖 Gerar com IA
+          </button>
           <button onClick={imprimirPDF}
             disabled={!grid || grid.colaboradores.length === 0}
             title="Imprimir escala horizontal em 1 folha A4 paisagem"
@@ -569,7 +715,21 @@ export default function RhEscala() {
                         if (cel.cor) bg = { backgroundColor: cel.cor };
                         else if (cel.ehFeriado) bg = { backgroundColor: '#F3E8FF' };
                         else if (cel.diaSemana === 0) bg = { backgroundColor: '#D1FAE5' };
-                        const txt = cel.codigo || '';
+                        // Se ha proposta IA pra essa celula, sobrepõe com a COR do turno proposto + borda amarela tracejada
+                        const propostaCelula = propostaMap?.[c.id]?.[cel.data];
+                        const isProposta = !!propostaCelula && propostaCelula !== cel.codigo;
+                        if (isProposta) {
+                          // Busca cor do turno proposto na lista de turnos cadastrados
+                          const turnoProposto = turnos.find(t => t.codigo === propostaCelula);
+                          let corProposta = turnoProposto?.cor || '#FEF3C7';
+                          // Codigos especiais sem turno cadastrado: cor padrao
+                          if (propostaCelula === 'FG') corProposta = '#FECACA';
+                          else if (propostaCelula === 'FE') corProposta = '#DDD6FE';
+                          else if (propostaCelula === 'AT') corProposta = '#FEF3C7';
+                          else if (propostaCelula === 'FRDO') corProposta = '#F3E8FF';
+                          bg = { backgroundColor: corProposta, outline: '2px dashed #F59E0B', outlineOffset: '-2px' };
+                        }
+                        const txt = isProposta ? propostaCelula : (cel.codigo || '');
                         const isDragSource = dragFill && dragFill.colabId === c.id && dragFill.sourceIdx === idx;
                         const isInDragRange = dragFill && dragFill.colabId === c.id
                           && idx >= Math.min(dragFill.sourceIdx, dragFill.targetIdx)
@@ -773,6 +933,170 @@ export default function RhEscala() {
           )}
         </div>
       </div>
+
+      {/* Modal editar celula */}
+      {/* Agente IA flutuante */}
+      <AgenteIAChat grid={grid} regraSetor={regraSetor} setorNome={setorNome} mesNome={mesNome} onAcaoExecutada={carregarGrid} />
+
+      {/* ===== Modal Gerar com IA ===== */}
+      {showGerarIA && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => !gerandoIA && setShowGerarIA(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-5">
+              <h2 className="font-bold text-lg">🤖 HELLEN — gerar escala</h2>
+              <p className="text-xs opacity-90">{setorNome} · {mesNome}</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                💡 A IA vai consultar a CCT do sindicato, escalas antigas, regulamento interno e gerar a proposta com <strong>menor custo</strong> respeitando CLT.
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Observações (opcional)</label>
+                <textarea
+                  value={observacoesIA}
+                  onChange={e => setObservacoesIA(e.target.value)}
+                  placeholder="Ex: precisa de 2 a mais aos sábados / João prefere folgar domingo / não tenho açougueiro suficiente — sugira contratar"
+                  rows={4}
+                  className="w-full border-2 border-gray-200 focus:border-purple-500 rounded-lg px-3 py-2 text-sm outline-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <button onClick={() => setShowGerarIA(false)} disabled={gerandoIA} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+                <button onClick={gerarPropostaIA} disabled={gerandoIA}
+                  className="px-5 py-2 text-sm font-bold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 text-white rounded-lg shadow">
+                  {gerandoIA ? '⏳ Gerando (~30-60s)...' : '🚀 Gerar escala'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Painel Lateral: Proposta IA ===== */}
+      {propostaIA && (
+        <div className="fixed right-4 bottom-4 z-40 w-[760px] max-w-[95vw] max-h-[90vh] bg-white rounded-2xl shadow-2xl border-2 border-purple-300 flex flex-col">
+          <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-5 py-4 rounded-t-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-xl">🤖 Proposta da HELLEN</h3>
+                <p className="text-sm opacity-90 mt-0.5">{propostaIA.lancamentos?.length || 0} lançamentos · revise, ajuste pelo chat e aplique</p>
+              </div>
+              <button onClick={() => { if (confirm('Descartar proposta?')) { setPropostaIA(null); setChatHistorico([]); }}} className="text-white/80 hover:text-white text-3xl leading-none">×</button>
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1 p-5 space-y-4 text-sm">
+            {propostaIA.resumo && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <p className="font-bold text-purple-900 mb-1.5 text-base">💭 Resumo</p>
+                <p className="text-gray-800 leading-relaxed">{propostaIA.resumo}</p>
+              </div>
+            )}
+
+            {propostaIA.estatisticas && (
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(propostaIA.estatisticas).map(([k, v]) => (
+                  <div key={k} className="bg-gray-50 border rounded-lg p-2.5">
+                    <p className="text-xs text-gray-500 uppercase">{k.replace(/_/g, ' ')}</p>
+                    <p className="font-bold text-gray-900 text-lg">{typeof v === 'number' ? v.toLocaleString('pt-BR') : String(v)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {propostaIA.alertas?.length > 0 && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
+                <p className="font-bold text-amber-900 mb-2 text-base">⚠️ Alertas trabalhistas</p>
+                <ul className="list-disc list-inside space-y-1 text-amber-900">
+                  {propostaIA.alertas.map((a, i) => <li key={i}>{a}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {propostaIA.recomendacoes_estrategicas?.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-300 rounded-lg p-3">
+                <p className="font-bold text-emerald-900 mb-2 text-base">💡 Recomendações estratégicas</p>
+                <ul className="space-y-1.5 text-emerald-900">
+                  {propostaIA.recomendacoes_estrategicas.map((r, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="font-bold uppercase text-xs bg-emerald-200 px-1.5 py-0.5 rounded">{r.urgencia}</span>
+                      <span>{r.descricao}{r.impacto_estimado_brl ? ` (R$ ${Number(r.impacto_estimado_brl).toLocaleString('pt-BR')})` : ''}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {propostaIA.mudancas_sugeridas_cadastro?.length > 0 && (
+              <div className="bg-blue-50 border border-blue-300 rounded-lg p-3">
+                <p className="font-bold text-blue-900 mb-2 text-base">🔧 Sugestões de mudanças no cadastro</p>
+                {propostaIA.mudancas_sugeridas_cadastro.map((m, i) => (
+                  <p key={i} className="text-blue-900 mb-1">• Colab #{m.colaborador_id}: {m.campo} <code className="bg-white px-1 rounded">{m.valor_atual}</code> → <code className="bg-white px-1 rounded">{m.valor_proposto}</code> <span className="text-blue-700">({m.motivo})</span></p>
+                ))}
+              </div>
+            )}
+
+            {propostaIA.turnos_novos_sugeridos?.length > 0 && (
+              <div className="bg-fuchsia-50 border border-fuchsia-300 rounded-lg p-3">
+                <p className="font-bold text-fuchsia-900 mb-2 text-base">🆕 Novos turnos sugeridos</p>
+                {propostaIA.turnos_novos_sugeridos.map((t, i) => (
+                  <div key={i} className="text-fuchsia-900 mb-1.5 flex items-start gap-2">
+                    <code className="bg-white px-2 py-0.5 rounded font-bold">{t.codigo_sugerido}</code>
+                    <span>{t.nome} ({t.hora_inicio} → {t.hora_fim}, {t.total_horas}h) — <em className="text-fuchsia-700">{t.motivo}</em></span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Chat ajuste iterativo */}
+            <div className="border-t pt-3 space-y-2">
+              <p className="font-bold text-gray-800 text-base">💬 Ajustar conversando com a HELLEN</p>
+              <p className="text-xs text-gray-500 -mt-1">Ex: "Fulano fora 7 dias", "muda todo mundo pra 5x2", "preciso de mais 2 sábados"</p>
+              {chatHistorico.map((c, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="bg-purple-100 rounded-lg p-2.5 text-purple-900">
+                    <span className="font-bold">Você:</span> {c.pergunta}
+                  </div>
+                  <div className={`rounded-lg p-2.5 ${c.loading ? 'bg-gray-100 text-gray-600 italic' : (c.ajuste?.viavel === false ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-emerald-50 text-emerald-900 border border-emerald-200')}`}>
+                    <span className="font-bold">HELLEN:</span> {c.resposta}
+                    {c.ajuste?.recomendacoes?.length > 0 && (
+                      <ul className="mt-1.5 ml-4 list-disc">{c.ajuste.recomendacoes.map((r, j) => <li key={j}>{r}</li>)}</ul>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  value={chatPergunta}
+                  onChange={e => setChatPergunta(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && ajustarPropostaIA()}
+                  placeholder='Ex: "fulano fora 7 dias, refaz"'
+                  className="flex-1 border-2 border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400"
+                />
+                <button onClick={ajustarPropostaIA} disabled={!chatPergunta.trim()}
+                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-bold">
+                  ➤
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Rodapé fixo: aplicar/descartar */}
+          <div className="border-t px-5 py-3 bg-gray-50 rounded-b-2xl space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={sobrescreverIA} onChange={e => setSobrescreverIA(e.target.checked)} className="w-4 h-4" />
+              Sobrescrever lançamentos existentes (se já houver algo no dia)
+            </label>
+            <div className="flex gap-3">
+              <button onClick={() => { if (confirm('Descartar?')) { setPropostaIA(null); setChatHistorico([]); }}} className="flex-1 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold">❌ Descartar</button>
+              <button onClick={aplicarPropostaIA} disabled={aplicandoIA} className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-bold shadow">
+                {aplicandoIA ? '⏳ Aplicando...' : '✅ Aplicar na escala'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal editar celula */}
       {/* Agente IA flutuante */}

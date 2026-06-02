@@ -3,10 +3,13 @@ import Sidebar from '../../components/Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../utils/api';
 
+import CanalDenunciaAdmin from './CanalDenunciaAdmin';
+
 const ABAS = [
   { id: 'diagnostico', label: 'Diagnóstico',       icon: '📊' },
   { id: 'sugestoes',   label: 'Sugestões de Ação', icon: '💡' },
   { id: 'planos',      label: 'Planos de Ação',    icon: '📋' },
+  { id: 'denuncia',    label: 'Canal de Denúncia', icon: '🛡️' },
 ];
 
 // Catalogo de labels amigaveis das dimensoes (vs dimensao_nr1 que vem em snake_case)
@@ -151,6 +154,7 @@ export default function AnaliseNr1() {
           {aba === 'diagnostico' && <AbaDiagnostico empresaCtx={empresaCtx} />}
           {aba === 'sugestoes' && <AbaSugestoes empresaCtx={empresaCtx} />}
           {aba === 'planos' && <AbaPlanos empresaCtx={empresaCtx} />}
+          {aba === 'denuncia' && <CanalDenunciaAdmin empresaCtx={empresaCtx} />}
         </div>
       </div>
     </div>

@@ -1446,4 +1446,606 @@ ${contexto ? JSON.stringify(contexto, null, 2) : '(sem contexto enviado)'}${bloc
       res.status(500).json({ error: e?.response?.data?.error?.message || e.message });
     }
   }
+
+  // ============ AGENTE IA: GERAR PROPOSTA DE ESCALA ============
+  // Gera proposta de escala mensal baseada em:
+  // - Colaboradores ativos do setor + funcao + horario
+  // - Turnos cadastrados
+  // - Regras CLT (44h, 11h interjornada, DSR)
+  // - CCT do sindicato (carregada do vault rh_escala_memoria tipo=cct_sindicato)
+  // - Escalas historicas (vault tipo=escala_historica) - pra aprender padrao
+  // - Regulamento interno (vault tipo=regulamento_interno)
+  // - Restricoes individuais (vault tipo=restricao_colaborador)
+  // - Ferias/licencas/excessoes cadastradas
+  // - Regras do setor (cobertura minima, picos)
+  // NAO grava nada - retorna proposta JSON pra preview editavel na UI.
+  static async gerarPropostaEscala(req: Request, res: Response) {
+    try {
+      const { empresaId, departamentoId, mes, ano, observacoes } = req.body;
+      if (!empresaId || !departamentoId || !mes || !ano) {
+        return res.status(400).json({ error: 'empresaId, departamentoId, mes, ano obrigatorios' });
+      }
+
+      const { ConfigurationService } = await import('../services/configuration.service');
+      const apiKey = await ConfigurationService.get('openai_api_key');
+      if (!apiKey) return res.status(400).json({ error: 'OpenAI API Key nao configurada' });
+
+      // 1) Carregar colaboradores ativos do setor + template de escala (tipo_rotacao, folga, turnos)
+      // company_id em rh_colaboradores eh UUID — frontend manda UUID
+      const colaboradores = await AppDataSource.query(
+        `SELECT c.id, c.nome, c.matricula,
+                cg.nome AS cargo,
+                t.tipo_rotacao AS tipo_escala,
+                t.folga_preferida,
+                t.dia_folga_fixa, t.dia_folga_fixa_2,
+                t.trabalha_feriado,
+                t.rotacao_domingo,
+                tp.codigo AS turno_padrao_codigo, tp.hora_inicio AS turno_padrao_inicio, tp.hora_fim AS turno_padrao_fim, tp.total_horas AS turno_padrao_horas
+         FROM rh_colaboradores c
+         LEFT JOIN rh_cargos cg ON cg.id = c.cargo_id
+         LEFT JOIN rh_escala_templates t ON t.colaborador_id = c.id AND t.ativo = true
+         LEFT JOIN rh_escala_turnos tp ON tp.id = t.turno_padrao_id
+         WHERE c.company_id = $1::uuid AND c.departamento_id = $2 AND c.status = 'ativo'
+         ORDER BY c.nome ASC`,
+        [empresaId, departamentoId]
+      );
+      if (!colaboradores.length) return res.status(400).json({ error: 'Nenhum colaborador ativo nesse setor' });
+
+      // 2) Carregar turnos cadastrados (estrutura real: hora_inicio/hora_fim, sem almoco_*)
+      const turnos = await AppDataSource.query(
+        `SELECT id, codigo, nome, hora_inicio, hora_fim, total_horas, cor, tipo
+         FROM rh_escala_turnos
+         WHERE ativo = true AND (company_id = $1::uuid OR company_id IS NULL)
+         ORDER BY codigo ASC`,
+        [empresaId]
+      );
+
+      // 3) Regras do setor (cobertura, picos)
+      const [regrasSetor] = await AppDataSource.query(
+        `SELECT * FROM rh_escala_regras_setor WHERE empresa_id = $1::uuid AND departamento_id = $2 AND ativo = true LIMIT 1`,
+        [empresaId, departamentoId]
+      );
+
+      // 4) Vault: CCT + historico + regulamento + restricoes do setor/empresa
+      const vault = await AppDataSource.query(
+        `SELECT tipo, titulo, conteudo, tags FROM rh_escala_memoria
+         WHERE ativo = true
+           AND (empresa_id = $1::uuid OR empresa_id IS NULL)
+           AND tipo IN ('cct_sindicato','acordo_coletivo','regulamento_interno','escala_historica','restricao_colaborador','regra','padrao','setor','colaborador')
+         ORDER BY tipo, atualizado_em DESC
+         LIMIT 30`,
+        [empresaId]
+      );
+
+      // 5) Ferias / Licencas no mes
+      const mesIni = `${ano}-${String(mes).padStart(2, '0')}-01`;
+      const mesFim = new Date(Number(ano), Number(mes), 0).toISOString().slice(0, 10);
+      const colabIds = colaboradores.map((c: any) => c.id);
+      const ferias = colabIds.length ? await AppDataSource.query(
+        `SELECT colaborador_id, data_inicio, data_fim FROM rh_escala_ferias
+         WHERE colaborador_id = ANY($1::int[]) AND data_inicio <= $3::date AND data_fim >= $2::date`,
+        [colabIds, mesIni, mesFim]
+      ) : [];
+      const licencas = colabIds.length ? await AppDataSource.query(
+        `SELECT colaborador_id, data_inicio, data_fim, motivo FROM rh_escala_licencas
+         WHERE colaborador_id = ANY($1::int[]) AND data_inicio <= $3::date AND data_fim >= $2::date`,
+        [colabIds, mesIni, mesFim]
+      ) : [];
+
+      // 6) Feriados do mes (tabela holidays — formato MM-DD em string, anuais)
+      let feriados: any[] = [];
+      try {
+        const mesPad = String(mes).padStart(2, '0');
+        feriados = await AppDataSource.query(
+          `SELECT date AS data, name AS nome, type FROM holidays
+           WHERE active = true AND SUBSTRING(date, 1, 2) = $1
+             AND (year IS NULL OR year = $2)
+           ORDER BY date`,
+          [mesPad, Number(ano)]
+        );
+      } catch (e: any) { console.warn('[GerarProposta] holidays falhou:', e.message); }
+
+      // 7) Monta system prompt completo (especialista CLT + CCT)
+      const systemPrompt = `Você é HELLEN, especialista de elite em gestão de escala no Brasil — CLT, Convenção Coletiva, NR-1, jurisprudência trabalhista.
+
+Sua missão: gerar a MELHOR escala possível pro mês ${String(mes).padStart(2, '0')}/${ano} do setor (departamento ID ${departamentoId}) respeitando RIGOROSAMENTE:
+
+## REGRAS CLT (rígidas — viola = multa + processo trabalhista)
+- Jornada máxima 44h/semana, 8h/dia (ou 6h com 15min de pausa pra jornadas de 4h-6h)
+- Intervalo interjornada mínimo 11h (NUNCA viole)
+- Intervalo intrajornada mínimo 1h (jornadas >6h)
+- DSR (Descanso Semanal Remunerado) obrigatório, preferencialmente aos domingos
+- Máximo 6 dias seguidos sem folga (banco de horas pode estender, mas NÃO recomende sem CCT permitir)
+
+## OTIMIZAÇÃO POR CUSTO (PRINCÍPIO CRÍTICO)
+Sua escala deve ser a de MENOR CUSTO POSSÍVEL respeitando todas as restrições acima. Hierarquia de custo (do mais barato pro mais caro):
+1. ✅ Hora normal dentro da jornada (mais barato)
+2. ⚠️ Adicional noturno (~20-30%) — só use quando o setor opera de noite
+3. ⚠️ Hora extra (50-60% conforme CCT) — evite ao máximo, balanceie carga
+4. 🔴 HE em domingo/feriado (100%+) — só se REALMENTE necessário pra cobertura mínima
+5. 🚨 Estourar 44h semanais — proibido (gera passivo trabalhista)
+
+**Sempre prefira:**
+- Distribuir folgas justamente em vez de gerar HE em alguém
+- Usar colaborador que ainda tem horas disponíveis na semana
+- Folga em domingo é "barata" (DSR), folga em sábado pesa mais (perde dia útil de cobertura)
+- Trocar dia de cobertura pra outro colaborador que não vai entrar em HE
+
+## REGRAS DA CCT (consulte o Vault)
+Se o Vault contém CCT do sindicato, OBEDEÇA aos parâmetros DELA (jornada pode ser menor, intervalo pode ser maior, HE pode ter % diferente).
+
+## ESCALAS HISTÓRICAS (aprenda o padrão)
+Se o Vault contém escalas antigas desse setor, REPRODUZA o padrão de rotação (quem folga sábado, quem folga domingo, etc) — alternando justo entre os colaboradores.
+
+## REGRAS DO SETOR
+- Cobertura mínima por dia (varia sábado/domingo vs semana)
+- Funcionário com tipo_escala "6x1" trabalha 6 e folga 1 (DSR no domingo)
+- Funcionário com tipo_escala "5x2" trabalha 5 e folga 2 (sáb+dom)
+- Respeitar dia_folga_fixa do colaborador se cadastrado
+
+## DADOS DO MÊS
+
+### Colaboradores (${colaboradores.length}):
+${JSON.stringify(colaboradores, null, 2)}
+
+### Turnos disponíveis (use 'codigo' nos lançamentos):
+${JSON.stringify(turnos.map((t: any) => ({ codigo: t.codigo, nome: t.nome, hora_inicio: t.hora_inicio, hora_fim: t.hora_fim, total_horas: t.total_horas, tipo: t.tipo, cor: t.cor })), null, 2)}
+
+### IMPORTANTE — Turno padrão de cada colaborador
+Cada colaborador no array acima TEM um \`turno_padrao_codigo\` (horário cadastrado pelo RH). **USE ESSE TURNO** como padrão pros dias de trabalho dele — não invente. Só use turno diferente se for noturno/extra justificado.
+
+Se NÃO existir um turno adequado pra cobrir um pico/buraco, SUGIRA criar novo turno no campo \`turnos_novos_sugeridos\`.
+
+### 🔴 REGRAS DO SETOR (RESTRIÇÕES RÍGIDAS — VIOLAR = ESCALA REJEITADA):
+${regrasSetor ? `
+- **Funcionamento:** ${regrasSetor.funcionamento_inicio} às ${regrasSetor.funcionamento_fim} (LOJA ABRE TODOS OS DIAS DESSA FAIXA)
+- **Rotação padrão:** ${regrasSetor.rotacao_padrao || 'n/a'}
+- **Custo da hora extra:** R$ ${regrasSetor.custo_hora_extra || 'n/a'}
+- **Dias de pico:** ${JSON.stringify(regrasSetor.dias_pico || [])} (precisam de cobertura REFORÇADA)
+- **COBERTURA MÍNIMA POR DIA DA SEMANA (em pessoas trabalhando — NÃO pode ficar abaixo disso):**
+${regrasSetor.cobertura_minima ? Object.entries(regrasSetor.cobertura_minima).map(([dia, c]: any) =>
+  `  • ${dia}: manhã ${c.manha || c.pico} · pico ${c.pico} · tarde ${c.tarde || c.pico} pessoas`
+).join('\n') : '  (cobertura não cadastrada)'}
+- **Picos por dia (faixas críticas):**
+${regrasSetor.picos_por_dia ? Object.entries(regrasSetor.picos_por_dia).map(([dia, faixas]: any) =>
+  `  • ${dia}: ${(faixas as any[]).map(f => `${f.ini}-${f.fim}`).join(', ')}`
+).join('\n') : '  (sem picos especificados)'}
+
+🚫 **PROIBIÇÕES ABSOLUTAS:**
+1. NÃO escale TODO MUNDO de folga no mesmo dia. Cobertura mínima > 0 = pelo menos N pessoas trabalhando.
+2. NÃO assuma que domingo é folga universal. Se a loja abre domingo (como aqui), tem que ter cobertura.
+3. NÃO deixe pico (sex/sab/dom 10-13h e 17-19h) descoberto. Use TODO o quadro de gente no pico se necessário.
+4. Distribua DSR de forma rotativa (1 domingo p/ alguns, outros sábado, alternando).
+
+✅ **OBRIGAÇÕES:**
+- Cobertura mínima atingida em TODOS os dias do mês (verifique cada dia separadamente).
+- TODOS os colaboradores aparecem em TODOS os 30 dias (com trabalho OU folga OU férias — nunca vazio).
+` : '(sem regras cadastradas — use padrões CLT)'}
+
+### Férias já marcadas (NÃO escale nesses dias):
+${JSON.stringify(ferias, null, 2)}
+
+### Licenças já marcadas (NÃO escale):
+${JSON.stringify(licencas, null, 2)}
+
+### Feriados:
+${JSON.stringify(feriados, null, 2)}
+
+### Memória/Vault (CCT, regulamentos, escalas antigas, restrições — USE como contexto autoritativo):
+${vault.map((v: any) => `\n## [${v.tipo}] ${v.titulo}\n${v.conteudo.slice(0, 4000)}`).join('\n---\n')}
+
+${observacoes ? `\n### Observações adicionais do gestor:\n${observacoes}` : ''}
+
+## VOCÊ É CONSULTORA ESTRATÉGICA, NÃO SECRETÁRIA
+Não fique engessada. Pense como consultora de RH sênior:
+
+- **Sugira mudar tipo_escala** se for melhor pro setor (ex: "se todo mundo virar 5x2, sobra 2 dias de cobertura — recomendo contratar +1 PJ aos sábados")
+- **Sinalize falta de gente** se for impossível cobrir com o quadro atual sem estourar CLT/CCT
+- **Sugira terceirização/PJ em pico** se o custo de HE estiver maior que contratar temporário
+- **Identifique colaborador subutilizado** que tá rendendo menos que seu custo (folga demais, dias curtos)
+- **Sugira ajuste de jornada** se a CCT permitir (ex: mudar pra 6h+almoço de 1h em vez de 8h corrido pra reduzir HE)
+
+Se o gestor pedir algo IMPOSSÍVEL com o quadro atual (ex: "todos 5x2 nesse setor que abre 7 dias"), você DEVE explicar matematicamente por que não fecha e dar opções:
+- "Falta X pessoas pra cobrir aos finais de semana"
+- "Custo HE estimado: R$ Y/mês — contratar 1 PJ sai R$ Z (mais barato)"
+- "Posso fazer a escala mas vai gerar Y horas extras = R$ Z"
+
+## FORMATO DA SUA RESPOSTA (JSON RÍGIDO)
+
+Retorne APENAS um JSON válido com esta estrutura EXATA:
+
+\`\`\`json
+{
+  "resumo": "Texto curto explicando a lógica geral usada e principais decisões (3-5 linhas)",
+  "lancamentos": [
+    { "colaborador_id": 123, "data": "YYYY-MM-DD", "turno_codigo": "T01|FG|FE|AT|FRDO" }
+  ],
+  "alertas": ["riscos trabalhistas pro gestor (ex: João vai estourar HE na semana 3)"],
+  "recomendacoes_estrategicas": [
+    {
+      "tipo": "contratar | demitir | terceirizar | mudar_tipo_escala | ajustar_jornada | redistribuir",
+      "descricao": "descricao clara da recomendacao",
+      "impacto_estimado_brl": numero_em_reais,
+      "urgencia": "alta | media | baixa"
+    }
+  ],
+  "mudancas_sugeridas_cadastro": [
+    {
+      "colaborador_id": 123,
+      "campo": "tipo_escala | turno_padrao | dia_folga_fixa",
+      "valor_atual": "...",
+      "valor_proposto": "...",
+      "motivo": "por que mudar (em 1 linha)"
+    }
+  ],
+  "turnos_novos_sugeridos": [
+    {
+      "codigo_sugerido": "TN23",
+      "nome": "Turno Noturno 23-07",
+      "hora_inicio": "23:00",
+      "hora_fim": "07:00",
+      "total_horas": 8,
+      "motivo": "Precisa cobrir reposicao noturna - hoje nao tem turno depois das 22h"
+    }
+  ],
+  "estatisticas": {
+    "total_lancamentos": numero,
+    "dias_cobertos": numero,
+    "folgas_distribuidas": numero,
+    "horas_extras_estimadas": numero,
+    "custo_extra_estimado_brl": numero,
+    "cobertura_minima_atingida": true_ou_false
+  }
+}
+\`\`\`
+
+Códigos especiais de turno:
+- FG = Folga
+- FE = Férias (já vem do banco, só replique)
+- AT = Atestado
+- FRDO = Feriado
+
+Para dias de TRABALHO, use o código do turno cadastrado (ex: T01, T02).
+
+REGRAS:
+- 1 lançamento por colaborador por dia DO MÊS INTEIRO
+- Use os colaborador_id REAIS do array acima
+- Use datas no formato YYYY-MM-DD entre ${mesIni} e ${mesFim}
+- NÃO invente colaborador
+- NÃO invente turno_codigo (use só os listados ou FG/FE/AT/FRDO)`;
+
+      // 8) Chama OpenAI - força gpt-4o (não mini) pra geração de escala — output GIGANTE (~240 lancamentos)
+      // gpt-4o-mini trunca facilmente. Se config do agente já for gpt-4o ou gpt-5, mantem.
+      const [agenteCfg] = await AppDataSource.query(`SELECT modelo_ia FROM rh_escala_agente_config ORDER BY id ASC LIMIT 1`);
+      const modelCfg = agenteCfg?.modelo_ia || 'gpt-4o-mini';
+      // Pra geração mensal completa SEMPRE usa um modelo grande (output pode passar de 240 itens × ~80 chars = ~20KB)
+      const model = /^gpt-5/i.test(modelCfg) || modelCfg === 'gpt-4o' ? modelCfg : 'gpt-4o';
+      const totalEsperado = colaboradores.length * 31;
+      const axios = require('axios');
+      const payload: any = {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Gere a escala COMPLETA do mês ${String(mes).padStart(2, '0')}/${ano}.
+
+VOCÊ DEVE RETORNAR ~${totalEsperado} LANÇAMENTOS (${colaboradores.length} colaboradores × ~30 dias). NÃO TRUNQUE — preencha o mês INTEIRO de TODOS os colaboradores.
+
+Use o turno_padrao_codigo de cada colaborador (que já vem cadastrado no array) pros dias de trabalho. Use FG/FE/AT/FRDO pros dias de folga/férias/atestado/feriado.
+
+Retorne apenas o JSON conforme estrutura especificada.` },
+        ],
+        response_format: { type: 'json_object' },
+      };
+      if (/^gpt-5/i.test(model)) {
+        payload.max_completion_tokens = 24000;
+      } else {
+        payload.max_tokens = 16000;
+        payload.temperature = 0.2;
+      }
+
+      const r = await axios.post('https://api.openai.com/v1/chat/completions', payload, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        timeout: 180000,
+      });
+
+      let proposta: any = {};
+      try {
+        proposta = JSON.parse(r.data.choices?.[0]?.message?.content || '{}');
+      } catch (e: any) {
+        return res.status(500).json({ error: 'IA retornou JSON inválido', raw: r.data.choices?.[0]?.message?.content?.slice(0, 500) });
+      }
+
+      // Valida estrutura básica
+      if (!Array.isArray(proposta.lancamentos)) {
+        return res.status(500).json({ error: 'Proposta sem lancamentos validos', proposta });
+      }
+
+      // === VALIDACAO DE COBERTURA POR DIA ===
+      // Conta quantas pessoas estao trabalhando em cada dia. Se algum dia ficou sem ninguem,
+      // marca como ALERTA e a HELLEN sabe que tem que corrigir num proximo ajuste.
+      const diasMap: Record<string, { trabalhando: number; folga: number; ferias: number; atestado: number }> = {};
+      proposta.lancamentos.forEach((l: any) => {
+        if (!diasMap[l.data]) diasMap[l.data] = { trabalhando: 0, folga: 0, ferias: 0, atestado: 0 };
+        const codigo = String(l.turno_codigo || '').toUpperCase();
+        if (codigo === 'FG' || codigo === 'FRDO') diasMap[l.data].folga++;
+        else if (codigo === 'FE') diasMap[l.data].ferias++;
+        else if (codigo === 'AT') diasMap[l.data].atestado++;
+        else diasMap[l.data].trabalhando++;
+      });
+
+      const coberturaMinima = regrasSetor?.cobertura_minima || {};
+      const diasSemana = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+      const alertasCobertura: string[] = [];
+      const diasFaltando: string[] = [];
+
+      // Lista todos os dias do mes
+      const diasDoMes: string[] = [];
+      const dataIter = new Date(mesIni);
+      while (dataIter.toISOString().slice(0, 10) <= mesFim) {
+        diasDoMes.push(dataIter.toISOString().slice(0, 10));
+        dataIter.setDate(dataIter.getDate() + 1);
+      }
+
+      diasDoMes.forEach(data => {
+        const d = diasMap[data];
+        if (!d) {
+          diasFaltando.push(data);
+          return;
+        }
+        const dt = new Date(data);
+        const ds = diasSemana[dt.getUTCDay()];
+        const minPico = coberturaMinima[ds]?.pico || coberturaMinima[ds]?.manha || 1;
+        if (d.trabalhando < minPico) {
+          alertasCobertura.push(`${data} (${ds}): apenas ${d.trabalhando} pessoa(s) — mínimo ${minPico}`);
+        }
+        if (d.trabalhando === 0) {
+          alertasCobertura.push(`🚨 ${data}: NENHUM colaborador escalado pra trabalhar!`);
+        }
+      });
+
+      // Adiciona alertas no proposta retornada
+      if (!Array.isArray(proposta.alertas)) proposta.alertas = [];
+      if (diasFaltando.length > 0) {
+        proposta.alertas.unshift(`⚠️ Faltam lançamentos pra ${diasFaltando.length} dia(s) do mês: ${diasFaltando.slice(0, 5).join(', ')}${diasFaltando.length > 5 ? '...' : ''}`);
+      }
+      alertasCobertura.forEach(a => proposta.alertas.push(a));
+
+      // Estatistica real
+      if (!proposta.estatisticas) proposta.estatisticas = {};
+      proposta.estatisticas.dias_no_mes = diasDoMes.length;
+      proposta.estatisticas.dias_com_lancamento = diasDoMes.length - diasFaltando.length;
+      proposta.estatisticas.dias_sem_cobertura = alertasCobertura.length;
+
+      res.json({
+        success: true,
+        proposta,
+        contexto_usado: {
+          colaboradores: colaboradores.length,
+          turnos: turnos.length,
+          vault_notas: vault.length,
+          ferias_no_mes: ferias.length,
+          feriados: feriados.length,
+        },
+        usage: r.data.usage,
+      });
+    } catch (e: any) {
+      console.error('[RhEscala] gerarPropostaEscala:', e?.response?.data || e);
+      res.status(500).json({ error: e?.response?.data?.error?.message || e.message });
+    }
+  }
+
+  // ============ AGENTE IA: AJUSTAR PROPOSTA EXISTENTE ============
+  // Recebe a proposta atual + pergunta/restricao nova do gestor e devolve proposta ajustada.
+  // Cenarios reais:
+  //   "Fulano nao vem por 7 dias (atestado), refaz"
+  //   "Muda todo mundo pra 5x2 e me diz se da pra fechar"
+  //   "Preciso de +2 pessoas no sabado"
+  //   "Trocar folga do Joao com a Maria"
+  // Mantem o contexto da proposta anterior pra evitar mudar tudo.
+  static async ajustarPropostaEscala(req: Request, res: Response) {
+    try {
+      const { empresaId, departamentoId, mes, ano, propostaAtual, mensagem } = req.body;
+      if (!propostaAtual || !mensagem) {
+        return res.status(400).json({ error: 'propostaAtual e mensagem obrigatorios' });
+      }
+
+      const { ConfigurationService } = await import('../services/configuration.service');
+      const apiKey = await ConfigurationService.get('openai_api_key');
+      if (!apiKey) return res.status(400).json({ error: 'OpenAI API Key nao configurada' });
+
+      // Carrega contexto minimo (colaboradores + turnos + vault) - sem ferias/feriados de novo,
+      // confiamos que a propostaAtual ja considerou tudo isso
+      const colaboradores = await AppDataSource.query(
+        `SELECT id, nome, cargo, horario_entrada, horario_saida, tipo_escala
+         FROM rh_colaboradores
+         WHERE company_id = $1 AND departamento_id = $2 AND status = 'ativo' ORDER BY nome`,
+        [empresaId, departamentoId]
+      );
+      const turnos = await AppDataSource.query(
+        `SELECT codigo, nome, entrada, saida FROM rh_escala_turnos WHERE ativo = true ORDER BY codigo`
+      );
+      const vault = await AppDataSource.query(
+        `SELECT tipo, titulo, conteudo FROM rh_escala_memoria
+         WHERE ativo = true AND (empresa_id = $1 OR empresa_id IS NULL)
+           AND tipo IN ('cct_sindicato','regulamento_interno','restricao_colaborador')
+         ORDER BY atualizado_em DESC LIMIT 10`,
+        [empresaId]
+      );
+
+      const systemPrompt = `Você é HELLEN, especialista em gestão de escala. Você ja gerou uma proposta de escala pra ${String(mes).padStart(2, '0')}/${ano} e o gestor agora pediu um AJUSTE específico.
+
+Sua missão:
+1. ENTENDER o pedido (atestado de última hora, mudar tipo de escala, redistribuir, etc)
+2. AJUSTAR APENAS o necessário — NÃO refaça a escala inteira
+3. Manter as mesmas restrições CLT/CCT que você já respeitou antes
+4. Se o pedido for IMPOSSÍVEL (ex: cobrir 7 dias com 1 pessoa só), EXPLIQUE matematicamente + dê alternativas
+5. Otimizar CUSTO sempre
+
+## Contexto
+
+### Colaboradores ativos:
+${JSON.stringify(colaboradores.map((c: any) => ({ id: c.id, nome: c.nome, cargo: c.cargo, tipo_escala: c.tipo_escala })), null, 2)}
+
+### Turnos disponíveis:
+${JSON.stringify(turnos.map((t: any) => ({ codigo: t.codigo, nome: t.nome })), null, 2)}
+
+### CCT/regulamento (resumo):
+${vault.map((v: any) => `[${v.tipo}] ${v.titulo}`).join('\n') || '(sem)'}
+
+### PROPOSTA ATUAL (que você já gerou):
+\`\`\`json
+${JSON.stringify(propostaAtual, null, 2).slice(0, 15000)}
+\`\`\`
+
+### PEDIDO DO GESTOR:
+"${mensagem}"
+
+## FORMATO DA RESPOSTA (JSON OBRIGATÓRIO)
+
+\`\`\`json
+{
+  "interpretacao": "Como você entendeu o pedido em 1 frase",
+  "viavel": true_ou_false,
+  "explicacao": "Se inviavel, explica matematicamente por que. Se viavel, fala o que fez.",
+  "lancamentos_alterados": [
+    { "colaborador_id": 123, "data": "YYYY-MM-DD", "turno_codigo": "FG|T01|...", "motivo": "por que mudou" }
+  ],
+  "lancamentos_removidos": [
+    { "colaborador_id": 123, "data": "YYYY-MM-DD" }
+  ],
+  "recomendacoes": [
+    "sugestoes adicionais (ex: chamar PJ pra sabado, considerar contratar +1)"
+  ],
+  "alertas": ["riscos novos (ex: Maria vai ter HE com essa mudanca)"]
+}
+\`\`\`
+
+**IMPORTANTE:** retorne SOMENTE os lançamentos que você ALTEROU ou REMOVEU — não retorne a escala inteira. O front mescla as mudanças.`;
+
+      const [agenteCfg] = await AppDataSource.query(`SELECT modelo_ia FROM rh_escala_agente_config ORDER BY id ASC LIMIT 1`);
+      const model = agenteCfg?.modelo_ia || 'gpt-4o-mini';
+      const axios = require('axios');
+      const payload: any = {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: mensagem },
+        ],
+        response_format: { type: 'json_object' },
+      };
+      if (/^gpt-5/i.test(model)) payload.max_completion_tokens = 6000;
+      else { payload.max_tokens = 4000; payload.temperature = 0.3; }
+
+      const r = await axios.post('https://api.openai.com/v1/chat/completions', payload, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        timeout: 120000,
+      });
+
+      let ajuste: any = {};
+      try {
+        ajuste = JSON.parse(r.data.choices?.[0]?.message?.content || '{}');
+      } catch (e: any) {
+        return res.status(500).json({ error: 'IA retornou JSON invalido' });
+      }
+
+      res.json({ success: true, ajuste, usage: r.data.usage });
+    } catch (e: any) {
+      console.error('[RhEscala] ajustarPropostaEscala:', e?.response?.data || e);
+      res.status(500).json({ error: e?.response?.data?.error?.message || e.message });
+    }
+  }
+
+  // ============ AGENTE IA: APLICAR PROPOSTA NA ESCALA ============
+  // Recebe array de lançamentos já revisados/editados pelo gestor e grava em rh_escala_lancamentos.
+  // Usa upsert (substitui o que ja tinha no mesmo dia/colaborador).
+  // Loga em rh_escala_agente_acoes pra auditoria.
+  static async aplicarPropostaEscala(req: Request, res: Response) {
+    try {
+      const { lancamentos, empresaId, departamentoId, mes, ano, sobrescrever } = req.body;
+      if (!Array.isArray(lancamentos) || !lancamentos.length) {
+        return res.status(400).json({ error: 'lancamentos array obrigatorio' });
+      }
+      const userId = (req as any).user?.id || null;
+
+      // Mapeia codigos de turno em turno_id (FG/FE/AT/FRDO sao especiais — turno_id = NULL com codigo no campo)
+      const codigos = [...new Set(lancamentos.map((l: any) => l.turno_codigo))];
+      const turnosDb = await AppDataSource.query(
+        `SELECT id, codigo FROM rh_escala_turnos WHERE codigo = ANY($1::text[])`,
+        [codigos]
+      );
+      const turnoIdPorCodigo: Record<string, string> = {};
+      turnosDb.forEach((t: any) => { turnoIdPorCodigo[t.codigo] = t.id; });
+
+      const CODIGOS_ESPECIAIS = ['FG', 'FE', 'AT', 'FRDO'];
+
+      // Grava em transacao
+      const queryRunner = AppDataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      let inseridos = 0, atualizados = 0, ignorados = 0;
+      const ignoradosDetalhe: any[] = [];
+
+      try {
+        for (const l of lancamentos) {
+          const codigo = String(l.turno_codigo || '').toUpperCase();
+          const isEspecial = CODIGOS_ESPECIAIS.includes(codigo);
+          const turnoId = isEspecial ? null : turnoIdPorCodigo[codigo];
+
+          if (!isEspecial && !turnoId) {
+            ignorados++;
+            ignoradosDetalhe.push({ ...l, motivo: `turno ${codigo} nao cadastrado` });
+            continue;
+          }
+
+          if (!sobrescrever) {
+            const [existente] = await queryRunner.query(
+              `SELECT id FROM rh_escala_lancamentos WHERE colaborador_id = $1 AND data = $2 LIMIT 1`,
+              [l.colaborador_id, l.data]
+            );
+            if (existente) {
+              ignorados++;
+              ignoradosDetalhe.push({ ...l, motivo: 'ja existe lancamento (use sobrescrever=true pra substituir)' });
+              continue;
+            }
+          }
+
+          const result = await queryRunner.query(
+            `INSERT INTO rh_escala_lancamentos (colaborador_id, data, turno_id, origem)
+             VALUES ($1, $2, $3, 'agente_ia_proposta')
+             ON CONFLICT (colaborador_id, data)
+             DO UPDATE SET turno_id = $3, origem = 'agente_ia_proposta', atualizado_em = NOW()
+             RETURNING (xmax = 0) AS inserted`,
+            [l.colaborador_id, l.data, turnoId]
+          );
+          if (result[0]?.inserted) inseridos++; else atualizados++;
+        }
+
+        // Auditoria
+        await queryRunner.query(
+          `INSERT INTO rh_escala_agente_acoes
+            (usuario_id, empresa_id, departamento_id, pergunta, acao, parametros, antes, depois, senha_validada, sucesso)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [
+            userId, empresaId || null, departamentoId || null,
+            `Aplicar proposta IA mes ${mes}/${ano}`,
+            'aplicar_proposta_ia',
+            JSON.stringify({ mes, ano, total_lancamentos: lancamentos.length, sobrescrever: !!sobrescrever }),
+            null, JSON.stringify({ inseridos, atualizados, ignorados }),
+            true, true,
+          ]
+        );
+
+        await queryRunner.commitTransaction();
+        res.json({ success: true, inseridos, atualizados, ignorados, ignoradosDetalhe });
+      } catch (e: any) {
+        await queryRunner.rollbackTransaction();
+        throw e;
+      } finally {
+        await queryRunner.release();
+      }
+    } catch (e: any) {
+      console.error('[RhEscala] aplicarPropostaEscala:', e);
+      res.status(500).json({ error: e.message });
+    }
+  }
 }

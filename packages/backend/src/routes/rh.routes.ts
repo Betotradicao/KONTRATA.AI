@@ -320,6 +320,9 @@ router.delete('/escala/regras-setor/:id', authenticateToken, RhEscalaController.
 
 // Agente IA de Escala (chat com OpenAI)
 router.post('/escala/agente-ia/chat', authenticateToken, RhEscalaController.chatAgenteEscala);
+router.post('/escala/agente-ia/gerar-proposta', authenticateToken, RhEscalaController.gerarPropostaEscala);
+router.post('/escala/agente-ia/ajustar-proposta', authenticateToken, RhEscalaController.ajustarPropostaEscala);
+router.post('/escala/agente-ia/aplicar-proposta', authenticateToken, RhEscalaController.aplicarPropostaEscala);
 router.get('/escala/agente-ia/config', authenticateToken, RhEscalaController.getAgenteConfig);
 router.put('/escala/agente-ia/config', authenticateToken, RhEscalaController.putAgenteConfig);
 router.post('/escala/agente-ia/validar-senha', authenticateToken, RhEscalaController.validarSenhaAgente);
@@ -340,6 +343,7 @@ router.post('/escala/memoria', authenticateToken, RhEscalaMemoriaController.cria
 router.put('/escala/memoria/:id', authenticateToken, RhEscalaMemoriaController.atualizar);
 router.delete('/escala/memoria/:id', authenticateToken, RhEscalaMemoriaController.deletar);
 router.post('/escala/memoria/buscar-relevantes', authenticateToken, RhEscalaMemoriaController.buscarRelevantes);
+router.post('/escala/memoria/upload-doc', authenticateToken, uploadDoc.single('file'), RhEscalaMemoriaController.uploadDocumento);
 
 // Fichas de Admissão (1ª FASE — RH preenche, candidato completa via link público)
 // ROTAS PÚBLICAS (sem auth) — candidato acessa via token UUID

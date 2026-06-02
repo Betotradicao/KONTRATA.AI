@@ -18,6 +18,7 @@ import AlertaResolucao from './pages/AlertaResolucao';
 import CurriculoPublico from './pages/CurriculoPublico';
 import DiscPublico from './pages/DiscPublico';
 import PesquisaPublica from './pages/PesquisaPublica';
+import DenunciaPublica from './pages/DenunciaPublica';
 import RecrutamentoPublico from './pages/RecrutamentoPublico';
 import AdmissaoPublica from './pages/AdmissaoPublica';
 
@@ -76,6 +77,7 @@ function App() {
               <Route path="/pesquisa-publica/:token" element={<PesquisaPublica />} />
               <Route path="/recrutamento/:token" element={<RecrutamentoPublico />} />
               <Route path="/admissao/:token" element={<AdmissaoPublica />} />
+              <Route path="/denuncia/:empresaId" element={<DenunciaPublica />} />
 
               {/* Protected — Auth & Perfil */}
               <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />

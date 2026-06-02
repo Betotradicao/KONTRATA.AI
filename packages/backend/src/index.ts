@@ -29,6 +29,7 @@ import curriculosRouter from './routes/curriculos.routes';
 import holidaysRouter from './routes/holidays.routes';
 import lgpdRouter from './routes/lgpd.routes';
 import accessLogsRouter from './routes/access-logs.routes';
+import denunciasRouter from './routes/denuncias.routes';
 import { accessLogMiddleware } from './middleware/access-log.middleware';
 
 import { minioService } from './services/minio.service';
@@ -125,6 +126,7 @@ app.use('/api/curriculos', curriculosRouter);
 app.use('/api/holidays', holidaysRouter);
 app.use('/api/lgpd', lgpdRouter);
 app.use('/api/access-logs', accessLogsRouter);
+app.use('/api/denuncias', denunciasRouter);
 
 const startServer = async () => {
   try {
