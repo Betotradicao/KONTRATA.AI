@@ -497,7 +497,7 @@ export class PesquisaClimaController {
 
       // Carrega rodada + modelo
       const [rodada] = await AppDataSource.query(`
-        SELECT r.*, m.nome AS modelo_nome, m.tipo_pesquisa, m.descricao AS modelo_descricao
+        SELECT r.*, m.nome AS modelo_nome, m.descricao AS modelo_descricao
         FROM pesquisa_rodadas r JOIN pesquisa_modelos m ON m.id = r.modelo_id
         WHERE r.id = $1`, [id]);
       if (!rodada) return res.status(404).json({ error: 'Rodada nao encontrada' });
@@ -636,7 +636,7 @@ Você recebeu os resultados de uma pesquisa de clima. Sua missão: extrair INSIG
 Retorne entre 5 e 12 planos de ação. Priorize qualidade sobre quantidade.`;
 
       const userPrompt = `## PESQUISA: ${rodada.nome}
-**Modelo:** ${rodada.modelo_nome} (${rodada.tipo_pesquisa || 'geral'})
+**Modelo:** ${rodada.modelo_nome}
 **Descrição:** ${rodada.modelo_descricao || ''}
 **Total de respostas:** ${totalResp}
 
@@ -673,7 +673,6 @@ Analise esses dados e retorne o JSON conforme estrutura. Foque em ações que d�
           id: rodada.id,
           nome: rodada.nome,
           modelo_nome: rodada.modelo_nome,
-          tipo_pesquisa: rodada.tipo_pesquisa,
           total_respostas: totalResp,
           criada_em: rodada.criada_em,
         },
