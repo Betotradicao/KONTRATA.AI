@@ -12,7 +12,7 @@
 import axios from 'axios';
 import { ConfigurationService } from './configuration.service';
 
-const { PDFParse } = require('pdf-parse');
+const pdfParse = require('pdf-parse');
 const XLSX = require('xlsx');
 
 export type TipoDocumento =
@@ -71,11 +71,10 @@ export class DocumentoEscalaService {
     const lower = (mimetype || '').toLowerCase();
     const ext = (filename || '').toLowerCase();
 
-    // PDF (pdf-parse v2 API)
+    // PDF (pdf-parse v1 API)
     if (lower.includes('pdf') || ext.endsWith('.pdf')) {
-      const parser = new PDFParse({ data: buffer });
-      const result = await parser.getText();
-      const texto = (result.text || '').trim();
+      const data = await pdfParse(buffer);
+      const texto = (data.text || '').trim();
       // Se quase nada de texto, eh PDF escaneado (so imagem) -> usar Vision
       if (texto.length < 100) {
         const visionText = await this.lerImagemComVision(buffer, 'application/pdf');
