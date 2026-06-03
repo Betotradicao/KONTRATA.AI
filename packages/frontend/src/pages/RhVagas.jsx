@@ -106,6 +106,10 @@ export default function RhVagas() {
   const [buscaCurriculoId, setBuscaCurriculoId] = useState('');
   const [buscandoCurriculo, setBuscandoCurriculo] = useState(false);
   const [curriculoVisualizar, setCurriculoVisualizar] = useState(null);
+  // Quando o modal de curriculo eh aberto a partir de uma VAGA, guardamos o id
+  // dela aqui pra que clicar "Selecionado" no rodape sincronize v.selecionados
+  // dessa vaga (e nao soh mude o status global do curriculo).
+  const [curriculoVisualizarVagaId, setCurriculoVisualizarVagaId] = useState(null);
   const [carregandoCurriculo, setCarregandoCurriculo] = useState(false);
   const [expandedVagaId, setExpandedVagaId] = useState(null);
 
@@ -263,13 +267,16 @@ export default function RhVagas() {
     setFormData(prev => ({ ...prev, selecionados: prev.selecionados.filter((_, i) => i !== idx) }));
   };
 
-  const visualizarCurriculo = async (curriculoId) => {
-    // Abre o curriculo direto em modal aqui mesmo (em vez de mandar pra tela do Banco)
+  const visualizarCurriculo = async (curriculoId, vagaId = null) => {
+    // Abre o curriculo direto em modal aqui mesmo (em vez de mandar pra tela do Banco).
+    // Quando vier de dentro de uma VAGA, guarda o vagaId pra clicar "Selecionado"
+    // sincronizar com v.selecionados dessa vaga.
     try {
       const r = await api.get(`/curriculos/${curriculoId}`);
       const cv = r?.data?.curriculo || r?.data;
       if (!cv || !cv.id) { toast.error('Currículo não encontrado'); return; }
       setCurriculoVisualizar(cv);
+      setCurriculoVisualizarVagaId(vagaId);
     } catch (err) {
       toast.error('Erro ao buscar currículo');
     }
@@ -1036,7 +1043,7 @@ export default function RhVagas() {
                                                 <tr key={`row-${c.curriculo_id}-${i}`} className="border-t border-rose-200 bg-white">
                                                   <td className="px-2 py-1.5 font-mono font-bold">{c.curriculo_id}</td>
                                                   <td className="px-2 py-1.5">
-                                                    <button onClick={() => visualizarCurriculo(c.curriculo_id)} className="text-rose-700 hover:underline font-semibold">
+                                                    <button onClick={() => visualizarCurriculo(c.curriculo_id, v.id)} className="text-rose-700 hover:underline font-semibold">
                                                       {c.nome}
                                                     </button>
                                                   </td>
@@ -2011,12 +2018,20 @@ export default function RhVagas() {
         {curriculoVisualizar && (
           <DetalheCV
             cv={curriculoVisualizar}
-            onFechar={() => setCurriculoVisualizar(null)}
+            onFechar={() => { setCurriculoVisualizar(null); setCurriculoVisualizarVagaId(null); }}
             onAtualizarStatus={async (status) => {
               try {
-                await api.put(`/curriculos/${curriculoVisualizar.id}`, { status });
+                // Se aberto a partir de uma vaga, usa a funcao que sincroniza
+                // v.selecionados (selecionado/contratado) ou apenas muda o status
+                // global (recusado/futuras). Garante que clicar "Selecionado"
+                // no modal de fato marca a candidata na vaga, nao soh muda global.
+                if (curriculoVisualizarVagaId) {
+                  await atualizarStatusInteressado(curriculoVisualizar.id, status, curriculoVisualizarVagaId);
+                } else {
+                  await api.put(`/curriculos/${curriculoVisualizar.id}`, { status });
+                  fetchAll();
+                }
                 setCurriculoVisualizar(prev => prev ? { ...prev, status } : prev);
-                fetchAll();
               } catch { toast.error('Erro ao atualizar status'); }
             }}
             onAtualizarObs={async (observacao_rh) => {
