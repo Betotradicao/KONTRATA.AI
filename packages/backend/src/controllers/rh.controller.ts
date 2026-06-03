@@ -1185,10 +1185,12 @@ export class RhController {
                     'email', c.email,
                     'cidade', c.cidade,
                     'created_at', c.created_at,
-                    -- status_local: status DENTRO desta vaga (nao o global do curriculo).
-                    -- - 'contratado' se esta em v.selecionados com contratado=true
-                    -- - 'selecionado' se esta em v.selecionados (sem contratado)
-                    -- - 'novo' caso contrario (ignora status global do curriculo)
+                    -- status_local: combina status LOCAL (v.selecionados) com status GLOBAL.
+                    -- - 'contratado'/'selecionado' soh quando esta em v.selecionados DESTA vaga
+                    --   (assim "selecionar em uma vaga" nao vaza pra outras)
+                    -- - 'recusado'/'em_analise'/'contratado' vem do status GLOBAL do curriculo
+                    --   (Recusar/Vagas Futuras sao decisoes sobre o candidato, afetam todas as vagas)
+                    -- - 'novo' caso contrario
                     'status', CASE
                       WHEN EXISTS (
                         SELECT 1 FROM jsonb_array_elements(COALESCE(v.selecionados, '[]'::jsonb)) sel
@@ -1198,6 +1200,9 @@ export class RhController {
                         SELECT 1 FROM jsonb_array_elements(COALESCE(v.selecionados, '[]'::jsonb)) sel
                         WHERE (sel->>'curriculo_id')::int = c.id
                       ) THEN 'selecionado'
+                      WHEN c.status = 'reprovado' THEN 'recusado'
+                      WHEN c.status = 'em_analise' THEN 'em_analise'
+                      WHEN c.status = 'contratado' THEN 'contratado'
                       ELSE 'novo'
                     END,
                     'status_global', c.status,
