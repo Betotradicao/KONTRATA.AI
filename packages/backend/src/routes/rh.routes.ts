@@ -168,6 +168,7 @@ router.post('/vagas', authenticateToken, RhController.criarVaga);
 router.put('/vagas/:id', authenticateToken, RhController.atualizarVaga);
 router.delete('/vagas/:id', authenticateToken, RhController.deletarVaga);
 router.post('/vagas/:vagaId/adicionar-interesse', authenticateToken, RhController.adicionarInteresseVaga);
+router.post('/vagas/:vagaId/candidato-status', authenticateToken, RhController.setCandidatoStatusVaga);
 
 // Candidatos
 router.get('/candidatos', authenticateToken, RhController.listarCandidatos);

@@ -1185,12 +1185,8 @@ export class RhController {
                     'email', c.email,
                     'cidade', c.cidade,
                     'created_at', c.created_at,
-                    -- status_local: combina status LOCAL (v.selecionados) com status GLOBAL.
-                    -- - 'contratado'/'selecionado' soh quando esta em v.selecionados DESTA vaga
-                    --   (assim "selecionar em uma vaga" nao vaza pra outras)
-                    -- - 'recusado'/'em_analise'/'contratado' vem do status GLOBAL do curriculo
-                    --   (Recusar/Vagas Futuras sao decisoes sobre o candidato, afetam todas as vagas)
-                    -- - 'novo' caso contrario
+                    -- status_local: 100% LOCAL por vaga (nao vaza pra outras vagas).
+                    -- Calculado a partir dos 3 arrays JSONB da vaga: selecionados, recusados, vagas_futuras.
                     'status', CASE
                       WHEN EXISTS (
                         SELECT 1 FROM jsonb_array_elements(COALESCE(v.selecionados, '[]'::jsonb)) sel
@@ -1200,9 +1196,14 @@ export class RhController {
                         SELECT 1 FROM jsonb_array_elements(COALESCE(v.selecionados, '[]'::jsonb)) sel
                         WHERE (sel->>'curriculo_id')::int = c.id
                       ) THEN 'selecionado'
-                      WHEN c.status = 'reprovado' THEN 'recusado'
-                      WHEN c.status = 'em_analise' THEN 'em_analise'
-                      WHEN c.status = 'contratado' THEN 'contratado'
+                      WHEN EXISTS (
+                        SELECT 1 FROM jsonb_array_elements(COALESCE(v.recusados, '[]'::jsonb)) r
+                        WHERE (r->>'curriculo_id')::int = c.id
+                      ) THEN 'recusado'
+                      WHEN EXISTS (
+                        SELECT 1 FROM jsonb_array_elements(COALESCE(v.vagas_futuras, '[]'::jsonb)) f
+                        WHERE (f->>'curriculo_id')::int = c.id
+                      ) THEN 'em_analise'
                       ELSE 'novo'
                     END,
                     'status_global', c.status,
@@ -1261,6 +1262,84 @@ export class RhController {
     } catch (error) {
       console.error('Update vaga error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  // POST /rh/vagas/:vagaId/candidato-status
+  // Define o status LOCAL do candidato dentro da vaga (selecionado, recusado,
+  // em_analise/vagas_futuras, contratado, novo). Move o curriculo entre os 3
+  // arrays JSONB: selecionados, recusados, vagas_futuras. Sem efeito global.
+  static async setCandidatoStatusVaga(req: AuthRequest, res: Response) {
+    try {
+      const vagaId = parseInt(req.params.vagaId);
+      const { curriculo_id, status } = req.body;
+      if (!curriculo_id || !status) return res.status(400).json({ error: 'curriculo_id e status obrigatorios' });
+      const statusValidos = ['novo', 'selecionado', 'aprovado', 'recusado', 'em_analise', 'contratado'];
+      const s = status === 'aprovado' ? 'selecionado' : status;
+      if (!statusValidos.includes(s)) return res.status(400).json({ error: 'status invalido' });
+
+      const [vaga] = await AppDataSource.query(
+        `SELECT id, selecionados, recusados, vagas_futuras FROM rh_vagas WHERE id = $1`, [vagaId]
+      );
+      if (!vaga) return res.status(404).json({ error: 'Vaga nao encontrada' });
+
+      const [cv] = await AppDataSource.query(`SELECT id, nome, whatsapp, email, cidade, created_at FROM curriculos WHERE id = $1`, [curriculo_id]);
+      if (!cv) return res.status(404).json({ error: 'Curriculo nao encontrado' });
+
+      // Helper: remove o curriculo de qualquer array
+      const remove = (arr: any[]) =>
+        (Array.isArray(arr) ? arr : []).filter((x: any) => Number(x?.curriculo_id) !== Number(curriculo_id));
+      const has = (arr: any[]) =>
+        (Array.isArray(arr) ? arr : []).some((x: any) => Number(x?.curriculo_id) === Number(curriculo_id));
+
+      let selecionados: any[] = remove(vaga.selecionados);
+      let recusados: any[] = remove(vaga.recusados);
+      let vagas_futuras: any[] = remove(vaga.vagas_futuras);
+
+      const entryBase = {
+        curriculo_id: cv.id,
+        nome: cv.nome,
+        whatsapp: cv.whatsapp,
+        email: cv.email,
+        cidade: cv.cidade,
+        created_at: cv.created_at,
+        adicionado_em: new Date().toISOString(),
+      };
+
+      if (s === 'selecionado') {
+        selecionados.push({ ...entryBase, contratado: false });
+      } else if (s === 'contratado') {
+        // Mantem em selecionados com contratado=true
+        const original = (Array.isArray(vaga.selecionados) ? vaga.selecionados : []).find((x: any) => Number(x?.curriculo_id) === Number(curriculo_id));
+        selecionados.push({ ...(original || entryBase), contratado: true });
+      } else if (s === 'recusado') {
+        recusados.push(entryBase);
+      } else if (s === 'em_analise') {
+        vagas_futuras.push(entryBase);
+      }
+      // 'novo' => fica fora de tudo
+
+      // Atualiza tudo numa tacada
+      await AppDataSource.query(
+        `UPDATE rh_vagas
+           SET selecionados = $1::jsonb,
+               recusados    = $2::jsonb,
+               vagas_futuras = $3::jsonb
+         WHERE id = $4`,
+        [JSON.stringify(selecionados), JSON.stringify(recusados), JSON.stringify(vagas_futuras), vagaId]
+      );
+
+      // Atualiza o status da PROPRIA vaga (Em Selecao / Contratado(a))
+      if (s === 'contratado') {
+        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Contratado(a)' WHERE id = $1 AND status NOT IN ('Contratado(a)', 'Fechada')`, [vagaId]);
+      } else if (s === 'selecionado') {
+        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Em Selecao' WHERE id = $1 AND status = 'Aberta'`, [vagaId]);
+      }
+
+      res.json({ success: true, status_local: s, nome: cv.nome });
+    } catch (e: any) {
+      console.error('[Rh] setCandidatoStatusVaga:', e);
+      res.status(500).json({ error: e.message });
     }
   }
 

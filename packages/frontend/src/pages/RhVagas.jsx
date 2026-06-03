@@ -363,78 +363,19 @@ export default function RhVagas() {
 
   const atualizarStatusInteressado = async (curriculoId, novoStatus, vagaId = null) => {
     try {
-      await api.put(`/curriculos/${curriculoId}`, { status: novoStatus });
-      // Sincroniza status da vaga + array de selecionados conforme acao no candidato
       if (vagaId) {
-        const vaga = vagas.find(v => v.id === vagaId);
-        if (vaga) {
-          const selsAtual = Array.isArray(vaga.selecionados) ? vaga.selecionados : [];
-          let novoStatusVaga = vaga.status;
-          let novosSels = selsAtual;
-
-          // 'selecionado' / 'aprovado' -> vaga vira 'Em Selecao' (se Aberta) +
-          //                  adiciona o candidato no array de selecionados da vaga
-          //                  (se ainda nao estiver) pra agendar entrevistas etc.
-          //                  Aceita ambos status porque o badge "✓ Selecionado"
-          //                  do frontend considera os 2 iguais.
-          if (novoStatus === 'selecionado' || novoStatus === 'aprovado') {
-            if (vaga.status === 'Aberta') novoStatusVaga = 'Em Selecao';
-            const jaTem = selsAtual.some(s => Number(s.curriculo_id) === Number(curriculoId));
-            if (!jaTem) {
-              const interessado = (vaga.interessados || []).find(c => Number(c.curriculo_id) === Number(curriculoId));
-              if (interessado) {
-                novosSels = [...selsAtual, novoSelecionado({ id: curriculoId, nome: interessado.nome })];
-              }
-            }
-          }
-
-          // 'contratado' -> vaga vira 'Contratado(a)' (encerra o processo) +
-          //                 marca o candidato como contratado no array de selecionados (se existir)
-          if (novoStatus === 'contratado') {
-            if (vaga.status !== 'Contratado(a)' && vaga.status !== 'Fechada') {
-              novoStatusVaga = 'Contratado(a)';
-            }
-            // Garante que tem o candidato no array (caso tenha vindo direto sem passar por "Selecionar")
-            const idx = selsAtual.findIndex(s => Number(s.curriculo_id) === Number(curriculoId));
-            if (idx === -1) {
-              const interessado = (vaga.interessados || []).find(c => Number(c.curriculo_id) === Number(curriculoId));
-              if (interessado) {
-                novosSels = [...selsAtual, { ...novoSelecionado({ id: curriculoId, nome: interessado.nome }), contratado: true }];
-              }
-            } else {
-              novosSels = selsAtual.map((s, i) => i === idx ? { ...s, contratado: true } : s);
-            }
-          }
-
-          // Voltou pra estado anterior (Interessado / Recusado / Vagas Futuras) ->
-          // remove o candidato do array de selecionados pra ZERAR todo o processo
-          // (entrevista, resultado, pos-entrevista, datas, contratado). Se quiser
-          // re-selecionar depois, comeca do zero.
-          if (novoStatus === 'novo' || novoStatus === 'recusado' || novoStatus === 'em_analise') {
-            const tinha = selsAtual.some(s => Number(s.curriculo_id) === Number(curriculoId));
-            if (tinha) {
-              novosSels = selsAtual.filter(s => Number(s.curriculo_id) !== Number(curriculoId));
-              // Se nao sobrou ninguem contratado, vaga volta pra "Em Selecao"
-              // (a logica de sincronizacao do status da vaga ja esta em
-              // persistirSelecionadosVaga, mas aqui chamamos PUT direto)
-              const algumContratadoRestante = novosSels.some(s => !!s.contratado);
-              if (!algumContratadoRestante && (vaga.status === 'Contratado(a)' || vaga.status === 'Fechada')) {
-                novoStatusVaga = 'Em Selecao';
-              }
-            }
-          }
-
-          // Persiste mudancas na vaga (status + selecionados) numa tacada so
-          if (novoStatusVaga !== vaga.status || novosSels !== selsAtual) {
-            try {
-              await api.put(`/rh/vagas/${vagaId}`, { ...vaga, status: novoStatusVaga, selecionados: novosSels });
-            } catch {}
-          }
-        }
+        // Caminho NOVO: status 100% LOCAL por vaga (gerencia v.selecionados/recusados/vagas_futuras)
+        await api.post(`/rh/vagas/${vagaId}/candidato-status`, {
+          curriculo_id: curriculoId,
+          status: novoStatus,
+        });
+      } else {
+        // Sem vaga: atualiza apenas status global (tela do Banco de Curriculos)
+        await api.put(`/curriculos/${curriculoId}`, { status: novoStatus });
       }
-      const msg = novoStatus === 'selecionado' ? '✓ Candidato selecionado — adicione entrevista no modal de edição da vaga'
-        : novoStatus === 'recusado' ? '🚫 Candidato recusado'
-        : novoStatus === 'em_analise' ? '🔎 Marcado como Vagas Futuras'
+      const msg = novoStatus === 'selecionado' || novoStatus === 'aprovado' ? '✓ Candidato selecionado — adicione entrevista no modal de edição da vaga'
+        : novoStatus === 'recusado' ? '🚫 Candidato recusado nesta vaga'
+        : novoStatus === 'em_analise' ? '🔎 Marcado como Vagas Futuras nesta vaga'
         : novoStatus === 'contratado' ? '🎉 Candidato contratado! Vaga encerrada'
         : 'Status atualizado';
       toast.success(msg);
