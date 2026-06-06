@@ -1,5 +1,13 @@
 # 🚧 Trabalho em Andamento
 
+## Sessão 2026-06-05 — Status candidato modal vs lista (Tradição)
+- Bug: dentro do modal mostrava status correto (ex: Vagas Futuras), na lista da vaga mostrava "Novo". Causa: modal usava `cv.status` global, lista usa arrays locais por vaga. Migração 100%-local de ontem (`27be7f6`) deixou arrays vazios, perdendo triagens antigas.
+- ✅ Migração one-shot vaga 13 (CONFERENTE) Tradição — 27 candidatos sincronizados via [migrar-triagens-vaga.sql](../packages/backend/scripts/migrar-triagens-vaga.sql)
+- ✅ Frontend: `RhVagas.calcStatusLocalNaVaga()` + `DetalheCV.statusEfetivo` em [[../bugs-resolvidos/2026-06-05-status-candidato-modal-vs-lista]]
+- 🔜 Deploy direto Tradição (user autorizou) → testar → migrar fechadas (10/11) + Guibox/NovaCentral se quiser
+
+---
+
 ## Sessão 30-31/05/2026 — Agente IA de Escala (Etapas 1 e 2 concluídas)
 
 ### ✅ Entregue (commit `e7d410a` pushado pro origin/KONTRATAAI)

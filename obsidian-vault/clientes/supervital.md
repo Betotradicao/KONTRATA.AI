@@ -18,6 +18,7 @@
 - Quando busca dados, o filtro `codLoja` precisa sempre ser respeitado
 - Interface tem seletor de loja no canto superior esquerdo
 - **PLU de balança = 6 dígitos** (ver seção EAN abaixo)
+- ⚠️ **Rede do cliente é instável** — Mikrotik/internet cai com frequência. Quando der ORA-12170 em SuperVital, **default é assumir queda na ponta deles** (não investigar nosso lado primeiro). Monitor automático não vale a pena por causa do ruído. DDNS está configurado (`smvital.o3utm.com.br` → Route 53 TTL 1s) mas só protege contra troca de IP, não contra link/Mikrotik offline.
 
 ## 🔢 EAN de balança — usa **6 dígitos** de PLU
 Formato do EAN-13 que a balança gera:

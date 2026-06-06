@@ -267,6 +267,27 @@ export default function RhVagas() {
     setFormData(prev => ({ ...prev, selecionados: prev.selecionados.filter((_, i) => i !== idx) }));
   };
 
+  // Calcula o status LOCAL do candidato dentro de uma vaga, a partir dos 3
+  // arrays JSONB (selecionados, recusados, vagas_futuras). Mesma logica do
+  // backend listarVagas — garante que dentro do modal e fora na lista
+  // batem (fonte unica de verdade por vaga).
+  const calcStatusLocalNaVaga = (vagaId, curriculoId) => {
+    const vaga = vagas.find(v => Number(v.id) === Number(vagaId));
+    if (!vaga) return null;
+    const cid = Number(curriculoId);
+    const inSel = (Array.isArray(vaga.selecionados) ? vaga.selecionados : [])
+      .find(s => Number(s?.curriculo_id) === cid);
+    if (inSel?.contratado) return 'contratado';
+    if (inSel) return 'selecionado';
+    const inRec = (Array.isArray(vaga.recusados) ? vaga.recusados : [])
+      .find(s => Number(s?.curriculo_id) === cid);
+    if (inRec) return 'recusado';
+    const inFut = (Array.isArray(vaga.vagas_futuras) ? vaga.vagas_futuras : [])
+      .find(s => Number(s?.curriculo_id) === cid);
+    if (inFut) return 'em_analise';
+    return 'novo';
+  };
+
   const visualizarCurriculo = async (curriculoId, vagaId = null) => {
     // Abre o curriculo direto em modal aqui mesmo (em vez de mandar pra tela do Banco).
     // Quando vier de dentro de uma VAGA, guarda o vagaId pra clicar "Selecionado"
@@ -275,7 +296,8 @@ export default function RhVagas() {
       const r = await api.get(`/curriculos/${curriculoId}`);
       const cv = r?.data?.curriculo || r?.data;
       if (!cv || !cv.id) { toast.error('Currículo não encontrado'); return; }
-      setCurriculoVisualizar(cv);
+      const statusLocal = vagaId ? calcStatusLocalNaVaga(vagaId, cv.id) : null;
+      setCurriculoVisualizar({ ...cv, _statusLocalNaVaga: statusLocal });
       setCurriculoVisualizarVagaId(vagaId);
     } catch (err) {
       toast.error('Erro ao buscar currículo');
@@ -1968,11 +1990,15 @@ export default function RhVagas() {
                 // no modal de fato marca a candidata na vaga, nao soh muda global.
                 if (curriculoVisualizarVagaId) {
                   await atualizarStatusInteressado(curriculoVisualizar.id, status, curriculoVisualizarVagaId);
+                  // Reflete imediato no modal usando o status LOCAL da vaga
+                  // (aprovado eh alias antigo de selecionado).
+                  const stLocal = status === 'aprovado' ? 'selecionado' : status;
+                  setCurriculoVisualizar(prev => prev ? { ...prev, _statusLocalNaVaga: stLocal } : prev);
                 } else {
                   await api.put(`/curriculos/${curriculoVisualizar.id}`, { status });
                   fetchAll();
+                  setCurriculoVisualizar(prev => prev ? { ...prev, status } : prev);
                 }
-                setCurriculoVisualizar(prev => prev ? { ...prev, status } : prev);
               } catch { toast.error('Erro ao atualizar status'); }
             }}
             onAtualizarObs={async (observacao_rh) => {

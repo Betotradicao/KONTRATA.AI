@@ -625,7 +625,12 @@ export function DetalheCV({
   };
   const [obs, setObs] = useState(cv.observacao_rh || '');
   const [entrevistasIA, setEntrevistasIA] = useState([]);
-  const st = STATUS_LABEL[cv.status] || STATUS_LABEL.novo;
+  // Status efetivo: quando aberto a partir de uma vaga (RhVagas injeta
+  // cv._statusLocalNaVaga), usa o status LOCAL daquela vaga. Senao usa o
+  // global do curriculo (Banco de Curriculos). Fonte unica: dentro e fora
+  // do modal mostram o mesmo status pra mesma vaga.
+  const statusEfetivo = cv._statusLocalNaVaga != null ? cv._statusLocalNaVaga : cv.status;
+  const st = STATUS_LABEL[statusEfetivo] || STATUS_LABEL.novo;
   const salvarObs = () => onAtualizarObs(obs);
 
   // === Foto expandida ao clicar ===
@@ -1007,7 +1012,7 @@ export function DetalheCV({
             {['novo','em_analise','aprovado','recusado','contratado'].map((key) => {
               const s = STATUS_LABEL[key];
               // Marca botao Recusado como ativo se status atual for 'recusado' ou alias antigo 'reprovado'
-              const ativo = cv.status === key || (key === 'recusado' && cv.status === 'reprovado');
+              const ativo = statusEfetivo === key || (key === 'recusado' && statusEfetivo === 'reprovado');
               return (
                 <button key={key} onClick={() => onAtualizarStatus(key)}
                   className={`text-sm px-4 py-2 border-2 rounded-lg font-bold ${ativo ? s.bg + ' border-current' : 'border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
