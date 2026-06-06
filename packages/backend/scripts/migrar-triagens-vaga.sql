@@ -28,7 +28,8 @@ SET vagas_futuras = COALESCE(v.vagas_futuras, '[]'::jsonb) || COALESCE((
 ), '[]'::jsonb)
 WHERE v.id = :vaga_id;
 
--- 2) status global "aprovado" ou "selecionado" -> array local selecionados
+-- 2) status global "aprovado"/"selecionado"/"contratado" -> array local selecionados
+-- (contratado tambem fica em selecionados, com flag contratado=true)
 UPDATE rh_vagas v
 SET selecionados = COALESCE(v.selecionados, '[]'::jsonb) || COALESCE((
   SELECT jsonb_agg(jsonb_build_object(
@@ -39,11 +40,11 @@ SET selecionados = COALESCE(v.selecionados, '[]'::jsonb) || COALESCE((
     'cidade', c.cidade,
     'created_at', c.created_at,
     'adicionado_em', to_char(NOW(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-    'contratado', false
+    'contratado', (c.status = 'contratado')
   ))
   FROM curriculos c
   WHERE c.vagas_interesse_ids @> jsonb_build_array(v.id)
-    AND c.status IN ('aprovado','selecionado')
+    AND c.status IN ('aprovado','selecionado','contratado')
     AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(v.selecionados,'[]'::jsonb)) s WHERE (s->>'curriculo_id')::int = c.id)
     AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(v.recusados,'[]'::jsonb))   r WHERE (r->>'curriculo_id')::int = c.id)
     AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(v.vagas_futuras,'[]'::jsonb)) f WHERE (f->>'curriculo_id')::int = c.id)
