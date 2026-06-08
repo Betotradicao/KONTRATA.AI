@@ -62,6 +62,11 @@ export class RhEmpresa {
   @Column({ default: true })
   active: boolean;
 
+  // Quando true, esconde a empresa da pagina publica de candidatura
+  // (usada para "filiais" criadas so pra guardar documentos, sem vaga real).
+  @Column({ name: 'oculto_recrutamento', type: 'boolean', default: false })
+  ocultoRecrutamento: boolean;
+
   @Column({ name: 'foto_fachada_url', type: 'text', nullable: true })
   fotoFachadaUrl: string | null;
 

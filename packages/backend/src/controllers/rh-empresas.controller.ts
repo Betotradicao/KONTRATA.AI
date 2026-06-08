@@ -73,6 +73,7 @@ export class RhEmpresasController {
         telefone: b.telefone || null,
         email: b.email || null,
         fotoFachadaUrl: b.fotoFachadaUrl || null,
+        ocultoRecrutamento: !!b.ocultoRecrutamento,
         active: true,
       });
       await repo().save(empresa);
@@ -113,6 +114,7 @@ export class RhEmpresasController {
       if (b.telefone !== undefined) e.telefone = b.telefone || undefined;
       if (b.email !== undefined) e.email = b.email || undefined;
       if (b.fotoFachadaUrl !== undefined) e.fotoFachadaUrl = b.fotoFachadaUrl || null;
+      if (b.ocultoRecrutamento !== undefined) e.ocultoRecrutamento = !!b.ocultoRecrutamento;
       if (b.active !== undefined) e.active = !!b.active;
       await repo().save(e);
       res.json(e);

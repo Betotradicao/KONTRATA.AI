@@ -240,9 +240,10 @@ export class CurriculosController {
         AppDataSource.getRepository(CurriculoCargo).find({ where: { ativo: true }, order: { ordem: 'ASC', nome: 'ASC' } }),
         AppDataSource.getRepository(CurriculoHabilidade).find({ where: { ativo: true }, order: { ordem: 'ASC', nome: 'ASC' } }),
         AppDataSource.getRepository(CurriculoTipoVaga).find({ where: { ativo: true }, order: { ordem: 'ASC', nome: 'ASC' } }),
-        // Fonte: rh_empresas (cadastro local do RH, independente da tabela companies global)
+        // Fonte: rh_empresas (cadastro local do RH, independente da tabela companies global).
+        // Filtra empresas com `oculto_recrutamento=true` (filiais so pra documentos, sem vaga real).
         AppDataSource.getRepository(RhEmpresa).find({
-          where: { active: true },
+          where: { active: true, ocultoRecrutamento: false },
           select: ['id', 'codLoja', 'nomeFantasia', 'apelido', 'bairro', 'cidade', 'estado', 'fotoFachadaUrl', 'isPrincipal'],
           order: { codLoja: 'ASC' } as any,
         }),

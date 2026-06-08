@@ -858,6 +858,7 @@ function EmpresasTab() {
     responsavelTelefone: '',
     fotoFachadaUrl: null,
     isPrincipal: false,
+    ocultoRecrutamento: false,
   };
 
   const carregar = async () => {
@@ -904,6 +905,7 @@ function EmpresasTab() {
       responsavelTelefone: c.responsavelTelefone || '',
       fotoFachadaUrl: c.fotoFachadaUrl || null,
       isPrincipal: !!c.isPrincipal,
+      ocultoRecrutamento: !!c.ocultoRecrutamento,
     });
   };
 
@@ -1204,13 +1206,24 @@ function EmpresasTab() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-2 sticky bottom-0 bg-white">
-              <button onClick={() => setModal(null)}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">Cancelar</button>
-              <button onClick={salvar} disabled={salvando}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
-                {salvando ? 'Salvando...' : 'Salvar'}
-              </button>
+            <div className="p-4 border-t border-gray-200 flex justify-between items-center gap-2 sticky bottom-0 bg-white flex-wrap">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="accent-orange-500 w-4 h-4"
+                  checked={!!modal.ocultoRecrutamento}
+                  onChange={e => setCampo('ocultoRecrutamento', e.target.checked)}
+                />
+                Não aparecer nas vagas de emprego
+              </label>
+              <div className="flex gap-2">
+                <button onClick={() => setModal(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">Cancelar</button>
+                <button onClick={salvar} disabled={salvando}
+                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+                  {salvando ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
