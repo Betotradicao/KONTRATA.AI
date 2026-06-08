@@ -406,7 +406,11 @@ export default function CurriculoPublico() {
 
             {/* Badges de modalidade */}
             <div className="flex flex-wrap gap-2 mb-5">
-              <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md">CLT</span>
+              {v.tipo_vaga_slug && (
+                <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md">
+                  {(tiposVaga.find(t => t.slug === v.tipo_vaga_slug) || {}).nome || v.tipo_vaga_slug}
+                </span>
+              )}
               {v.experiencia_obrigatoria && (
                 <span className="px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-md">
                   Experiência {v.experiencia_meses_minimo ? `${v.experiencia_meses_minimo} meses` : 'requerida'}
@@ -619,9 +623,13 @@ export default function CurriculoPublico() {
                           )}
                         </div>
 
-                        {/* Badge CLT */}
+                        {/* Badges de tipo + turno */}
                         <div className="flex flex-wrap gap-2 mb-4">
-                          <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md">CLT</span>
+                          {v.tipo_vaga_slug && (
+                            <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md">
+                              {(tiposVaga.find(t => t.slug === v.tipo_vaga_slug) || {}).nome || v.tipo_vaga_slug}
+                            </span>
+                          )}
                           {turnos.map(t => (
                             <span key={t} className="px-3 py-1 bg-sky-50 text-sky-700 text-xs font-semibold rounded-md">
                               🕐 {TURNO_LABEL[t] || t}

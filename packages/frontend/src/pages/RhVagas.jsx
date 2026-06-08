@@ -50,6 +50,7 @@ const initialForm = {
   hora_almoco_ini: '',
   hora_almoco_fim: '',
   hora_saida: '',
+  tipo_vaga_slug: '',
 };
 
 const novoSelecionado = (curriculo) => ({
@@ -87,6 +88,7 @@ export default function RhVagas() {
   const [beneficiosCatalogo, setBeneficiosCatalogo] = useState([]);
   const [lojas, setLojas] = useState([]);
   const [jornadas, setJornadas] = useState([]);
+  const [tiposVaga, setTiposVaga] = useState([]); // CLT, Menor Aprendiz, etc — fonte: curriculo_tipos_vaga
   // Configs de mensagem WhatsApp (compartilhadas com Banco de Curriculos)
   const [msgWhatsApp, setMsgWhatsApp] = useState('');
   const [msgWhatsAppAtivo, setMsgWhatsAppAtivo] = useState(true);
@@ -120,7 +122,7 @@ export default function RhVagas() {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [vagasRes, cargosRes, deptRes, benRes, sugRes, lojasRes, jornadasRes] = await Promise.all([
+      const [vagasRes, cargosRes, deptRes, benRes, sugRes, lojasRes, jornadasRes, tiposVagaRes] = await Promise.all([
         api.get('/rh/vagas'),
         api.get('/rh/configuracoes/cargos'),
         api.get('/rh/configuracoes/departamentos'),
@@ -128,6 +130,7 @@ export default function RhVagas() {
         api.get('/rh/configuracoes/cargos/sugestao-salarios').catch(() => ({ data: [] })),
         api.get('/rh/empresas').catch(() => ({ data: [] })),
         api.get('/rh/configuracoes/jornadas').catch(() => ({ data: [] })),
+        api.get('/curriculos/tipos-vaga').catch(() => ({ data: [] })),
       ]);
       setVagas(vagasRes.data || []);
       setCargos(cargosRes.data || []);
@@ -141,6 +144,11 @@ export default function RhVagas() {
       setLojas(lojasArr.slice().sort((a, b) => (a.codLoja ?? 999999) - (b.codLoja ?? 999999)));
       const jornadasArr = Array.isArray(jornadasRes.data) ? jornadasRes.data : (jornadasRes.data?.jornadas || []);
       setJornadas(jornadasArr);
+      // Endpoint retorna { success, tipos: [...] }. Aceita array tb por seguranca.
+      const tiposArr = Array.isArray(tiposVagaRes.data)
+        ? tiposVagaRes.data
+        : (Array.isArray(tiposVagaRes.data?.tipos) ? tiposVagaRes.data.tipos : []);
+      setTiposVaga(tiposArr.filter(t => t.ativo !== false));
       // Carrega configs de mensagem WhatsApp (em paralelo, sem bloquear)
       Promise.all([
         api.get('/configurations/rh_msg_whatsapp_entrevista').catch(() => null),
@@ -209,6 +217,7 @@ export default function RhVagas() {
         hora_almoco_ini: vaga.hora_almoco_ini ? String(vaga.hora_almoco_ini).substring(0, 5) : '',
         hora_almoco_fim: vaga.hora_almoco_fim ? String(vaga.hora_almoco_fim).substring(0, 5) : '',
         hora_saida:      vaga.hora_saida ? String(vaga.hora_saida).substring(0, 5) : '',
+        tipo_vaga_slug:  vaga.tipo_vaga_slug || '',
       });
     } else {
       setEditando(null);
@@ -1369,6 +1378,21 @@ export default function RhVagas() {
                         <option key={c.id} value={c.id}>{c.nome}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">📑 Tipo de Vaga</label>
+                    <select
+                      name="tipo_vaga_slug"
+                      value={formData.tipo_vaga_slug}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">Selecione...</option>
+                      {tiposVaga.map((t) => (
+                        <option key={t.slug} value={t.slug}>{t.nome}</option>
+                      ))}
+                    </select>
+                    <span className="text-[11px] text-gray-500 italic">Configure em Configurações RH → Modelo de Currículo → Tipos de Vaga</span>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">⏰ Jornada</label>

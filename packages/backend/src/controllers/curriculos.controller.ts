@@ -219,6 +219,7 @@ export class CurriculosController {
                 v.salario_min, v.experiencia_obrigatoria, v.experiencia_meses_minimo,
                 v.turnos, v.cod_loja, v.data_abertura,
                 v.hora_entrada, v.hora_almoco_ini, v.hora_almoco_fim, v.hora_saida,
+                v.tipo_vaga_slug,
                 ca.nome AS cargo_nome
          FROM rh_vagas v
          LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id

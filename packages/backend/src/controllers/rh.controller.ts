@@ -1231,13 +1231,13 @@ export class RhController {
 
   static async criarVaga(req: AuthRequest, res: Response) {
     try {
-      const { cargo_id, departamento_id, titulo, descricao, quantidade_vagas, salario_min, salario_max, data_abertura, data_fechamento, status, motivo_fechamento, requisitos, beneficios, selecionados, cod_loja, experiencia_obrigatoria, experiencia_meses_minimo, turnos, jornada_id, hora_entrada, hora_almoco_ini, hora_almoco_fim, hora_saida } = req.body;
+      const { cargo_id, departamento_id, titulo, descricao, quantidade_vagas, salario_min, salario_max, data_abertura, data_fechamento, status, motivo_fechamento, requisitos, beneficios, selecionados, cod_loja, experiencia_obrigatoria, experiencia_meses_minimo, turnos, jornada_id, hora_entrada, hora_almoco_ini, hora_almoco_fim, hora_saida, tipo_vaga_slug } = req.body;
       // String vazia vira NULL pra evitar erro de cast em colunas numericas/date
       const nn = (v: any) => (v === '' || v === undefined ? null : v);
       const result = await AppDataSource.query(
-        `INSERT INTO rh_vagas (cargo_id, departamento_id, titulo, descricao, quantidade_vagas, salario_min, salario_max, data_abertura, data_fechamento, status, motivo_fechamento, requisitos, beneficios, selecionados, cod_loja, experiencia_obrigatoria, experiencia_meses_minimo, turnos, jornada_id, hora_entrada, hora_almoco_ini, hora_almoco_fim, hora_saida)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17, $18::jsonb, $19, $20, $21, $22, $23) RETURNING *`,
-        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), nn(data_fechamento), status || 'Aberta', motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionados || []), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida)]
+        `INSERT INTO rh_vagas (cargo_id, departamento_id, titulo, descricao, quantidade_vagas, salario_min, salario_max, data_abertura, data_fechamento, status, motivo_fechamento, requisitos, beneficios, selecionados, cod_loja, experiencia_obrigatoria, experiencia_meses_minimo, turnos, jornada_id, hora_entrada, hora_almoco_ini, hora_almoco_fim, hora_saida, tipo_vaga_slug)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17, $18::jsonb, $19, $20, $21, $22, $23, $24) RETURNING *`,
+        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), nn(data_fechamento), status || 'Aberta', motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionados || []), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), nn(tipo_vaga_slug)]
       );
       res.status(201).json(result[0]);
     } catch (error) {
@@ -1249,13 +1249,13 @@ export class RhController {
   static async atualizarVaga(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { cargo_id, departamento_id, titulo, descricao, quantidade_vagas, salario_min, salario_max, data_abertura, data_fechamento, status, motivo_fechamento, requisitos, beneficios, selecionados, cod_loja, experiencia_obrigatoria, experiencia_meses_minimo, turnos, jornada_id, hora_entrada, hora_almoco_ini, hora_almoco_fim, hora_saida } = req.body;
+      const { cargo_id, departamento_id, titulo, descricao, quantidade_vagas, salario_min, salario_max, data_abertura, data_fechamento, status, motivo_fechamento, requisitos, beneficios, selecionados, cod_loja, experiencia_obrigatoria, experiencia_meses_minimo, turnos, jornada_id, hora_entrada, hora_almoco_ini, hora_almoco_fim, hora_saida, tipo_vaga_slug } = req.body;
       const nn = (v: any) => (v === '' || v === undefined ? null : v);
       const result = await AppDataSource.query(
         `UPDATE rh_vagas SET cargo_id=$1, departamento_id=$2, titulo=$3, descricao=$4, quantidade_vagas=$5, salario_min=$6, salario_max=$7, data_abertura=$8, data_fechamento=$9, status=$10, motivo_fechamento=$11, requisitos=$12, beneficios=$13, selecionados=$14::jsonb, cod_loja=$15, experiencia_obrigatoria=$16, experiencia_meses_minimo=$17, turnos=$18::jsonb, jornada_id=$19,
-            hora_entrada=$20, hora_almoco_ini=$21, hora_almoco_fim=$22, hora_saida=$23
-         WHERE id=$24 RETURNING *`,
-        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), nn(data_fechamento), status, motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionados || []), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), id]
+            hora_entrada=$20, hora_almoco_ini=$21, hora_almoco_fim=$22, hora_saida=$23, tipo_vaga_slug=$24
+         WHERE id=$25 RETURNING *`,
+        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), nn(data_fechamento), status, motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionados || []), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), nn(tipo_vaga_slug), id]
       );
       if (result.length === 0) return res.status(404).json({ error: 'Vaga nao encontrada' });
       res.json(result[0]);
