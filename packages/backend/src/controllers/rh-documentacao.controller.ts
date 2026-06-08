@@ -703,4 +703,31 @@ export class RhDocumentacaoController {
       return res.status(500).json({ error: err.message });
     }
   }
+
+  /** Renomeia o documento (apenas o campo `nome`, sem mexer no arquivo no storage).
+   *  Preserva a extensao original — se o user mandar "comprovante", o resultado
+   *  fica "comprovante.jpg" (caso o nome atual fosse "qualquer.jpg"). */
+  static async renomearDocumento(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const novoNomeRaw = String(req.body?.nome || '').trim();
+      if (!novoNomeRaw) return res.status(400).json({ error: 'nome eh obrigatorio' });
+      const [atual] = await AppDataSource.query(`SELECT nome FROM rh_documentos WHERE id = $1`, [id]);
+      if (!atual) return res.status(404).json({ error: 'Documento nao encontrado' });
+      // Sanitiza chars invalidos pra nome de arquivo
+      const safe = novoNomeRaw.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+      // Preserva extensao original se o user nao mandou uma
+      const extAtual = (atual.nome.match(/\.[a-z0-9]+$/i) || [''])[0];
+      const temExt = /\.[a-z0-9]+$/i.test(safe);
+      const novoNome = temExt ? safe : `${safe}${extAtual}`;
+      const [row] = await AppDataSource.query(
+        `UPDATE rh_documentos SET nome = $1 WHERE id = $2 RETURNING id, nome`,
+        [novoNome, id]
+      );
+      return res.json(row);
+    } catch (err: any) {
+      console.error('[RH-DOC] renomearDocumento:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
 }

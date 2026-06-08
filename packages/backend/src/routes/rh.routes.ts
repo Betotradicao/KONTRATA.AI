@@ -280,6 +280,7 @@ router.delete('/asos/:id', authenticateToken, RhAsoController.deletar);
 // Documentacao - Arquivos
 router.get('/documentacao/documentos', authenticateToken, RhDocumentacaoController.listarDocumentos);
 router.post('/documentacao/documentos', authenticateToken, uploadDoc.single('arquivo'), RhDocumentacaoController.uploadDocumento);
+router.put('/documentacao/documentos/:id', authenticateToken, RhDocumentacaoController.renomearDocumento);
 router.delete('/documentacao/documentos/:id', authenticateToken, RhDocumentacaoController.deletarDocumento);
 
 // ============ Escala de Trabalho ============

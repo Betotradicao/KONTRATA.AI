@@ -48,6 +48,14 @@ export default function RhDocumentacao() {
   const [uploadModal, setUploadModal] = useState(null); // null | { subpastaId: number | null, label }
   const [arquivoUpload, setArquivoUpload] = useState(null);
   const [nomeCustomizado, setNomeCustomizado] = useState(''); // Nome opcional pra renomear o arquivo no upload (util no mobile)
+  // Subpastas (ex: ano 2025, 2026) comecam FECHADAS — user expande quando precisa.
+  // Set de ids de subpastas atualmente expandidas.
+  const [subpastasAbertas, setSubpastasAbertas] = useState(new Set());
+  const toggleSubpastaAberta = (id) => setSubpastasAbertas(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   // Form de atestado (so usado quando pasta = ATESTADO)
   const [atestadoForm, setAtestadoForm] = useState({
     medico_nome: '', cid_codigo: '', cid_descricao: '',
@@ -418,6 +426,23 @@ export default function RhDocumentacao() {
     }
   };
 
+  const renomearDocumento = async (doc) => {
+    // Tira a extensao do nome atual pra o prompt vir limpo. O backend
+    // preserva a extensao se o user nao mandar uma.
+    const semExt = doc.nome.replace(/\.[a-z0-9]+$/i, '');
+    const novo = window.prompt(`Renomear o documento:`, semExt);
+    if (novo == null) return;
+    const limpo = novo.trim();
+    if (!limpo) return;
+    try {
+      await api.put(`/rh/documentacao/documentos/${doc.id}`, { nome: limpo });
+      toast.success('Documento renomeado');
+      await abrirPasta(pastaAberta);
+    } catch {
+      toast.error('Erro ao renomear');
+    }
+  };
+
   const excluirDocumento = async (doc) => {
     if (!window.confirm(`Excluir o arquivo "${doc.nome}"?`)) return;
     try {
@@ -783,13 +808,21 @@ export default function RhDocumentacao() {
                             {subpastas.map(sub => {
                               const docsDessa = filtrarPorData(documentos.filter(d => d.subpasta_id === sub.id));
                               const temArquivo = docsDessa.length > 0;
+                              const aberta = subpastasAbertas.has(sub.id);
                               return (
                                 <div key={sub.id} className={`rounded-lg border-2 p-3 ${sub.obrigatorio && !temArquivo ? 'border-red-300 bg-red-50' : temArquivo ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-200 bg-white'}`}>
                                   <div className="flex items-center gap-2 mb-2">
+                                    <button onClick={() => toggleSubpastaAberta(sub.id)}
+                                      className="w-6 h-6 rounded-full bg-white border-2 border-orange-400 text-orange-600 hover:bg-orange-100 flex items-center justify-center text-base font-bold shrink-0"
+                                      title={aberta ? 'Recolher arquivos' : 'Expandir arquivos'}>
+                                      {aberta ? '−' : '+'}
+                                    </button>
                                     <svg className="w-5 h-5 text-orange-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                       <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                                     </svg>
-                                    <span className="font-bold text-gray-800 flex-1">{sub.nome}</span>
+                                    <button onClick={() => toggleSubpastaAberta(sub.id)} className="font-bold text-gray-800 flex-1 text-left hover:underline">
+                                      {sub.nome} <span className="text-xs text-gray-500 font-normal">({docsDessa.length} arq.)</span>
+                                    </button>
                                     {temArquivo && <span className="text-emerald-600 text-sm" title="Documentos enviados">✓</span>}
                                     {!temArquivo && sub.obrigatorio && <span className="text-red-600 text-sm" title="Obrigatório - sem arquivo">!</span>}
                                     {sub.obrigatorio ? (
@@ -816,7 +849,7 @@ export default function RhDocumentacao() {
                                       </svg>
                                     </button>
                                   </div>
-                                  {docsDessa.length === 0 ? (
+                                  {aberta && (docsDessa.length === 0 ? (
                                     <div className="text-sm text-gray-500 italic ml-7 mt-2">
                                       {sub.obrigatorio ? 'Aguardando upload do arquivo obrigatório...' : 'Nenhum arquivo enviado.'}
                                     </div>
@@ -830,6 +863,11 @@ export default function RhDocumentacao() {
                                             <span className="text-sm text-gray-600 whitespace-nowrap font-medium">📅 {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</span>
                                             <span className="text-sm text-gray-500 whitespace-nowrap">{fmtTamanho(doc.tamanho_bytes)}</span>
                                             <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 font-bold text-sm px-2">Abrir</a>
+                                            <button onClick={() => renomearDocumento(doc)} className="text-orange-500 hover:text-orange-700 p-1" title="Renomear">
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                              </svg>
+                                            </button>
                                             <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700 p-1" title="Excluir">
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -863,7 +901,7 @@ export default function RhDocumentacao() {
                                         </div>
                                       ))}
                                     </div>
-                                  )}
+                                  ))}
                                 </div>
                               );
                             })}
@@ -887,6 +925,11 @@ export default function RhDocumentacao() {
                                     </div>
                                   </div>
                                   <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 text-sm font-semibold px-2">Abrir</a>
+                                  <button onClick={() => renomearDocumento(doc)} className="text-orange-500 hover:text-orange-700 p-1" title="Renomear">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
                                   <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700 p-1" title="Excluir">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
