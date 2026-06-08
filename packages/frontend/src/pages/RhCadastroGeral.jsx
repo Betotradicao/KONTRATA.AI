@@ -534,8 +534,36 @@ export default function RhCadastroGeral() {
     setEditando(null);
   };
 
+  // Campos obrigatorios CROSS-ABA — o HTML5 `required` so dispara quando
+  // o campo esta visivel, e como o form tem abas (so uma renderiza por
+  // vez), os required das abas inativas eram ignorados no submit. Aqui
+  // validamos no JS pra garantir que NENHUM obrigatorio passa em branco,
+  // independente de qual aba esta ativa quando o user clica Salvar.
+  const camposObrigatorios = [
+    { aba: 'pessoais',      campo: 'matricula',       label: 'Matrícula' },
+    { aba: 'pessoais',      campo: 'nome',            label: 'Nome Completo' },
+    { aba: 'pessoais',      campo: 'cpf',             label: 'CPF' },
+    { aba: 'pessoais',      campo: 'data_nascimento', label: 'Data de Nascimento' },
+    { aba: 'pessoais',      campo: 'sexo',            label: 'Sexo' },
+    { aba: 'profissionais', campo: 'company_id',      label: 'Empresa / Loja' },
+    { aba: 'profissionais', campo: 'cargo_id',        label: 'Cargo' },
+    { aba: 'profissionais', campo: 'jornada_id',      label: 'Jornada' },
+    { aba: 'profissionais', campo: 'data_admissao',   label: 'Data de Admissão' },
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Valida obrigatorios de TODAS as abas antes de salvar
+    const faltando = camposObrigatorios.find(c => {
+      const v = formData[c.campo];
+      return v == null || String(v).trim() === '';
+    });
+    if (faltando) {
+      const abaLabel = (abas.find(a => a.id === faltando.aba) || {}).label || faltando.aba;
+      setAbaAtiva(faltando.aba);
+      toast.error(`Preencha "${faltando.label}" (aba ${abaLabel})`);
+      return;
+    }
     if (formData.status === 'desligado') {
       if (!formData.data_desligamento) {
         toast.error('Informe a data de desligamento');
