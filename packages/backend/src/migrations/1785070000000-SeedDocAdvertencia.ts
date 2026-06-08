@@ -14,6 +14,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *   $EMPRESA_NOME$ $EMPRESA_CNPJ$
  *   $CIDADE$ $ESTADO$ $DATA_EXTENSO$
  *   $MOTIVO_ADVERTENCIA$  (preenchida via picker no modal Gerar)
+ *   $DATAS_OCORRENCIA$    (preenchida via passo de datas no modal Gerar)
  */
 export class SeedDocAdvertencia1785070000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -54,6 +55,7 @@ $EMPRESA_NOME$
 
 ___________________________________________
 $NOME$
+(Data da(s) ocorrência(s): $DATAS_OCORRENCIA$)
 (Colaborador — Ciente em ____/____/______)
 
 

@@ -110,6 +110,24 @@ export class DocsPadronizadosController {
       const id = parseInt(req.params.id);
       const colaboradorId = parseInt(req.params.colaboradorId);
       const motivoId = req.query.motivo_id ? parseInt(req.query.motivo_id as string) : null;
+      // Datas das ocorrencias (advertencia) — CSV de DD/MM/AAAA OU ISO YYYY-MM-DD.
+      // Ex: "?datas_ocorrencia=02/06/2026,05/06/2026,07/06/2026"
+      // Cada data vira "DD/MM/AAAA" e elas sao juntadas por 3 espacos. Quando
+      // a lista vier vazia, substitui por placeholder "____/____/______" pra
+      // preenchimento manual no papel.
+      const datasRaw = (req.query.datas_ocorrencia as string | undefined) || '';
+      const datasOcorrencia: string[] = datasRaw
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map(s => {
+          // Aceita YYYY-MM-DD ou DD/MM/AAAA
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const [y, m, d] = s.split('-');
+            return `${d}/${m}/${y}`;
+          }
+          return s;
+        });
 
       const [doc] = await AppDataSource.query(
         `SELECT * FROM rh_docs_padronizados WHERE id = $1`, [id]
@@ -235,6 +253,9 @@ export class DocsPadronizadosController {
         '$EMPRESA_CEP$': colab.empresa_cep || '',
         '$EPIS_DO_CARGO$': episDoCargoTexto,
         '$MOTIVO_ADVERTENCIA$': motivoAdvertencia,
+        '$DATAS_OCORRENCIA$': datasOcorrencia.length
+          ? datasOcorrencia.join('   ')
+          : '____/____/______',
         '$CIDADE$':       colab.empresa_cidade || '',
         '$ESTADO$':       colab.empresa_estado || '',
       };

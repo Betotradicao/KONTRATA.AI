@@ -1955,6 +1955,9 @@ function DocsPadronizadosTab() {
   const [loadingColabs, setLoadingColabs] = useState(false);
   const [motivosAdv, setMotivosAdv] = useState([]);     // motivos de advertência (pros docs da fase 4)
   const [motivoSel, setMotivoSel] = useState(null);     // motivo escolhido (se doc precisa)
+  const [datasOcorrencia, setDatasOcorrencia] = useState([]); // array de YYYY-MM-DD pra advertencia
+  const [dataInputTmp, setDataInputTmp] = useState('');       // valor do input antes de adicionar
+  const [passoDatasConfirmado, setPassoDatasConfirmado] = useState(false); // passou pelo passo de datas?
 
   const VARIAVEIS = [
     { tag: '$NOME$',         desc: 'Nome completo' },
@@ -1973,6 +1976,7 @@ function DocsPadronizadosTab() {
     { tag: '$COLAB_ESTADO$', desc: 'UF do colaborador' },
     { tag: '$COLAB_CEP$',    desc: 'CEP do colaborador' },
     { tag: '$MOTIVO_ADVERTENCIA$', desc: 'Motivo + embasamento (escolhido ao gerar)' },
+    { tag: '$DATAS_OCORRENCIA$', desc: 'Data(s) das ocorrências (preenchidas ao gerar)' },
     { tag: '$DATA_HOJE$',    desc: 'dd/mm/yyyy' },
     { tag: '$DATA_EXTENSO$', desc: '"24 de julho de 2025"' },
     { tag: '$EMPRESA_NOME$',     desc: 'Nome da empresa' },
@@ -2026,6 +2030,9 @@ function DocsPadronizadosTab() {
     if (!gerando) return;
     setEmpresaSel(null);
     setMotivoSel(null);
+    setDatasOcorrencia([]);
+    setDataInputTmp('');
+    setPassoDatasConfirmado(false);
     setColaboradores([]);
     (async () => {
       try {
@@ -2046,6 +2053,8 @@ function DocsPadronizadosTab() {
 
   // Doc precisa de motivo? (tem $MOTIVO_ADVERTENCIA$ no conteudo)
   const precisaMotivo = () => !!docEditado?.conteudo?.includes('$MOTIVO_ADVERTENCIA$');
+  // Doc usa $DATAS_OCORRENCIA$ -> precisamos do passo de coletar datas no modal Gerar
+  const precisaDatas = () => !!docEditado?.conteudo?.includes('$DATAS_OCORRENCIA$');
 
   // Depois que a empresa é escolhida, lista só os colaboradores dela.
   useEffect(() => {
@@ -2107,7 +2116,10 @@ function DocsPadronizadosTab() {
       return;
     }
     try {
-      const qs = motivoSel ? `?motivo_id=${motivoSel}` : '';
+      const params = [];
+      if (motivoSel) params.push(`motivo_id=${motivoSel}`);
+      if (datasOcorrencia.length) params.push(`datas_ocorrencia=${encodeURIComponent(datasOcorrencia.join(','))}`);
+      const qs = params.length ? `?${params.join('&')}` : '';
       const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${colaboradorId}${qs}`);
       setResultado(r.data);
       setGerando(false);
@@ -2501,19 +2513,28 @@ function DocsPadronizadosTab() {
         </div>
       )}
 
-      {/* Modal Gerar pra colaborador — passo 1: empresa, passo 2: colaborador */}
+      {/* Modal Gerar pra colaborador — passos dinamicos: empresa, [motivo], [datas], colaborador */}
       {gerando && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
             <div className="p-4 border-b">
               <h3 className="text-lg font-bold">Gerar "{docEditado?.nome}"</h3>
               {(() => {
-                const totalPassos = precisaMotivo() ? 3 : 2;
+                const totalPassos = 2 + (precisaMotivo() ? 1 : 0) + (precisaDatas() ? 1 : 0);
                 if (!empresaSel) return <p className="text-xs text-gray-500">Passo 1 de {totalPassos} · Selecione a empresa</p>;
                 if (precisaMotivo() && !motivoSel) return (
                   <div className="flex items-center justify-between gap-2 mt-1">
                     <p className="text-xs text-gray-500">Passo 2 de {totalPassos} · Motivo da advertência</p>
                     <button onClick={() => setEmpresaSel(null)} className="text-xs text-orange-600 hover:underline whitespace-nowrap">↩ trocar empresa</button>
+                  </div>
+                );
+                if (precisaDatas() && !passoDatasConfirmado) return (
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className="text-xs text-gray-500">Passo {2 + (precisaMotivo() ? 1 : 0)} de {totalPassos} · Data(s) da(s) ocorrência(s)</p>
+                    <div className="flex gap-2 text-xs whitespace-nowrap">
+                      <button onClick={() => setEmpresaSel(null)} className="text-orange-600 hover:underline">↩ empresa</button>
+                      {precisaMotivo() && <button onClick={() => setMotivoSel(null)} className="text-orange-600 hover:underline">↩ motivo</button>}
+                    </div>
                   </div>
                 );
                 return (
@@ -2530,6 +2551,9 @@ function DocsPadronizadosTab() {
                       )}
                       {precisaMotivo() && (
                         <button onClick={() => setMotivoSel(null)} className="text-orange-600 hover:underline">↩ motivo</button>
+                      )}
+                      {precisaDatas() && (
+                        <button onClick={() => setPassoDatasConfirmado(false)} className="text-orange-600 hover:underline">↩ datas</button>
                       )}
                     </div>
                   </div>
@@ -2572,6 +2596,63 @@ function DocsPadronizadosTab() {
                     <div className="text-xs text-gray-500 mt-1 line-clamp-2">{m.texto}</div>
                   </button>
                 ))
+              ) : precisaDatas() && !passoDatasConfirmado ? (
+                /* Passo de coletar datas das ocorrencias (Advertencia) */
+                <div className="space-y-3">
+                  <div className="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded p-2">
+                    📅 Informe a(s) data(s) em que o(s) fato(s) descrito(s) no motivo ocorreu(ram). Vai preencher o rodapé do documento. Pode adicionar 1 ou mais.
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      value={dataInputTmp}
+                      onChange={e => setDataInputTmp(e.target.value)}
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!dataInputTmp) return;
+                        if (datasOcorrencia.includes(dataInputTmp)) { setDataInputTmp(''); return; }
+                        setDatasOcorrencia(prev => [...prev, dataInputTmp].sort());
+                        setDataInputTmp('');
+                      }}
+                      disabled={!dataInputTmp}
+                      className="px-3 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg text-sm font-semibold whitespace-nowrap">
+                      ➕ Adicionar
+                    </button>
+                  </div>
+                  {datasOcorrencia.length === 0 ? (
+                    <p className="text-xs text-gray-400 italic text-center py-2">Nenhuma data adicionada ainda.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {datasOcorrencia.map((d, i) => {
+                        const [y, m, day] = d.split('-');
+                        return (
+                          <div key={d} className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded px-3 py-2 text-sm">
+                            <span className="font-mono font-semibold text-amber-900">📅 {day}/{m}/{y}</span>
+                            <button
+                              onClick={() => setDatasOcorrencia(prev => prev.filter((_, idx) => idx !== i))}
+                              className="text-red-600 hover:text-red-800 text-sm font-bold">
+                              × Remover
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="pt-2 border-t border-gray-200 flex justify-end gap-2">
+                    <button
+                      onClick={() => { setDatasOcorrencia([]); setPassoDatasConfirmado(true); }}
+                      className="px-3 py-2 text-xs text-gray-600 hover:text-gray-800 underline">
+                      Pular (preencher na mão)
+                    </button>
+                    <button
+                      onClick={() => setPassoDatasConfirmado(true)}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-bold">
+                      Continuar →
+                    </button>
+                  </div>
+                </div>
               ) : (
                 /* Passo final: colaboradores da empresa */
                 loadingColabs ? (
