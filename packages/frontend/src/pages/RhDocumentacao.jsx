@@ -47,6 +47,7 @@ export default function RhDocumentacao() {
   // Modal de upload com paste (Ctrl+V)
   const [uploadModal, setUploadModal] = useState(null); // null | { subpastaId: number | null, label }
   const [arquivoUpload, setArquivoUpload] = useState(null);
+  const [nomeCustomizado, setNomeCustomizado] = useState(''); // Nome opcional pra renomear o arquivo no upload (util no mobile)
   // Form de atestado (so usado quando pasta = ATESTADO)
   const [atestadoForm, setAtestadoForm] = useState({
     medico_nome: '', cid_codigo: '', cid_descricao: '',
@@ -305,11 +306,13 @@ export default function RhDocumentacao() {
     const sub = subpastas.find(s => s.id === subpastaId);
     setUploadModal({ subpastaId, label: sub?.nome || 'Sub-pasta' });
     setArquivoUpload(null);
+    setNomeCustomizado('');
   };
 
   const abrirUploadSolto = () => {
     setUploadModal({ subpastaId: null, label: 'Arquivo solto' });
     setArquivoUpload(null);
+    setNomeCustomizado('');
     setAtestadoForm(novoAtestadoForm());
   };
 
@@ -346,7 +349,18 @@ export default function RhDocumentacao() {
     setUploadingFile(true);
     try {
       const fd = new FormData();
-      fd.append('arquivo', arquivoUpload);
+      // Renomeia o arquivo se o user deu um nome customizado (util no mobile,
+      // onde a camera salva como IMG_20251101_153045.jpg). Mantem a extensao
+      // original. Sanitiza caracteres invalidos pra nome de arquivo.
+      let arquivoFinal = arquivoUpload;
+      const nomeLimpo = (nomeCustomizado || '').trim();
+      if (nomeLimpo) {
+        const m = arquivoUpload.name.match(/\.[a-z0-9]+$/i);
+        const ext = m ? m[0] : '';
+        const safe = nomeLimpo.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+        arquivoFinal = new File([arquivoUpload], `${safe}${ext}`, { type: arquivoUpload.type });
+      }
+      fd.append('arquivo', arquivoFinal);
       fd.append('pasta_id', pastaAberta.id);
       if (uploadModal?.subpastaId) fd.append('subpasta_id', String(uploadModal.subpastaId));
 
@@ -368,6 +382,7 @@ export default function RhDocumentacao() {
       toast.success('Arquivo enviado');
       setUploadModal(null);
       setArquivoUpload(null);
+      setNomeCustomizado('');
       setAtestadoForm(novoAtestadoForm());
       await abrirPasta(pastaAberta);
       await carregarPastas(selecionado.id);
@@ -949,6 +964,22 @@ export default function RhDocumentacao() {
 
               <div className="text-xs text-gray-500 text-center">— OU —</div>
 
+              {/* Nome customizado do arquivo (opcional) — util no mobile pra
+                  que a foto da camera nao fique como IMG_2026xxxx.jpg */}
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600">
+                  Nome do documento <span className="font-normal text-gray-400 normal-case">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={nomeCustomizado}
+                  onChange={e => setNomeCustomizado(e.target.value.toUpperCase())}
+                  placeholder="EX: COMPROVANTE DE ENDEREÇO"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase"
+                />
+                <p className="text-[10px] text-gray-500 mt-0.5">Se preencher, o arquivo será salvo com este nome (mantém a extensão original).</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <input type="file" accept="image/*" capture="environment" id="doc-camera-input" className="hidden"
                   onChange={e => setArquivoUpload(e.target.files?.[0] || null)} />
@@ -1077,7 +1108,7 @@ export default function RhDocumentacao() {
 
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
-              <button onClick={() => { setUploadModal(null); setArquivoUpload(null); }}
+              <button onClick={() => { setUploadModal(null); setArquivoUpload(null); setNomeCustomizado(''); }}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
                 Cancelar
               </button>
