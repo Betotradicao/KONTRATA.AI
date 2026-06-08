@@ -81,7 +81,6 @@ export default function RhControleASO() {
 
   const [selecionado, setSelecionado] = useState(null);
   const [asos, setAsos] = useState([]);
-  const [abaTipo, setAbaTipo] = useState('periodico');
 
   const [modalAso, setModalAso] = useState(null); // null | { ...aso vazio } | { ...aso editando }
   const [saving, setSaving] = useState(false);
@@ -102,6 +101,17 @@ export default function RhControleASO() {
     }
   };
   useEffect(() => { carregarTudo(); /* eslint-disable-next-line */ }, [filtroEmpresa]);
+
+  // Mantem `selecionado` sincronizado com a lista `colaboradores` —
+  // sempre que a lista recarrega (ex: apos toggleDispensado), o detalhe
+  // pega a versao fresca pra nao mostrar estado antigo do colaborador.
+  useEffect(() => {
+    if (!selecionado) return;
+    const fresh = colaboradores.find(c => c.id === selecionado.id);
+    if (fresh && fresh.aso_dispensado !== selecionado.aso_dispensado) {
+      setSelecionado(fresh);
+    }
+  }, [colaboradores]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (async () => {
@@ -144,7 +154,9 @@ export default function RhControleASO() {
     return true;
   });
 
-  const asosDoTipo = asos.filter(a => a.tipo === abaTipo);
+  // Lista unica ordenada por data do exame desc — tipo aparece como badge no card.
+  // O tipo de cada novo ASO eh escolhido dentro do modal "+ Novo ASO".
+  const asosOrdenados = [...asos].sort((a, b) => new Date(b.data_exame) - new Date(a.data_exame));
   const proximoPeriodico = (() => {
     const per = asos.filter(a => a.tipo === 'periodico').sort((a, b) => new Date(b.data_exame) - new Date(a.data_exame))[0];
     if (!per) return null;
@@ -206,6 +218,20 @@ export default function RhControleASO() {
     } catch (err) {
       toast.error(err?.response?.data?.error || 'Erro ao salvar');
     } finally { setSaving(false); }
+  };
+
+  const toggleDispensado = async (colab) => {
+    const proximoEstado = !colab.aso_dispensado;
+    const msg = proximoEstado
+      ? `Marcar "${colab.nome}" como dispensado de ASO obrigatório (aprendiz/estágio)?\n\nEle vai sair de "Sem ASO" e dos alertas de vencimento.`
+      : `Voltar a exigir ASO obrigatório de "${colab.nome}"?`;
+    if (!window.confirm(msg)) return;
+    try {
+      const r = await api.put(`/rh/asos/colaboradores/${colab.id}/dispensar`, { aso_dispensado: proximoEstado });
+      setSelecionado(s => s ? { ...s, aso_dispensado: !!r.data?.aso_dispensado } : s);
+      toast.success(proximoEstado ? 'Marcado como não obrigatório' : 'Voltou a exigir ASO');
+      await carregarTudo();
+    } catch { toast.error('Erro ao atualizar'); }
   };
 
   const deletarAso = async (aso) => {
@@ -279,7 +305,11 @@ export default function RhControleASO() {
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
               {colaboradoresFiltrados.map(c => {
-                const st = classificarStatus({ data_vencimento: c.data_vencimento });
+                // Dispensado de ASO (aprendiz/estagio) -> pill VERDE "Nao necessita ASO"
+                // em vez do "Sem ASO" cinza. Nao entra em alertas.
+                const st = c.aso_dispensado
+                  ? { label: 'Não necessita ASO', color: 'emerald', dias: null }
+                  : classificarStatus({ data_vencimento: c.data_vencimento });
                 return (
                   <button key={c.id} onClick={() => selecionar(c)}
                     className={`w-full text-left p-3 flex items-center gap-3 hover:bg-gray-50 ${selecionado?.id === c.id ? 'bg-orange-50 border-l-4 border-orange-500' : ''}`}>
@@ -293,7 +323,7 @@ export default function RhControleASO() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-gray-800 truncate">{c.nome}</div>
                       <div className="text-xs text-gray-500 truncate">{c.matricula || '-'} · {c.cargo_nome || 'Sem cargo'}</div>
-                      <FasesTrilha colab={c} />
+                      {!c.aso_dispensado && <FasesTrilha colab={c} />}
                     </div>
                     <StatusPill status={st} />
                   </button>
@@ -332,10 +362,27 @@ export default function RhControleASO() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-base md:text-xl font-bold text-gray-800 truncate">{selecionado.nome}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="text-base md:text-xl font-bold text-gray-800 truncate">{selecionado.nome}</div>
+                      {selecionado.aso_dispensado && (
+                        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-300 whitespace-nowrap">
+                          🚫 ASO não obrigatório
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs md:text-sm text-gray-500 truncate">Mat. {selecionado.matricula || '-'} · {selecionado.cargo_nome || '-'}</div>
                   </div>
-                  <button onClick={() => abrirNovoAso(abaTipo)}
+                  <button onClick={() => toggleDispensado(selecionado)}
+                    title={selecionado.aso_dispensado ? 'Voltar a exigir ASO deste colaborador' : 'Marcar como NÃO obrigatório (aprendiz/estágio)'}
+                    className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold shrink-0 ${
+                      selecionado.aso_dispensado
+                        ? 'bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-300'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300'
+                    }`}>
+                    <span className="hidden md:inline">{selecionado.aso_dispensado ? '✓ Não obrigatório' : '🚫 Não obrigatório'}</span>
+                    <span className="md:hidden">{selecionado.aso_dispensado ? '✓' : '🚫'}</span>
+                  </button>
+                  <button onClick={() => abrirNovoAso()}
                     className="bg-orange-500 hover:bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-1 md:gap-2 shrink-0">
                     <span>+</span> <span className="hidden md:inline">Novo ASO</span><span className="md:hidden">ASO</span>
                   </button>
@@ -367,34 +414,25 @@ export default function RhControleASO() {
                   </div>
                 )}
 
-                {/* Abas Tipo */}
-                <div className="px-4 pt-4 border-b border-gray-200 flex gap-1 overflow-x-auto">
-                  {TIPOS.map(t => {
-                    const count = asos.filter(a => a.tipo === t.key).length;
-                    return (
-                      <button key={t.key} onClick={() => setAbaTipo(t.key)}
-                        className={`px-4 py-2 text-sm font-semibold whitespace-nowrap border-b-2 transition ${
-                          abaTipo === t.key
-                            ? 'border-orange-500 text-orange-700'
-                            : 'border-transparent text-gray-500 hover:text-gray-800'
-                        }`}>
-                        {t.emoji} {t.label} {count > 0 && <span className="ml-1 text-xs bg-gray-200 px-1.5 rounded-full">{count}</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Lista de ASOs do tipo selecionado */}
+                {/* Lista UNICA de ASOs (todos os tipos juntos, ordenados por data desc).
+                    Tipo do exame aparece como badge no card. */}
                 <div className="flex-1 overflow-y-auto p-4">
-                  {asosDoTipo.length === 0 ? (
+                  {selecionado.aso_dispensado ? (
+                    <div className="text-center mt-8 border-2 border-dashed border-emerald-300 bg-emerald-50/50 rounded-lg p-8">
+                      <div className="text-5xl mb-3">✅</div>
+                      <div className="text-lg font-bold text-emerald-700">Não necessita de ASO</div>
+                      <div className="text-sm text-emerald-600 mt-1">Colaborador dispensado (aprendiz / estágio). Não entra nos alertas de vencimento.</div>
+                    </div>
+                  ) : asosOrdenados.length === 0 ? (
                     <div className="text-center text-sm text-gray-400 mt-8 border-2 border-dashed border-gray-200 rounded-lg p-8">
-                      Nenhum ASO {TIPOS.find(t => t.key === abaTipo)?.label} cadastrado. Clique em <strong>+ Novo ASO</strong>.
+                      Nenhum ASO cadastrado pra este colaborador. Clique em <strong>+ Novo ASO</strong>.
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {asosDoTipo.sort((a, b) => new Date(b.data_exame) - new Date(a.data_exame)).map(aso => {
+                      {asosOrdenados.map(aso => {
                         const st = classificarStatusCiclo(aso, asos);
                         const res = RESULTADOS.find(r => r.key === aso.resultado);
+                        const tipoInfo = TIPOS.find(t => t.key === aso.tipo);
                         return (
                           <div key={aso.id} className={`rounded-lg border-2 p-4 ${
                             st.color === 'red' ? 'border-red-200 bg-red-50/30' :
@@ -405,6 +443,11 @@ export default function RhControleASO() {
                             <div className="flex items-start gap-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
+                                  {tipoInfo && (
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-300 whitespace-nowrap">
+                                      {tipoInfo.emoji} {tipoInfo.label}
+                                    </span>
+                                  )}
                                   <span className="text-lg font-bold text-gray-800">{fmtData(aso.data_exame)}</span>
                                   <StatusPill status={st} />
                                   {res && (

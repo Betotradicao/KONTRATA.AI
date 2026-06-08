@@ -271,6 +271,7 @@ router.delete('/documentacao/subpastas/:id', authenticateToken, RhDocumentacaoCo
 router.get('/asos', authenticateToken, RhAsoController.listar);
 router.get('/asos/stats', authenticateToken, RhAsoController.stats);
 router.get('/asos/colaboradores', authenticateToken, RhAsoController.listarColaboradoresComStatus);
+router.put('/asos/colaboradores/:colaboradorId/dispensar', authenticateToken, RhAsoController.toggleDispensado);
 router.post('/asos', authenticateToken, RhAsoController.criar);
 router.put('/asos/:id', authenticateToken, RhAsoController.atualizar);
 router.post('/asos/:id/arquivo', authenticateToken, uploadDoc.single('arquivo'), RhAsoController.uploadArquivo);

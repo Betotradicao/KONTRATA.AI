@@ -36,14 +36,19 @@ export class RhAsoController {
    *  sao eventos pontuais e nao definem vencimento. */
   static async stats(req: AuthRequest, res: Response) {
     try {
-      const totalColabAtivos = await AppDataSource.query(`SELECT COUNT(*)::int AS n FROM rh_colaboradores WHERE status='ativo'`);
+      // Colaboradores ativos NAO dispensados de ASO (aprendizes ficam de fora dos contadores).
+      const totalColabAtivos = await AppDataSource.query(
+        `SELECT COUNT(*)::int AS n FROM rh_colaboradores WHERE status='ativo' AND COALESCE(aso_dispensado, false) = false`
+      );
       const total = await AppDataSource.query(`SELECT COUNT(*)::int AS n FROM rh_asos`);
 
       const aosDosAtivos = await AppDataSource.query(`
         SELECT DISTINCT ON (a.colaborador_id)
           a.id, a.colaborador_id, a.data_vencimento, a.resultado, a.tipo, a.data_exame
         FROM rh_asos a
-        INNER JOIN rh_colaboradores c ON c.id = a.colaborador_id AND c.status='ativo'
+        INNER JOIN rh_colaboradores c ON c.id = a.colaborador_id
+          AND c.status='ativo'
+          AND COALESCE(c.aso_dispensado, false) = false
         WHERE a.tipo IN ('admissional','periodico')
         ORDER BY a.colaborador_id,
                  CASE WHEN a.tipo='periodico' THEN 0 ELSE 1 END,
@@ -97,6 +102,7 @@ export class RhAsoController {
       // "counts" sao usados pra renderizar a trilha de fases na lista lateral.
       const rows = await AppDataSource.query(`
         SELECT c.id, c.nome, c.matricula, c.foto_url, c.status AS colab_status, c.company_id,
+               COALESCE(c.aso_dispensado, false) AS aso_dispensado,
                ca.nome AS cargo_nome,
                COALESCE(comp.apelido, comp.nome_fantasia) AS empresa_nome,
                comp.cod_loja AS empresa_cod_loja,
@@ -128,6 +134,24 @@ export class RhAsoController {
       return res.json(rows);
     } catch (err: any) {
       console.error('[RH-ASO] listarColabsComStatus:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /** Alterna a flag aso_dispensado do colaborador (aprendiz/estagio).
+   *  Quando true, o colaborador NAO entra em "Sem ASO" e nao dispara alerta de vencimento. */
+  static async toggleDispensado(req: AuthRequest, res: Response) {
+    try {
+      const colabId = parseInt(req.params.colaboradorId);
+      const dispensar = !!req.body?.aso_dispensado;
+      const [row] = await AppDataSource.query(
+        `UPDATE rh_colaboradores SET aso_dispensado = $1 WHERE id = $2 RETURNING id, nome, aso_dispensado`,
+        [dispensar, colabId]
+      );
+      if (!row) return res.status(404).json({ error: 'Colaborador nao encontrado' });
+      return res.json(row);
+    } catch (err: any) {
+      console.error('[RH-ASO] toggleDispensado:', err);
       return res.status(500).json({ error: err.message });
     }
   }

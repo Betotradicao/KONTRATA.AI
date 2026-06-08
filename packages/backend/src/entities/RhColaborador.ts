@@ -174,6 +174,11 @@ export class RhColaborador {
   @Column({ type: 'text', nullable: true })
   observacoes_desligamento: string | null;
 
+  // Quando true, o colaborador eh dispensado de ASO obrigatorio (aprendiz/estagio).
+  // Nao entra em "Sem ASO" nem dispara alerta de vencimento.
+  @Column({ name: 'aso_dispensado', type: 'boolean', default: false })
+  aso_dispensado: boolean;
+
   // --- Auditoria ---
   @CreateDateColumn()
   created_at: Date;
