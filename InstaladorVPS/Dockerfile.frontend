@@ -10,6 +10,10 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 ARG VITE_CLIENT_NAME="Kontrata.ai"
 ENV VITE_CLIENT_NAME=$VITE_CLIENT_NAME
+# Zoom padrao 80% nos clientes novos (auto-instalador define como 0.8).
+# Clientes antigos nao tem essa var -> nao aplica zoom no App.jsx.
+ARG VITE_DEFAULT_ZOOM=""
+ENV VITE_DEFAULT_ZOOM=$VITE_DEFAULT_ZOOM
 
 WORKDIR /app
 

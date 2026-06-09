@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { LojaProvider } from './contexts/LojaContext';
@@ -60,6 +61,17 @@ import PesquisaClimaAnalise from './pages/rh/PesquisaClimaAnalise';
 import AnaliseNr1 from './pages/rh/AnaliseNr1';
 
 function App() {
+  // Zoom default — clientes novos (via auto-instalador) sobem com
+  // VITE_DEFAULT_ZOOM=0.8 no build pra a tela vir em 80% por padrao.
+  // Clientes antigos nao tem a env definida -> nao aplica nada,
+  // ficam como sempre estavam (browser controla zoom).
+  useEffect(() => {
+    const z = import.meta.env.VITE_DEFAULT_ZOOM;
+    if (z && !document.documentElement.style.zoom) {
+      document.documentElement.style.zoom = String(z);
+    }
+  }, []);
+
   return (
     <Router>
       <AuthProvider>

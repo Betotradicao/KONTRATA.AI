@@ -385,6 +385,9 @@ API_TOKEN=$API_TOKEN
 
 VITE_API_URL=https://$CLIENT_SUBDOMAIN/api
 VITE_CLIENT_NAME=Kontrata.ai
+# Zoom default 80% pros clientes novos (telas ficam mais confortaveis em
+# monitores comuns). User pode ajustar manual com Ctrl+/Ctrl-.
+VITE_DEFAULT_ZOOM=0.8
 
 HOST_IP=$HOST_IP
 NODE_ENV=production
@@ -505,6 +508,7 @@ services:
       args:
         VITE_API_URL: \${VITE_API_URL}
         VITE_CLIENT_NAME: \${VITE_CLIENT_NAME}
+        VITE_DEFAULT_ZOOM: \${VITE_DEFAULT_ZOOM}
     image: ${CONTAINER_PREFIX}-frontend:latest
     container_name: ${CONTAINER_PREFIX}-frontend
     restart: unless-stopped
