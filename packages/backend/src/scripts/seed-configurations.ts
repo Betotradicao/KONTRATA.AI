@@ -185,15 +185,15 @@ async function seedConfigurations() {
         description: 'ID do grupo WhatsApp para notificações (configurar por cliente)'
       },
 
-      // Email - Recuperação de Senha (pré-configurado)
+      // Email - Recuperação de Senha (pré-configurado com a conta padrao kontrata.ai)
       {
         key: 'email_user',
-        value: 'betotradicao76@gmail.com',
+        value: 'kontrataai@gmail.com',
         description: 'Email para envio (Gmail)'
       },
       {
         key: 'email_pass',
-        value: 'fqojjjhztvganfya',
+        value: 'rkllauajeaouhcda',
         description: 'Senha de app do Gmail'
       },
 
