@@ -83,7 +83,10 @@ app.use(helmet({
 
 app.use(rateLimit({
   windowMs: 60 * 1000,
-  max: 200,
+  // 2000/min em dev pra nao incomodar quando a tela faz N chamadas em
+  // paralelo (Banco de Curriculos, filtros, etc). Em producao mantem 200
+  // por IP — protege contra abuso.
+  max: process.env.NODE_ENV === 'production' ? 200 : 2000,
   message: { error: 'Muitas requisições. Tente novamente em alguns instantes.' },
   standardHeaders: true,
   legacyHeaders: false,

@@ -108,6 +108,7 @@ export default function RhVagas() {
   const [buscaCurriculoId, setBuscaCurriculoId] = useState('');
   const [buscandoCurriculo, setBuscandoCurriculo] = useState(false);
   const [curriculoVisualizar, setCurriculoVisualizar] = useState(null);
+  const [fotoZoom, setFotoZoom] = useState(null); // URL da foto sendo ampliada
   // Quando o modal de curriculo eh aberto a partir de uma VAGA, guardamos o id
   // dela aqui pra que clicar "Selecionado" no rodape sincronize v.selecionados
   // dessa vaga (e nao soh mude o status global do curriculo).
@@ -970,11 +971,30 @@ export default function RhVagas() {
                                     _origem: 'manual',
                                   });
                                 });
-                                if (todos.length === 0) return null;
+                                // Aplica filtro dos cards do topo na lista de candidatos.
+                                // Card "Em aberto" e "Contratados" nao filtram candidatos (filtram vagas).
+                                // Os outros filtram pelo status local do candidato na vaga.
+                                const filtrosStatus = {
+                                  novo: 'novo',
+                                  recusado: 'recusado',
+                                  em_analise: 'em_analise',
+                                  selecionado: 'selecionado',
+                                  contratado: 'contratado',
+                                };
+                                const filtroSt = filtrosStatus[filtroCardCandidato];
+                                let visiveis = todos;
+                                if (filtroSt === 'selecionado') {
+                                  visiveis = todos.filter(c => (c.status === 'selecionado' || c.status === 'aprovado'));
+                                } else if (filtroSt === 'recusado') {
+                                  visiveis = todos.filter(c => (c.status === 'recusado' || c.status === 'reprovado'));
+                                } else if (filtroSt) {
+                                  visiveis = todos.filter(c => c.status === filtroSt);
+                                }
+                                if (visiveis.length === 0) return null;
                                 return (
                                   <div>
                                     <div className="text-xs font-bold text-rose-900 mb-2">
-                                      ❤️ Candidatos desta vaga ({todos.length})
+                                      ❤️ Candidatos desta vaga ({visiveis.length}{filtroCardCandidato ? ` de ${todos.length}` : ''})
                                     </div>
                                     <div className="overflow-x-auto">
                                       <table className="w-full text-xs">
@@ -999,7 +1019,7 @@ export default function RhVagas() {
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          {todos.map((c, i) => {
+                                          {visiveis.map((c, i) => {
                                             const st = c.status || 'novo';
                                             const isCont = st === 'contratado';
                                             const isSel = st === 'selecionado' || st === 'aprovado';
@@ -1015,9 +1035,24 @@ export default function RhVagas() {
                                                 <tr key={`row-${c.curriculo_id}-${i}`} className="border-t border-rose-200 bg-white">
                                                   <td className="px-2 py-1.5 font-mono font-bold">{c.curriculo_id}</td>
                                                   <td className="px-2 py-1.5">
-                                                    <button onClick={() => visualizarCurriculo(c.curriculo_id, v.id)} className="text-rose-700 hover:underline font-semibold">
-                                                      {c.nome}
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                      {c.foto_url ? (
+                                                        <button
+                                                          onClick={(e) => { e.stopPropagation(); setFotoZoom(c.foto_url); }}
+                                                          title="Clique pra ampliar a foto"
+                                                          className="shrink-0">
+                                                          <img src={c.foto_url} alt={c.nome}
+                                                            className="w-8 h-8 rounded-full object-cover border-2 border-rose-200 hover:border-rose-400 hover:scale-110 transition" />
+                                                        </button>
+                                                      ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-bold border-2 border-rose-200 shrink-0">
+                                                          {(c.nome || '?').charAt(0).toUpperCase()}
+                                                        </div>
+                                                      )}
+                                                      <button onClick={() => visualizarCurriculo(c.curriculo_id, v.id)} className="text-rose-700 hover:underline font-semibold text-left">
+                                                        {c.nome}
+                                                      </button>
+                                                    </div>
                                                   </td>
                                                   <td className="px-2 py-1.5 text-gray-700">
                                                     {c.whatsapp ? (
@@ -1038,29 +1073,26 @@ export default function RhVagas() {
                                                   </td>
                                                   <td className="px-2 py-1.5">
                                                     <div className="flex gap-1 justify-center whitespace-nowrap">
-                                                      {/* Ordem = cards de cima: Interessados | Recusados | Vagas Futuras | Selecionar | Contratar */}
+                                                      {/* Ordem = cards de cima: Interessados | Recusados | Vagas Futuras | Selecionar | Contratar
+                                                          Botao ATIVO (status atual do candidato) fica colorido. Os outros ficam cinza claro. */}
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'novo', v.id)}
-                                                        disabled={st === 'novo'}
-                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${st === 'novo' ? 'bg-rose-200 text-rose-700 cursor-default' : 'bg-rose-500 hover:bg-rose-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${st === 'novo' ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200'}`}
                                                         title="Marcar como Interessado"
                                                       >❤️ Interessado</button>
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'recusado', v.id)}
-                                                        disabled={isRec}
-                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isRec ? 'bg-gray-300 text-gray-600 cursor-default' : 'bg-gray-500 hover:bg-gray-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isRec ? 'bg-gray-700 hover:bg-gray-800 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200'}`}
                                                         title="Recusar"
                                                       >🚫 Recusar</button>
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'em_analise', v.id)}
-                                                        disabled={st === 'em_analise'}
-                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${st === 'em_analise' ? 'bg-amber-200 text-amber-700 cursor-default' : 'bg-amber-500 hover:bg-amber-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${st === 'em_analise' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200'}`}
                                                         title="Vagas Futuras"
                                                       >🔎 Vagas Futuras</button>
                                                       <button
                                                         onClick={() => atualizarStatusInteressado(c.curriculo_id, 'selecionado', v.id)}
-                                                        disabled={isSel}
-                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isSel ? 'bg-blue-200 text-blue-700 cursor-default' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isSel ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200'}`}
                                                         title="Selecionar (vaga vira 'Em Seleção')"
                                                       >✓ Selecionar</button>
                                                       <button
@@ -1071,8 +1103,7 @@ export default function RhVagas() {
                                                             setFesta({ nome: c.nome, vaga_titulo: v.titulo || '' });
                                                           }
                                                         }}
-                                                        disabled={isCont}
-                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isCont ? 'bg-purple-200 text-purple-700 cursor-default' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
+                                                        className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isCont ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200'}`}
                                                         title="Contratar (encerra a vaga)"
                                                       >🎉 Contratar</button>
                                                     </div>
@@ -2046,6 +2077,17 @@ export default function RhVagas() {
               } catch { toast.error('Erro ao excluir'); }
             }}
           />
+        )}
+
+        {/* Modal: foto do candidato ampliada */}
+        {fotoZoom && (
+          <div className="fixed inset-0 bg-black/85 z-[70] flex items-center justify-center p-4 cursor-zoom-out"
+            onClick={() => setFotoZoom(null)}>
+            <img src={fotoZoom} alt="Foto do candidato"
+              className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" />
+            <button onClick={() => setFotoZoom(null)}
+              className="absolute top-4 right-4 text-white/80 hover:text-white text-5xl leading-none">×</button>
+          </div>
         )}
       </div>
     </div>
