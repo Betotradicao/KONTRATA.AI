@@ -11,6 +11,7 @@ import { RhEscalaMemoriaController } from '../controllers/rh-escala-memoria.cont
 import { RhFolhaController } from '../controllers/rh-folha.controller';
 import { RhFichasAdmissaoController } from '../controllers/rh-fichas-admissao.controller';
 import { RhFeriasController } from '../controllers/rh-ferias.controller';
+import { RhDocTemplateController } from '../controllers/rh-doc-template.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router: Router = Router();
@@ -370,5 +371,16 @@ router.get('/ferias/calendario', authenticateToken, RhFeriasController.calendari
 router.post('/ferias', authenticateToken, RhFeriasController.criar);
 router.put('/ferias/:id', authenticateToken, RhFeriasController.atualizar);
 router.delete('/ferias/:id', authenticateToken, RhFeriasController.deletar);
+
+// Template centralizado de pastas/subpastas padronizadas (Documentacao Padronizada)
+router.get('/doc-template/pastas', authenticateToken, RhDocTemplateController.listarPastas);
+router.post('/doc-template/pastas', authenticateToken, RhDocTemplateController.criarPasta);
+router.put('/doc-template/pastas/:id', authenticateToken, RhDocTemplateController.atualizarPasta);
+router.delete('/doc-template/pastas/:id', authenticateToken, RhDocTemplateController.deletarPasta);
+router.get('/doc-template/pastas/:id/subpastas', authenticateToken, RhDocTemplateController.listarSubpastas);
+router.post('/doc-template/pastas/:id/subpastas', authenticateToken, RhDocTemplateController.criarSubpasta);
+router.post('/doc-template/sincronizar', authenticateToken, RhDocTemplateController.sincronizarTudo);
+router.put('/doc-template/subpastas/:id', authenticateToken, RhDocTemplateController.atualizarSubpasta);
+router.delete('/doc-template/subpastas/:id', authenticateToken, RhDocTemplateController.deletarSubpasta);
 
 export default router;

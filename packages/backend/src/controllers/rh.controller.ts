@@ -282,31 +282,44 @@ export class RhController {
         ]
       );
 
-      // Cria automaticamente as 8 pastas obrigatorias do sistema pra esse colaborador.
-      // Ficam marcadas como protegida=true (nao podem ser deletadas/renomeadas/reordenadas).
-      // Ordem fixa pedida pelo cliente — pastas customizadas vao pra ordem >= 100.
+      // Cria automaticamente as pastas/subpastas padronizadas pra esse colaborador,
+      // baseadas no TEMPLATE centralizado (rh_documento_pastas_template /
+      // rh_documento_subpastas_template). Configurado em
+      // "Configuracoes RH -> Documentacao Padronizada".
+      // Pastas protegidas no template ficam protegidas no colaborador.
       const novoColabId = result[0]?.id;
       if (novoColabId) {
-        const PASTAS_OBRIGATORIAS: Array<[string, number]> = [
-          ['DOCS CONTRATAÇÃO', 1],
-          ['HOLERITES',        2],
-          ['ESPELHO DE PONTO', 3],
-          ['FÉRIAS',           4],
-          ['ATESTADO',         5],
-          ['ADVERTÊNCIAS',     6],
-          ['TREINAMENTOS',     7],
-          ['ABERTURA DE CAT',  8],
-        ];
-        for (const [nome, ordem] of PASTAS_OBRIGATORIAS) {
+        const pastasTemplate = await AppDataSource.query(
+          `SELECT id, nome, ordem, protegida FROM rh_documento_pastas_template
+            WHERE obrigatoria = true
+            ORDER BY ordem, nome`
+        );
+        for (const pt of pastasTemplate) {
           try {
-            await AppDataSource.query(
+            const [pastaCriada] = await AppDataSource.query(
               `INSERT INTO rh_documento_pastas (colaborador_id, nome, ordem, protegida)
-               VALUES ($1::int, $2::text, $3::int, true)
-               ON CONFLICT (colaborador_id, nome) DO UPDATE SET protegida = true, ordem = EXCLUDED.ordem`,
-              [novoColabId, nome, ordem]
+               VALUES ($1::int, $2::text, $3::int, $4::boolean)
+               ON CONFLICT (colaborador_id, nome) DO UPDATE SET protegida = EXCLUDED.protegida, ordem = EXCLUDED.ordem
+               RETURNING id`,
+              [novoColabId, pt.nome, pt.ordem, pt.protegida]
             );
+            // Cria subpastas obrigatorias do template pra esta pasta
+            const subs = await AppDataSource.query(
+              `SELECT nome, ordem, obrigatoria FROM rh_documento_subpastas_template
+                WHERE pasta_template_id = $1 AND obrigatoria = true
+                ORDER BY ordem, nome`,
+              [pt.id]
+            );
+            for (const sub of subs) {
+              await AppDataSource.query(
+                `INSERT INTO rh_documento_subpastas (pasta_id, nome, ordem, obrigatorio)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (pasta_id, nome) DO NOTHING`,
+                [pastaCriada.id, sub.nome, sub.ordem, sub.obrigatoria]
+              );
+            }
           } catch (e) {
-            console.warn(`[colab ${novoColabId}] falha ao criar pasta obrigatoria ${nome}:`, (e as Error).message);
+            console.warn(`[colab ${novoColabId}] falha ao criar pasta template ${pt.nome}:`, (e as Error).message);
           }
         }
       }

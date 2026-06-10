@@ -32,6 +32,7 @@ const TABS = [
   { key: 'feriados', label: 'Feriados', custom: true },
   { key: 'epis_epcs', label: 'EPIs e EPCs', custom: true },
   { key: 'docs_padronizados', label: '📄 Docs Padronizados', custom: true },
+  { key: 'doc_padronizada', label: '📁 Documentação Padronizada', custom: true },
   { key: 'mensagens', label: '💬 Mensagens', custom: true },
 ];
 
@@ -250,6 +251,8 @@ export default function RhConfiguracoes() {
             <EpisEpcsTab />
           ) : currentTab?.custom && activeTab === 'docs_padronizados' ? (
             <DocsPadronizadosTab />
+          ) : currentTab?.custom && activeTab === 'doc_padronizada' ? (
+            <DocPadronizadaTab />
           ) : (
           <div className="bg-white rounded-lg shadow">
             {/* Toolbar */}
@@ -2706,6 +2709,219 @@ function DocsPadronizadosTab() {
             <div className="p-4 border-t flex justify-end">
               <button onClick={() => setResultado(null)}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================================================================
+// Tab: Documentacao Padronizada
+// Configura template centralizado de pastas/subpastas obrigatorias que
+// sao replicadas pra todo colaborador novo. Layout 2 colunas:
+// esquerda = pastas, direita = subpastas da pasta selecionada.
+// ====================================================================
+function DocPadronizadaTab() {
+  const [pastas, setPastas] = useState([]);
+  const [pastaSel, setPastaSel] = useState(null);
+  const [subpastas, setSubpastas] = useState([]);
+  const [loadingPastas, setLoadingPastas] = useState(true);
+  const [loadingSubs, setLoadingSubs] = useState(false);
+  const [novoPastaModal, setNovoPastaModal] = useState(null);
+  const [novoSubModal, setNovoSubModal] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+
+  const carregarPastas = async () => {
+    setLoadingPastas(true);
+    try {
+      const r = await api.get('/rh/doc-template/pastas');
+      const arr = Array.isArray(r.data) ? r.data : [];
+      setPastas(arr);
+      if (!pastaSel && arr.length > 0) setPastaSel(arr[0]);
+    } catch { toast.error('Erro ao carregar pastas'); }
+    finally { setLoadingPastas(false); }
+  };
+  const carregarSubpastas = async (pastaId) => {
+    if (!pastaId) { setSubpastas([]); return; }
+    setLoadingSubs(true);
+    try {
+      const r = await api.get(`/rh/doc-template/pastas/${pastaId}/subpastas`);
+      setSubpastas(Array.isArray(r.data) ? r.data : []);
+    } catch { toast.error('Erro ao carregar subpastas'); }
+    finally { setLoadingSubs(false); }
+  };
+  useEffect(() => { carregarPastas(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { carregarSubpastas(pastaSel?.id); /* eslint-disable-next-line */ }, [pastaSel?.id]);
+
+  const criarPasta = async () => {
+    if (!novoPastaModal?.nome?.trim()) { toast.error('Digite o nome da pasta'); return; }
+    setSalvando(true);
+    try {
+      const r = await api.post('/rh/doc-template/pastas', { nome: novoPastaModal.nome.trim(), replicar: !!novoPastaModal.replicar });
+      toast.success(`✅ Pasta criada${r.data?.replicadas > 0 ? ` (replicada em ${r.data.replicadas} colaboradores)` : ''}`);
+      setNovoPastaModal(null); await carregarPastas();
+    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao criar pasta'); }
+    finally { setSalvando(false); }
+  };
+  const criarSubpasta = async () => {
+    if (!novoSubModal?.nome?.trim()) { toast.error('Digite o nome da subpasta'); return; }
+    if (!pastaSel?.id) return;
+    setSalvando(true);
+    try {
+      const r = await api.post(`/rh/doc-template/pastas/${pastaSel.id}/subpastas`, { nome: novoSubModal.nome.trim(), replicar: !!novoSubModal.replicar });
+      toast.success(`✅ Subpasta criada${r.data?.replicadas > 0 ? ` (replicada em ${r.data.replicadas} colaboradores)` : ''}`);
+      setNovoSubModal(null); await carregarSubpastas(pastaSel.id); await carregarPastas();
+    } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao criar subpasta'); }
+    finally { setSalvando(false); }
+  };
+  const excluirPasta = async (p) => {
+    if (p.protegida) { toast.error('Pasta protegida do sistema não pode ser excluída'); return; }
+    if (!window.confirm(`Excluir "${p.nome}" do template?\n\nNão remove dos colaboradores existentes — só impede que apareça em novos cadastros.`)) return;
+    try { await api.delete(`/rh/doc-template/pastas/${p.id}`); toast.success('Pasta excluída'); if (pastaSel?.id === p.id) setPastaSel(null); await carregarPastas(); }
+    catch (e) { toast.error(e?.response?.data?.error || 'Erro ao excluir'); }
+  };
+  const excluirSubpasta = async (s) => {
+    if (!window.confirm(`Excluir a subpasta "${s.nome}" do template?`)) return;
+    try { await api.delete(`/rh/doc-template/subpastas/${s.id}`); toast.success('Subpasta excluída'); await carregarSubpastas(pastaSel.id); await carregarPastas(); }
+    catch (e) { toast.error(e?.response?.data?.error || 'Erro ao excluir'); }
+  };
+  const toggleSubObrigatoria = async (s) => {
+    // Atualizacao otimista: troca local antes da resposta pra UI ficar instantanea.
+    const proxima = !s.obrigatoria;
+    setSubpastas(prev => prev.map(x => x.id === s.id ? { ...x, obrigatoria: proxima } : x));
+    try {
+      await api.put(`/rh/doc-template/subpastas/${s.id}`, { obrigatoria: proxima });
+    } catch (e) {
+      // Reverte se deu erro
+      setSubpastas(prev => prev.map(x => x.id === s.id ? { ...x, obrigatoria: s.obrigatoria } : x));
+      toast.error(e?.response?.data?.error || 'Erro ao atualizar');
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4">
+      <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">📁 Documentação Padronizada</h2>
+          <p className="text-xs text-gray-500">Defina as pastas e subpastas que serão criadas <strong>automaticamente</strong> em todo colaborador novo. Marcar "Replicar pra todos" também cria nos colaboradores já existentes.</p>
+        </div>
+        <button onClick={async () => {
+          if (!window.confirm('Vai criar TODAS as pastas e subpastas obrigatórias do template nos colaboradores ativos que ainda não têm.\n\nÉ seguro rodar várias vezes — não duplica nada.\n\nConfirma?')) return;
+          try {
+            const r = await api.post('/rh/doc-template/sincronizar');
+            toast.success(`✅ Sincronizado! ${r.data?.pastasCriadas || 0} pasta(s) e ${r.data?.subsCriadas || 0} subpasta(s) criadas`);
+            await carregarPastas();
+            if (pastaSel) await carregarSubpastas(pastaSel.id);
+          } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao sincronizar'); }
+        }} className="text-xs font-bold px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded whitespace-nowrap shadow">
+          🔄 Sincronizar tudo nos colaboradores
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* COL 1: PASTAS */}
+        <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-gray-700">📂 Pastas Padrão ({pastas.length})</h3>
+            <button onClick={() => setNovoPastaModal({ nome: '', replicar: true })} className="text-xs font-bold px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded">+ Nova Pasta</button>
+          </div>
+          {loadingPastas ? (<div className="text-center text-gray-400 py-6 text-sm">Carregando...</div>) :
+            pastas.length === 0 ? (<div className="text-center text-gray-400 py-6 text-sm">Nenhuma pasta cadastrada</div>) : (
+            <div className="space-y-1 max-h-[500px] overflow-y-auto">
+              {pastas.map(p => (
+                <div key={p.id} onClick={() => setPastaSel(p)}
+                  className={`flex items-center justify-between p-2.5 rounded cursor-pointer border-2 ${pastaSel?.id === p.id ? 'bg-orange-50 border-orange-400' : 'bg-white border-transparent hover:border-gray-300'}`}>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-xl">📁</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-gray-800 truncate">{p.nome}</div>
+                      <div className="text-[10px] text-gray-500">
+                        {p.protegida && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mr-1">🔒 protegida</span>}
+                        {p.qtd_subpastas} subpasta{p.qtd_subpastas === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                  </div>
+                  {!p.protegida && (<button onClick={e => { e.stopPropagation(); excluirPasta(p); }} className="text-red-500 hover:text-red-700 p-1 text-sm" title="Excluir do template">🗑</button>)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* COL 2: SUBPASTAS */}
+        <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-gray-700 truncate">📑 Subpastas {pastaSel ? <span className="text-orange-600">de "{pastaSel.nome}"</span> : ''}</h3>
+            {pastaSel && (<button onClick={() => setNovoSubModal({ nome: '', replicar: true })} className="text-xs font-bold px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded whitespace-nowrap">+ Nova Subpasta</button>)}
+          </div>
+          {!pastaSel ? (<div className="text-center text-gray-400 py-12 text-sm">← Selecione uma pasta na esquerda</div>) :
+            loadingSubs ? (<div className="text-center text-gray-400 py-6 text-sm">Carregando...</div>) :
+            subpastas.length === 0 ? (<div className="text-center text-gray-400 py-6 text-sm italic">Nenhuma subpasta nesta pasta ainda. Clique em <strong>+ Nova Subpasta</strong>.</div>) : (
+            <div className="space-y-1 max-h-[500px] overflow-y-auto">
+              {subpastas.map(s => (
+                <div key={s.id} className="flex items-center justify-between p-2.5 bg-white rounded border-2 border-transparent hover:border-gray-300">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-lg">📄</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm text-gray-800 truncate">{s.nome}</div>
+                      <div className="text-[10px]">
+                        <button onClick={() => toggleSubObrigatoria(s)}
+                          title="Clique pra alternar entre obrigatória e opcional"
+                          className={`px-1.5 py-0.5 rounded font-bold cursor-pointer transition ${s.obrigatoria ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                          {s.obrigatoria ? '🔴 obrigatória' : '⚪ opcional'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => excluirSubpasta(s)} className="text-red-500 hover:text-red-700 p-1 text-sm" title="Excluir do template">🗑</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal Nova Pasta */}
+      {novoPastaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setNovoPastaModal(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b"><h3 className="text-lg font-bold">➕ Nova Pasta Padrão</h3><p className="text-xs text-gray-500">Vai aparecer em todo colaborador novo</p></div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600">Nome da pasta</label>
+                <input type="text" autoFocus value={novoPastaModal.nome} onChange={e => setNovoPastaModal({ ...novoPastaModal, nome: e.target.value.toUpperCase() })} placeholder="EX: BENEFÍCIOS, EXAMES MÉDICOS..." className="w-full border border-gray-300 rounded px-3 py-2 text-sm uppercase" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!novoPastaModal.replicar} onChange={e => setNovoPastaModal({ ...novoPastaModal, replicar: e.target.checked })} className="accent-orange-500 w-4 h-4" />
+                <span className="text-sm text-gray-700">Replicar pra todos os colaboradores existentes</span>
+              </label>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button onClick={() => setNovoPastaModal(null)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>
+              <button onClick={criarPasta} disabled={salvando} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm font-bold disabled:opacity-50">{salvando ? 'Criando...' : '➕ Criar Pasta'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nova Subpasta */}
+      {novoSubModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setNovoSubModal(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b"><h3 className="text-lg font-bold">➕ Nova Subpasta</h3><p className="text-xs text-gray-500">Dentro de <strong>{pastaSel?.nome}</strong></p></div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs font-bold uppercase text-gray-600">Nome da subpasta</label>
+                <input type="text" autoFocus value={novoSubModal.nome} onChange={e => setNovoSubModal({ ...novoSubModal, nome: e.target.value.toUpperCase() })} placeholder="EX: COMPROVANTE DE ENDEREÇO..." className="w-full border border-gray-300 rounded px-3 py-2 text-sm uppercase" />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!novoSubModal.replicar} onChange={e => setNovoSubModal({ ...novoSubModal, replicar: e.target.checked })} className="accent-orange-500 w-4 h-4" />
+                <span className="text-sm text-gray-700">Replicar pra todos os colaboradores existentes (que já têm essa pasta)</span>
+              </label>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button onClick={() => setNovoSubModal(null)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>
+              <button onClick={criarSubpasta} disabled={salvando} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm font-bold disabled:opacity-50">{salvando ? 'Criando...' : '➕ Criar Subpasta'}</button>
             </div>
           </div>
         </div>
