@@ -128,6 +128,26 @@ app.use('/api/lgpd', lgpdRouter);
 app.use('/api/access-logs', accessLogsRouter);
 app.use('/api/denuncias', denunciasRouter);
 
+// Endpoint generico de upload de imagem usado por varios formularios
+// (foto da empresa, foto do colaborador, foto da loja, etc).
+// Path "/checklist/upload-imagem" mantido por compatibilidade com o
+// frontend que herdou esse caminho do prevencao-radar.
+import multer from 'multer';
+const uploadImagemMulter = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+app.post('/api/checklist/upload-imagem', uploadImagemMulter.single('imagem'), async (req, res) => {
+  try {
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ success: false, error: 'Arquivo obrigatorio' });
+    const ext = (file.originalname || 'jpg').split('.').pop() || 'jpg';
+    const objectName = `uploads/imagens/${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
+    const url = await minioService.uploadFile(objectName, file.buffer, file.mimetype || 'image/jpeg');
+    res.json({ success: true, url });
+  } catch (e: any) {
+    console.error('[upload-imagem]:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const startServer = async () => {
   try {
     await AppDataSource.initialize();
