@@ -10,6 +10,7 @@ import { RhEscalaController } from '../controllers/rh-escala.controller';
 import { RhEscalaMemoriaController } from '../controllers/rh-escala-memoria.controller';
 import { RhFolhaController } from '../controllers/rh-folha.controller';
 import { RhFichasAdmissaoController } from '../controllers/rh-fichas-admissao.controller';
+import { RhFeriasController } from '../controllers/rh-ferias.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router: Router = Router();
@@ -362,5 +363,12 @@ router.put('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController
 router.delete('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.deletar);
 router.post('/fichas-admissao/:id/gerar-link', authenticateToken, RhFichasAdmissaoController.gerarLink);
 router.post('/fichas-admissao/:id/criar-colaborador', authenticateToken, RhFichasAdmissaoController.criarColaborador);
+
+// Controle de Ferias
+router.get('/ferias', authenticateToken, RhFeriasController.listar);
+router.get('/ferias/calendario', authenticateToken, RhFeriasController.calendario);
+router.post('/ferias', authenticateToken, RhFeriasController.criar);
+router.put('/ferias/:id', authenticateToken, RhFeriasController.atualizar);
+router.delete('/ferias/:id', authenticateToken, RhFeriasController.deletar);
 
 export default router;

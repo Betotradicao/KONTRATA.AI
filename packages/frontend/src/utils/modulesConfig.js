@@ -184,6 +184,7 @@ const ROUTE_MODULE_MAP = [
   { path: '/rh/documentacao',          moduleId: 'rh-documentacao' },
   { path: '/rh/aso',                   moduleId: 'rh-saude' },
   { path: '/rh/ausencias',             moduleId: 'rh-ausencias' },
+  { path: '/rh/ferias',                moduleId: 'rh-ferias' },
   { path: '/rh/vagas',                 moduleId: 'rh-vagas' },
   { path: '/rh/recrutador/vagas',      moduleId: 'rh-recrutador-ia' },
   { path: '/rh/modelo-curriculo',      moduleId: 'rh-curriculo-modelo' },

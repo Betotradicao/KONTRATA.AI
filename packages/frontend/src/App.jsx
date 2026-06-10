@@ -31,6 +31,7 @@ import RhResultados from './pages/RhResultados';
 import RhAdmissoes from './pages/RhAdmissoes';
 import RhDesligamentos from './pages/RhDesligamentos';
 import RhAusencias from './pages/RhAusencias';
+import RhFerias from './pages/RhFerias';
 import RhControleASO from './pages/RhControleASO';
 import RhDocumentacao from './pages/RhDocumentacao';
 import RhDepartamentoPessoal from './pages/RhDepartamentoPessoal';
@@ -112,6 +113,7 @@ function App() {
 
               {/* RH — Ponto e Ausencias */}
               <Route path="/rh/ausencias" element={<ProtectedRoute moduleId="rh-ausencias"><RhAusencias /></ProtectedRoute>} />
+              <Route path="/rh/ferias" element={<ProtectedRoute moduleId="rh-ferias"><RhFerias /></ProtectedRoute>} />
               <Route path="/rh/aso" element={<ProtectedRoute moduleId="rh-saude"><RhControleASO /></ProtectedRoute>} />
 
               {/* RH — Curriculos / Recrutamento (cada subitem tem moduleId especifico) */}
