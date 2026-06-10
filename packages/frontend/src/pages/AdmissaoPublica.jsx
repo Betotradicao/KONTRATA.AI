@@ -190,6 +190,7 @@ export default function AdmissaoPublica() {
   const finalizar = async () => {
     // Obrigatórios (alinhado aos asteriscos visuais)
     const obrigatorios = [
+      [dados.foto_url,                      'Foto do candidato é obrigatória — escolha uma foto na seção "Sua foto"'],
       [dados.dados_pessoais.nome,           'Nome completo é obrigatório'],
       [dados.dados_pessoais.cpf,            'CPF é obrigatório'],
       [dados.dados_pessoais.data_nascimento,'Data de nascimento é obrigatória'],
@@ -274,15 +275,15 @@ export default function AdmissaoPublica() {
           </div>
         </div>
 
-        {/* Foto do candidato — escolhe da galeria ou tira na hora */}
+        {/* Foto do candidato — escolhe da galeria ou tira na hora (OBRIGATORIA) */}
         <div className={sectionCls}>
-          <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Sua foto</h3>
+          <h3 className="text-sm font-bold text-gray-700 uppercase mb-3 pb-2 border-b">Sua foto *</h3>
           <div className="flex items-center gap-4">
             {dados.foto_url ? (
               <img src={dados.foto_url} alt="Foto do candidato"
                 className="w-28 h-28 rounded-full object-cover border-4 border-purple-300 shadow" />
             ) : (
-              <div className="w-28 h-28 rounded-full bg-gray-100 flex flex-col items-center justify-center text-gray-400 text-3xl border-4 border-dashed border-gray-300">
+              <div className="w-28 h-28 rounded-full bg-red-50 flex flex-col items-center justify-center text-red-400 text-3xl border-4 border-dashed border-red-300">
                 📷
               </div>
             )}

@@ -154,12 +154,20 @@ export default function FichasAdmissaoSection() {
   };
 
   // Monta link do WhatsApp direto pro chat do candidato (se tiver celular).
-  // Limpa máscara, garante prefixo 55 (Brasil). Sem celular → wa.me genérico.
+  // Antes usava wa.me/ que redirecionava pra tela intermediaria
+  // "Compartilhar no WhatsApp" (api.whatsapp.com/send) com botoes
+  // "Abrir app"/"Continuar para Web" — irritante. Agora detecta mobile vs
+  // desktop e usa o endpoint que vai DIRETO pra conversa em cada caso.
   const buildWhatsAppUrl = (celular, mensagem) => {
     const digits = String(celular || '').replace(/\D/g, '');
     const tel = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : '';
     const txt = encodeURIComponent(mensagem);
-    return tel ? `https://wa.me/${tel}?text=${txt}` : `https://wa.me/?text=${txt}`;
+    if (!tel) return `https://wa.me/?text=${txt}`;
+    const isMobile = typeof navigator !== 'undefined'
+      && /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
+    return isMobile
+      ? `https://api.whatsapp.com/send?phone=${tel}&text=${txt}`
+      : `https://web.whatsapp.com/send?phone=${tel}&text=${txt}`;
   };
 
   // Imprime/Salva em PDF a ficha de admissão completa (RH + candidato).
