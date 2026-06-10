@@ -61,14 +61,17 @@ import PesquisaClimaAnalise from './pages/rh/PesquisaClimaAnalise';
 import AnaliseNr1 from './pages/rh/AnaliseNr1';
 
 function App() {
-  // Zoom default — clientes novos (via auto-instalador) sobem com
-  // VITE_DEFAULT_ZOOM=0.8 no build pra a tela vir em 80% por padrao.
-  // Clientes antigos nao tem a env definida -> nao aplica nada,
-  // ficam como sempre estavam (browser controla zoom).
+  // Escala default — clientes novos (via auto-instalador) sobem com
+  // VITE_DEFAULT_ZOOM=0.8 pra a tela vir em ~80% por padrao.
+  // Usamos font-size:80% no <html> em vez de zoom:0.8 porque zoom encolhia
+  // o conteudo mas mantinha viewport 100% real, deixando faixa em branco
+  // no rodape. Tailwind/Vite usam rem, entao font-size escala TUDO
+  // proporcional (paddings, larguras, fontes) sem quebrar o viewport.
   useEffect(() => {
     const z = import.meta.env.VITE_DEFAULT_ZOOM;
-    if (z && !document.documentElement.style.zoom) {
-      document.documentElement.style.zoom = String(z);
+    if (z && !document.documentElement.style.fontSize) {
+      const pct = Math.round(parseFloat(z) * 100);
+      document.documentElement.style.fontSize = `${pct}%`;
     }
   }, []);
 
