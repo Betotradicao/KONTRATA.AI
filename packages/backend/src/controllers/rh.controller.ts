@@ -1296,8 +1296,18 @@ export class RhController {
       );
       if (!vaga) return res.status(404).json({ error: 'Vaga nao encontrada' });
 
-      const [cv] = await AppDataSource.query(`SELECT id, nome, whatsapp, email, cidade, created_at FROM curriculos WHERE id = $1`, [curriculo_id]);
-      if (!cv) return res.status(404).json({ error: 'Curriculo nao encontrado' });
+      // Tenta achar o curriculo. Se nao existir mais (ex: foi deletado depois
+      // de ser selecionado), usa o SNAPSHOT que ja esta nos arrays da vaga.
+      // Caso contrario, candidato fica preso em "Selecionado" sem poder mudar.
+      let [cv] = await AppDataSource.query(`SELECT id, nome, whatsapp, email, cidade, created_at FROM curriculos WHERE id = $1`, [curriculo_id]);
+      if (!cv) {
+        const arrays = [vaga.selecionados, vaga.recusados, vaga.vagas_futuras];
+        for (const arr of arrays) {
+          const found = (Array.isArray(arr) ? arr : []).find((x: any) => Number(x?.curriculo_id) === Number(curriculo_id));
+          if (found) { cv = found; break; }
+        }
+      }
+      if (!cv) return res.status(404).json({ error: 'Candidato nao encontrado nesta vaga' });
 
       // Helper: remove o curriculo de qualquer array
       const remove = (arr: any[]) =>

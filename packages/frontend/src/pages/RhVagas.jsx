@@ -109,6 +109,14 @@ export default function RhVagas() {
   const [buscandoCurriculo, setBuscandoCurriculo] = useState(false);
   const [curriculoVisualizar, setCurriculoVisualizar] = useState(null);
   const [fotoZoom, setFotoZoom] = useState(null); // URL da foto sendo ampliada
+  // Modal "o que fazer com o status do candidato apos resultado negativo da entrevista"
+  // { vaga, candidato, resultado } — onde resultado = 'nao_compareceu' | 'reprovado' | 'desistiu'
+  const [modalRecolocacao, setModalRecolocacao] = useState(null);
+  // Modal de triagem em LOTE apos contratacao: lista todos os outros candidatos
+  // pendentes da vaga (status novo/selecionado nao contratados) pra RH decidir
+  // em massa: recusar / vagas futuras / manter. Selecionados ganham checkbox
+  // pra anotar "Entrevistado" no curriculo.
+  // Estrutura: { vaga, contratadoId, candidatos: [{ c, acao, anotar }] }
   // Quando o modal de curriculo eh aberto a partir de uma VAGA, guardamos o id
   // dela aqui pra que clicar "Selecionado" no rodape sincronize v.selecionados
   // dessa vaga (e nao soh mude o status global do curriculo).
@@ -1262,12 +1270,19 @@ export default function RhVagas() {
                                                                 type="radio"
                                                                 name={`resultado-${v.id}-${selIdx}`}
                                                                 checked={sel.resultado_entrevista === o.v}
-                                                                onChange={() => atualizarSelecionadoNaLinha(v, selIdx, {
-                                                                  resultado_entrevista: o.v,
-                                                                  // Se nao passou na entrevista, zera tudo de pos-entrevista
-                                                                  // INCLUINDO o flag contratado (pra coluna refletir mudanca)
-                                                                  ...(o.v !== 'passou' ? { pos_entrevista: null, data_agendar_exames: null, data_resultado_exames: null, contratado: false } : {})
-                                                                })}
+                                                                onChange={() => {
+                                                                  atualizarSelecionadoNaLinha(v, selIdx, {
+                                                                    resultado_entrevista: o.v,
+                                                                    // Se nao passou na entrevista, zera tudo de pos-entrevista
+                                                                    // INCLUINDO o flag contratado (pra coluna refletir mudanca)
+                                                                    ...(o.v !== 'passou' ? { pos_entrevista: null, data_agendar_exames: null, data_resultado_exames: null, contratado: false } : {})
+                                                                  });
+                                                                  // Apos resultado negativo, pergunta se quer mover o candidato pra
+                                                                  // Recusados / Vagas Futuras ou manter como Selecionado.
+                                                                  if (o.v === 'reprovado' || o.v === 'nao_compareceu' || o.v === 'desistiu') {
+                                                                    setModalRecolocacao({ vaga: v, candidato: c, resultado: o.v });
+                                                                  }
+                                                                }}
                                                               />
                                                               <span>{o.l}</span>
                                                             </label>
@@ -2078,6 +2093,79 @@ export default function RhVagas() {
             }}
           />
         )}
+
+        {/* Modal: o que fazer com o candidato apos resultado negativo da entrevista */}
+        {modalRecolocacao && (() => {
+          const labelResultado = { reprovado: '❌ Reprovado', nao_compareceu: '🚫 Não compareceu', desistiu: '✋ Desistiu' };
+          const labelCurto = { reprovado: 'Reprovado', nao_compareceu: 'Não compareceu', desistiu: 'Desistiu' };
+          const aplicar = async (novoStatus) => {
+            if (novoStatus) {
+              await atualizarStatusInteressado(modalRecolocacao.candidato.curriculo_id, novoStatus, modalRecolocacao.vaga.id);
+            }
+            // Anota no historico do curriculo (append em observacao_rh) se o user marcou.
+            // Default = true: checkbox vem marcado, anotarCurriculo undefined eh tratado como true.
+            if (modalRecolocacao.anotarCurriculo !== false) {
+              try {
+                const r = await api.get(`/curriculos/${modalRecolocacao.candidato.curriculo_id}`);
+                const cv = r?.data?.curriculo || r?.data;
+                const obsAtual = cv?.observacao_rh || '';
+                const hoje = new Date().toLocaleDateString('pt-BR');
+                const linha = `[${hoje}] Vaga "${modalRecolocacao.vaga.titulo}": ${labelCurto[modalRecolocacao.resultado]}`;
+                const obsNova = obsAtual ? `${obsAtual}\n${linha}` : linha;
+                await api.put(`/curriculos/${modalRecolocacao.candidato.curriculo_id}`, { observacao_rh: obsNova });
+              } catch { /* nao bloqueia o fluxo se falhar */ }
+            }
+            setModalRecolocacao(null);
+          };
+          return (
+            <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setModalRecolocacao(null)}>
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b">
+                  <h3 className="text-lg font-bold text-gray-800">📋 Resultado: {labelResultado[modalRecolocacao.resultado]}</h3>
+                  <p className="text-sm font-semibold text-gray-700 mt-1">{modalRecolocacao.candidato.nome}</p>
+                  <p className="text-xs text-gray-500">Vaga: {modalRecolocacao.vaga.titulo}</p>
+                </div>
+                <div className="p-4 space-y-2">
+                  <p className="text-sm text-gray-700 mb-3">O que fazer com o status dela <strong>nesta vaga</strong>?</p>
+                  <label className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3 cursor-pointer mb-3">
+                    <input type="checkbox"
+                      checked={modalRecolocacao.anotarCurriculo !== false}
+                      onChange={e => setModalRecolocacao(m => ({ ...m, anotarCurriculo: e.target.checked }))}
+                      className="accent-amber-500 w-5 h-5 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-bold text-amber-900 text-base">📝 Anotar no histórico do currículo</div>
+                      <div className="text-sm text-amber-800 mt-1">Em futuras consultas o RH vai ver que houve <strong>{labelCurto[modalRecolocacao.resultado]}</strong> nesta vaga.</div>
+                    </div>
+                  </label>
+                  <button onClick={() => aplicar('recusado')}
+                    className="w-full px-4 py-3 bg-gray-700 hover:bg-gray-800 text-white rounded font-bold text-sm text-left flex items-center gap-2">
+                    🚫 <div className="flex-1">
+                      <div>Mover pra Recusados</div>
+                      <div className="text-xs font-normal opacity-80">Sai dos Selecionados, vai pros Recusados desta vaga</div>
+                    </div>
+                  </button>
+                  <button onClick={() => aplicar('em_analise')}
+                    className="w-full px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold text-sm text-left flex items-center gap-2">
+                    🔎 <div className="flex-1">
+                      <div>Mover pra Vagas Futuras</div>
+                      <div className="text-xs font-normal opacity-90">Mantém visível pra reconsiderar nessa vaga depois</div>
+                    </div>
+                  </button>
+                  <button onClick={() => aplicar(null)}
+                    className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded font-bold text-sm text-left flex items-center gap-2">
+                    ✓ <div className="flex-1">
+                      <div>Manter Selecionada</div>
+                      <div className="text-xs font-normal opacity-90">Continua nos Selecionados (pra possível recolocação)</div>
+                    </div>
+                  </button>
+                </div>
+                <div className="p-3 border-t flex justify-end">
+                  <button onClick={() => setModalRecolocacao(null)} className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800">Decido depois</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Modal: foto do candidato ampliada */}
         {fotoZoom && (

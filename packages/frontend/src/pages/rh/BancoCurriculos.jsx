@@ -623,7 +623,20 @@ export function DetalheCV({
     const t = tiposVaga.find(x => x.slug === slug);
     return t ? t.nome : slug.toUpperCase();
   };
-  const [obs, setObs] = useState(cv.observacao_rh || '');
+  // Separa o conteudo da observacao_rh em historico (linhas auto-geradas no
+  // padrao [DD/MM/AAAA] Vaga "X": Resultado) e texto livre do RH.
+  // Historico aparece destacado em amarelo; textarea so edita o texto livre.
+  // Ao salvar, reconcatena: historico (preservado) + \n + texto livre.
+  const HISTORICO_RE = /^\[\d{2}\/\d{2}\/\d{4}\]\s*Vaga/;
+  const splitObs = (raw) => {
+    const linhas = String(raw || '').split('\n');
+    const historico = linhas.filter(l => HISTORICO_RE.test(l));
+    const livre = linhas.filter(l => !HISTORICO_RE.test(l)).join('\n').trim();
+    return { historico, livre };
+  };
+  const inicial = splitObs(cv.observacao_rh);
+  const [historico] = useState(inicial.historico);
+  const [obs, setObs] = useState(inicial.livre);
   const [entrevistasIA, setEntrevistasIA] = useState([]);
   // Status efetivo: quando aberto a partir de uma vaga (RhVagas injeta
   // cv._statusLocalNaVaga), usa o status LOCAL daquela vaga. Senao usa o
@@ -631,7 +644,11 @@ export function DetalheCV({
   // do modal mostram o mesmo status pra mesma vaga.
   const statusEfetivo = cv._statusLocalNaVaga != null ? cv._statusLocalNaVaga : cv.status;
   const st = STATUS_LABEL[statusEfetivo] || STATUS_LABEL.novo;
-  const salvarObs = () => onAtualizarObs(obs);
+  const salvarObs = () => {
+    // Reconcatena: historico (preservado) + texto livre editado pelo RH.
+    const reconcat = [...historico, obs.trim()].filter(Boolean).join('\n');
+    onAtualizarObs(reconcat);
+  };
 
   // === Foto expandida ao clicar ===
   const [showFotoZoom, setShowFotoZoom] = useState(false);
@@ -998,6 +1015,17 @@ export function DetalheCV({
                   )}
                 </div>
                 <label className="text-sm font-bold uppercase text-gray-600 block mb-1">Observação interna</label>
+                {/* Historico de processo seletivo (auto-gerado, somente leitura) */}
+                {historico.length > 0 && (
+                  <div className="mb-2 bg-amber-50 border-2 border-amber-300 rounded-lg p-3">
+                    <div className="text-xs font-bold uppercase text-amber-700 mb-1">📋 Histórico de processo seletivo</div>
+                    <ul className="space-y-1">
+                      {historico.map((l, i) => (
+                        <li key={i} className="text-sm text-amber-900 font-medium">{l}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <textarea value={obs} onChange={e => setObs(e.target.value)} onBlur={salvarObs} rows={3}
                   placeholder="Ex: entrevistei, gostei, mandar pro gerente…"
                   className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:border-rose-400" />
