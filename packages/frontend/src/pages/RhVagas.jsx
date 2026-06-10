@@ -96,7 +96,7 @@ export default function RhVagas() {
   const [supermercadoNome, setSupermercadoNome] = useState('');
   const [filtroLoja, setFiltroLoja] = useState(''); // '' = Todas
   const [filtroStatus, setFiltroStatus] = useState(''); // '' = Todos
-  const [filtroCardCandidato, setFiltroCardCandidato] = useState(''); // '' | 'em_aberto' | 'novo' | 'recusado' | 'em_analise' | 'selecionado' | 'contratado'
+  const [filtroCardCandidato, setFiltroCardCandidato] = useState('em_aberto'); // '' | 'em_aberto' | 'novo' | 'recusado' | 'em_analise' | 'selecionado' | 'contratado'
 
   // Modal
   const [modalAberto, setModalAberto] = useState(false);
@@ -618,6 +618,16 @@ export default function RhVagas() {
                 </option>
               ))}
             </select>
+            <label className="text-sm font-semibold text-gray-700 ml-2">💼 Vagas:</label>
+            <select
+              value={['', 'em_aberto', 'contratado'].includes(filtroCardCandidato) ? filtroCardCandidato : ''}
+              onChange={(e) => setFiltroCardCandidato(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            >
+              <option value="">Todas</option>
+              <option value="em_aberto">🔓 Vagas em Aberto</option>
+              <option value="contratado">🎉 Contratados</option>
+            </select>
             {filtroLoja !== '' && (
               <span className="text-xs text-gray-500">
                 Mostrando vagas de <strong>{(() => {
@@ -664,11 +674,11 @@ export default function RhVagas() {
             const nAbertas = vagasFiltradasPorLoja.filter(v => v.status === 'Aberta' || v.status === 'Em Selecao').length;
             const cards = [
               { key: 'em_aberto', label: 'Vagas em Aberto', count: nAbertas, emoji: '🔓', cor: 'green' },
+              { key: 'contratado', label: 'Contratados', count: nContratados, emoji: '🎉', cor: 'purple' },
               { key: 'novo', label: 'Interessados', count: nInteressados, emoji: '❤️', cor: 'rose' },
               { key: 'recusado', label: 'Recusados', count: nRecusados, emoji: '🚫', cor: 'gray' },
               { key: 'em_analise', label: 'Vagas Futuras', count: nVagasFuturas, emoji: '🔎', cor: 'amber' },
               { key: 'selecionado', label: 'Selecionados', count: nSelecionados, emoji: '✓', cor: 'blue' },
-              { key: 'contratado', label: 'Contratados', count: nContratados, emoji: '🎉', cor: 'purple' },
             ];
             const corMap = {
               green: { text: 'text-green-600', border: 'border-green-200', bg: 'bg-green-50', borderActive: 'border-green-500' },

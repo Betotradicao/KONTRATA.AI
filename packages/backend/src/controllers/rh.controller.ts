@@ -1352,11 +1352,16 @@ export class RhController {
         [JSON.stringify(selecionados), JSON.stringify(recusados), JSON.stringify(vagas_futuras), vagaId]
       );
 
-      // Atualiza o status da PROPRIA vaga (Em Selecao / Contratado(a))
-      if (s === 'contratado') {
-        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Contratado(a)' WHERE id = $1 AND status NOT IN ('Contratado(a)', 'Fechada')`, [vagaId]);
-      } else if (s === 'selecionado') {
-        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Em Selecao' WHERE id = $1 AND status = 'Aberta'`, [vagaId]);
+      // Recalcula o status da PROPRIA vaga com base no estado FINAL dos arrays.
+      // - Se ainda existe algum contratado=true     -> 'Contratado(a)'
+      // - Senao, se vaga nao esta Fechada           -> 'Em Selecao'
+      //   (cobre o caso de voltar contratado p/ selecionado: vaga sai de
+      //    'Contratado(a)' e volta pra 'Em Selecao' automaticamente)
+      const temContratado = selecionados.some((x: any) => x?.contratado === true);
+      if (temContratado) {
+        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Contratado(a)' WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
+      } else {
+        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Em Selecao' WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
       }
 
       res.json({ success: true, status_local: s, nome: cv.nome });
