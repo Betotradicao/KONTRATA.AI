@@ -1592,16 +1592,34 @@ export default function RhVagas() {
                     </div>
                     {formData.experiencia_obrigatoria && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Tempo mínimo de experiência (meses)</label>
-                        <input
-                          type="number"
-                          min="1"
-                          name="experiencia_meses_minimo"
-                          value={formData.experiencia_meses_minimo}
-                          onChange={handleChange}
-                          placeholder="Ex: 6 = 6 meses, 24 = 2 anos"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        />
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Tempo mínimo de experiência</label>
+                        {(() => {
+                          const total = formData.experiencia_meses_minimo === '' ? '' : (Number(formData.experiencia_meses_minimo) || 0);
+                          const anos = total === '' ? '' : Math.floor(total / 12);
+                          const meses = total === '' ? '' : total % 12;
+                          const setTotal = (a, m) => {
+                            const tot = (Number(a) || 0) * 12 + (Number(m) || 0);
+                            setFormData(prev => ({ ...prev, experiencia_meses_minimo: tot === 0 ? '' : String(tot) }));
+                          };
+                          return (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] text-gray-500 mb-1">Ano(s) trabalhados</label>
+                                <input type="number" min="0" value={anos}
+                                  onChange={(e) => setTotal(e.target.value, meses)}
+                                  placeholder="Ex: 2"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] text-gray-500 mb-1">Meses trabalhados</label>
+                                <input type="number" min="0" max="11" value={meses}
+                                  onChange={(e) => setTotal(anos, e.target.value)}
+                                  placeholder="Ex: 6"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>

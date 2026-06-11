@@ -78,6 +78,39 @@ export default function CurriculoPublico() {
       .finally(() => setCarregandoVagas(false));
   }, [lojaEscolhidaId, lojas]);
 
+  // Quando a(s) vaga(s) marcada(s) JA definem tipo de vaga / turno, preenche
+  // automaticamente esses campos no curriculo (e a UI trava — ver render).
+  // Vagas sem essa info definida deixam o candidato escolher livremente.
+  useEffect(() => {
+    const sel = vagasAbertas.filter(v => vagasInteresse.includes(v.id));
+    if (sel.length === 0) return;
+    const tipos = [...new Set(sel.map(v => v.tipo_vaga_slug).filter(Boolean))];
+    const turnos = [...new Set(sel.flatMap(v => Array.isArray(v.turnos) ? v.turnos : []))];
+    // Vagas que EXIGEM experiencia: o cargo da vaga vem pre-marcado e a
+    // experiencia dele passa a ser obrigatoria (validado no envio).
+    const cargosObrig = [...new Set(
+      sel.filter(v => v.experiencia_obrigatoria && v.cargo_nome).map(v => String(v.cargo_nome).toUpperCase())
+    )];
+    setForm(f => {
+      const next = { ...f };
+      if (tipos.length === 1) next.interesse_vaga = tipos[0];
+      if (turnos.length > 0) next.disponibilidade_turnos = turnos;
+      if (cargosObrig.length > 0) {
+        const cargosArr = [...f.cargos];
+        const novasExp = [...f.experiencias_detalhadas];
+        cargosObrig.forEach(cg => {
+          if (!cargosArr.includes(cg)) cargosArr.push(cg);
+          if (!novasExp.some(e => e.funcao === cg)) {
+            novasExp.push({ funcao: cg, empresa: '', empresa_instagram: '', tempo_anos: '', tempo_meses: '', descricao: '' });
+          }
+        });
+        next.cargos = cargosArr;
+        next.experiencias_detalhadas = novasExp;
+      }
+      return next;
+    });
+  }, [vagasInteresse, vagasAbertas]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -264,6 +297,29 @@ export default function CurriculoPublico() {
     setErro('');
     if (!form.nome.trim()) { setErro('Informe seu nome completo.'); return; }
     if (!form.interesse_vaga) { setErro('Selecione o interesse de vaga.'); window.scrollTo(0, 0); return; }
+    // Vagas que exigem experiencia: o tempo informado na funcao precisa
+    // atingir o minimo exigido pela vaga (experiencia_meses_minimo).
+    {
+      const selv = vagasAbertas.filter(v => vagasInteresse.includes(v.id));
+      const minPorCargo = {};
+      selv.filter(v => v.experiencia_obrigatoria && v.cargo_nome).forEach(v => {
+        const cg = String(v.cargo_nome).toUpperCase();
+        minPorCargo[cg] = Math.max(minPorCargo[cg] || 0, Number(v.experiencia_meses_minimo) || 0);
+      });
+      for (const cg of Object.keys(minPorCargo)) {
+        const exp = form.experiencias_detalhadas.find(e => e.funcao === cg);
+        const meses = exp ? (Number(exp.tempo_anos) || 0) * 12 + (Number(exp.tempo_meses) || 0) : 0;
+        if (meses <= 0) {
+          setErro(`Esta vaga exige experiência em ${cg}. Preencha o tempo de experiência nessa função.`);
+          window.scrollTo(0, 0); return;
+        }
+        const min = minPorCargo[cg];
+        if (min > 0 && meses < min) {
+          setErro(`Esta vaga exige no mínimo ${fmtTempoExp(min)} de experiência em ${cg}. Você informou ${fmtTempoExp(meses)}.`);
+          window.scrollTo(0, 0); return;
+        }
+      }
+    }
     setEnviando(true);
     try {
       const payload = {
@@ -989,6 +1045,21 @@ export default function CurriculoPublico() {
     );
   }
 
+  // Trava de tipo de vaga / turno conforme a(s) vaga(s) marcada(s).
+  // So trava quando a vaga JA define o valor; senao o candidato escolhe livre.
+  const vagasSelLock = vagasAbertas.filter(v => vagasInteresse.includes(v.id));
+  const tiposLock = [...new Set(vagasSelLock.map(v => v.tipo_vaga_slug).filter(Boolean))];
+  const tipoVagaTravado = tiposLock.length === 1 ? tiposLock[0] : null;
+  const turnosTravados = [...new Set(vagasSelLock.flatMap(v => Array.isArray(v.turnos) ? v.turnos : []))];
+  const turnosTravadosAtivo = turnosTravados.length > 0;
+  // Cargos cuja experiencia e EXIGIDA pela(s) vaga(s) marcada(s) + o tempo minimo (meses).
+  const minExpPorCargo = {};
+  vagasSelLock.filter(v => v.experiencia_obrigatoria && v.cargo_nome).forEach(v => {
+    const cg = String(v.cargo_nome).toUpperCase();
+    minExpPorCargo[cg] = Math.max(minExpPorCargo[cg] || 0, Number(v.experiencia_meses_minimo) || 0);
+  });
+  const cargosObrigatorios = Object.keys(minExpPorCargo);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 py-6 px-4 overflow-x-hidden">
       <div className="max-w-3xl mx-auto">
@@ -1123,24 +1194,37 @@ export default function CurriculoPublico() {
             <h2 className="text-sm font-bold text-gray-800 mb-1">
               🎯 Interesse de vaga <span className="text-red-500">*</span>
             </h2>
-            <p className="text-xs text-gray-500 mb-2">Selecione UMA opção (obrigatório)</p>
+            <p className="text-xs text-gray-500 mb-2">
+              {tipoVagaTravado
+                ? <span className="text-rose-600 font-semibold">🔒 Definido pela vaga selecionada</span>
+                : 'Selecione UMA opção (obrigatório)'}
+            </p>
             <div className={`grid gap-2 ${tiposVaga.length <= 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
-              {tiposVaga.map(t => (
+              {tiposVaga.map(t => {
+                const travadoEste = !!tipoVagaTravado;
+                const ehOEscolhido = form.interesse_vaga === t.slug;
+                // Quando travado, mostra so o tipo da vaga (esconde os outros).
+                if (travadoEste && tipoVagaTravado !== t.slug) return null;
+                return (
                 <label key={t.slug}
-                  className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition ${
-                    form.interesse_vaga === t.slug
+                  className={`flex items-center gap-2 p-3 border-2 rounded-lg transition ${
+                    travadoEste ? 'cursor-default' : 'cursor-pointer'
+                  } ${
+                    ehOEscolhido
                       ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-200'
                       : 'border-gray-200 hover:border-rose-300'
                   }`}>
                   <input type="radio" name="interesse_vaga" value={t.slug}
-                    checked={form.interesse_vaga === t.slug}
+                    checked={ehOEscolhido}
+                    disabled={travadoEste}
                     onChange={() => setForm({ ...form, interesse_vaga: t.slug })}
                     className="w-4 h-4 accent-rose-500" required />
                   <div>
                     <div className="text-sm font-bold text-gray-800">{t.nome}</div>
                   </div>
                 </label>
-              ))}
+                );
+              })}
             </div>
           </section>
 
@@ -1154,14 +1238,23 @@ export default function CurriculoPublico() {
               </button>
             </div>
             <p className="text-xs text-gray-500 mb-2">Marque os cargos em que já trabalhou. Ao marcar, abaixo abre um campo pra detalhar a experiência.</p>
+            {cargosObrigatorios.length > 0 && (
+              <div className="mb-2 p-2.5 bg-amber-50 border-2 border-amber-300 rounded-lg text-xs text-amber-900">
+                ⚠️ Esta vaga <strong>exige experiência</strong> na função <strong>{cargosObrigatorios.join(', ')}</strong>. Ela já vem marcada e o tempo de experiência é <strong>obrigatório</strong>. As demais funções são opcionais.
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {cargos.map(c => (
-                <label key={c} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-xs ${form.cargos.includes(c) ? 'border-rose-400 bg-rose-50' : 'border-gray-200 hover:border-rose-200'}`}>
-                  <input type="checkbox" checked={form.cargos.includes(c)} onChange={() => toggleCargo(c)}
+              {cargos.map(c => {
+                const obrig = cargosObrigatorios.includes(c);
+                return (
+                <label key={c} className={`flex items-center gap-2 p-2 border-2 rounded-lg text-xs ${obrig ? 'cursor-default border-amber-400 bg-amber-50' : 'cursor-pointer'} ${!obrig && (form.cargos.includes(c) ? 'border-rose-400 bg-rose-50' : 'border-gray-200 hover:border-rose-200')}`}>
+                  <input type="checkbox" checked={form.cargos.includes(c)} disabled={obrig} onChange={() => toggleCargo(c)}
                     className="w-4 h-4 accent-rose-500" />
                   <span className="text-gray-700 font-semibold">{c}</span>
+                  {obrig && <span className="ml-auto text-[11px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold whitespace-nowrap">EXIGIDO</span>}
                 </label>
-              ))}
+                );
+              })}
             </div>
           </section>
 
@@ -1170,21 +1263,35 @@ export default function CurriculoPublico() {
             <section>
               <h2 className="text-sm font-bold text-gray-800 mb-2">📋 Detalhes das suas experiências</h2>
               <div className="space-y-3">
-                {form.experiencias_detalhadas.map((ex, idx) => (
-                  <div key={idx} className="bg-rose-50/50 border-2 border-rose-200 rounded-xl p-3 relative">
+                {form.experiencias_detalhadas.map((ex, idx) => {
+                  const obrig = cargosObrigatorios.includes(ex.funcao);
+                  return (
+                  <div key={idx} className={`rounded-xl p-3 relative border-2 ${obrig ? 'bg-amber-50/60 border-amber-300' : 'bg-rose-50/50 border-rose-200'}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-bold text-rose-700 uppercase">Função {idx + 1}</span>
-                      <button type="button" onClick={() => removeExperiencia(idx)}
-                        className="text-xs text-red-600 hover:text-red-800 font-bold">🗑️ Remover</button>
+                      <span className="text-[11px] font-bold text-rose-700 uppercase">
+                        Função {idx + 1}
+                        {obrig && <span className="ml-2 bg-amber-500 text-white px-1.5 py-0.5 rounded-full text-[9px] normal-case">Experiência obrigatória</span>}
+                      </span>
+                      {!obrig && (
+                        <button type="button" onClick={() => removeExperiencia(idx)}
+                          className="text-xs text-red-600 hover:text-red-800 font-bold">🗑️ Remover</button>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       <Field label="Função / Cargo" value={ex.funcao} onChange={v => updateExperiencia(idx, 'funcao', v)} />
                       <Field label="Empresa" value={ex.empresa} onChange={v => updateExperiencia(idx, 'empresa', v)} />
                       <Field label="Instagram da empresa (opcional)" value={ex.empresa_instagram} onChange={v => updateExperiencia(idx, 'empresa_instagram', v)} placeholder="@empresa" caseSensitive />
                       <div className="grid grid-cols-2 gap-2">
-                        <Field label="Anos" type="number" value={ex.tempo_anos} onChange={v => updateExperiencia(idx, 'tempo_anos', v)} />
-                        <Field label="Meses" type="number" value={ex.tempo_meses} onChange={v => updateExperiencia(idx, 'tempo_meses', v)} />
+                        <Field label="Quantos anos de Experiência" type="number" value={ex.tempo_anos} onChange={v => updateExperiencia(idx, 'tempo_anos', v)} />
+                        <Field label="Quantos meses de Experiência" type="number" value={ex.tempo_meses} onChange={v => updateExperiencia(idx, 'tempo_meses', v)} />
                       </div>
+                      {obrig && (
+                        <div className="md:col-span-2 p-2 bg-amber-100 border border-amber-300 rounded-lg text-xs text-amber-900 font-semibold">
+                          ⚠️ {minExpPorCargo[ex.funcao] > 0
+                            ? <>Essa vaga exige no mínimo <strong>{fmtTempoExp(minExpPorCargo[ex.funcao])}</strong> de experiência nesta função.</>
+                            : <>Essa vaga exige experiência nesta função (preenchimento obrigatório).</>}
+                        </div>
+                      )}
                       <div className="md:col-span-2">
                         <label className="block text-[11px] font-semibold uppercase text-gray-500 mb-1">O que você fazia</label>
                         <textarea value={ex.descricao} onChange={e => updateExperiencia(idx, 'descricao', e.target.value)} rows={2}
@@ -1193,7 +1300,8 @@ export default function CurriculoPublico() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <button type="button" onClick={() => addExperiencia('')}
                 className="mt-3 w-full py-2 border-2 border-dashed border-rose-300 text-rose-600 rounded-lg text-sm font-bold hover:bg-rose-50">
@@ -1342,7 +1450,11 @@ export default function CurriculoPublico() {
           {/* ===== DISPONIBILIDADE DE HORARIO ===== */}
           <section>
             <h2 className="text-sm font-bold text-gray-800 mb-1">⏰ Disponibilidade de horário</h2>
-            <p className="text-xs text-gray-500 mb-2">Marque os turnos que você pode trabalhar</p>
+            <p className="text-xs text-gray-500 mb-2">
+              {turnosTravadosAtivo
+                ? <span className="text-rose-600 font-semibold">🔒 Definido pela vaga selecionada</span>
+                : 'Marque os turnos que você pode trabalhar'}
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
                 { id: 'manha', label: 'Turno Manhã', emoji: '🌅' },
@@ -1351,12 +1463,17 @@ export default function CurriculoPublico() {
                 { id: 'qualquer', label: 'Disponibilidade pra qualquer horário', emoji: '✨' },
               ].map(opt => {
                 const checked = (form.disponibilidade_turnos || []).includes(opt.id);
+                // Travado pela vaga: esconde os turnos que nao sao da vaga.
+                if (turnosTravadosAtivo && !turnosTravados.includes(opt.id)) return null;
                 return (
                   <label key={opt.id}
-                    className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-xs transition ${
+                    className={`flex items-center gap-2 p-2 border-2 rounded-lg text-xs transition ${
+                      turnosTravadosAtivo ? 'cursor-default' : 'cursor-pointer'
+                    } ${
                       checked ? 'border-rose-400 bg-rose-50' : 'border-gray-200 hover:border-rose-200'
                     }`}>
                     <input type="checkbox" checked={checked}
+                      disabled={turnosTravadosAtivo}
                       onChange={() => {
                         setForm(f => {
                           const atual = f.disponibilidade_turnos || [];
@@ -1612,6 +1729,13 @@ function DocumentoLgpd({ tipo }) {
 
 // Campos de texto convertem automaticamente pra MAIUSCULA (padrao do sistema).
 // Use caseSensitive={true} pra email, instagram, whatsapp etc.
+// Formata um total de meses em "X ano(s) e Y mes(es)".
+function fmtTempoExp(m) {
+  const a = Math.floor(m / 12), mm = m % 12;
+  return [a > 0 ? `${a} ano${a > 1 ? 's' : ''}` : null, mm > 0 ? `${mm} mes${mm > 1 ? 'es' : ''}` : null]
+    .filter(Boolean).join(' e ') || '0 meses';
+}
+
 function Field({ label, value, onChange, type = 'text', placeholder, caseSensitive = false }) {
   const shouldUpper = !caseSensitive && (type === 'text' || type === undefined);
   return (
@@ -1621,7 +1745,7 @@ function Field({ label, value, onChange, type = 'text', placeholder, caseSensiti
         onChange={e => onChange(shouldUpper ? e.target.value.toUpperCase() : e.target.value)}
         placeholder={placeholder}
         style={shouldUpper ? { textTransform: 'uppercase' } : undefined}
-        className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-400" />
+        className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
     </div>
   );
 }

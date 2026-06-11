@@ -9,13 +9,30 @@ import { RhEmpresa } from '../entities/RhEmpresa';
 import { ILike } from 'typeorm';
 import { minioService } from '../services/minio.service';
 
+// Deriva o "slug" (codigo interno) de um Regime de Trabalho a partir do nome.
+// A tabela rh_regimes_trabalho nao guarda slug, mas as vagas referenciam
+// tipo_vaga_slug. Mantemos compatibilidade: APRENDIZ / MENOR APRENDIZ sempre
+// resolvem pra 'aprendiz' (codigo que vagas antigas ja usam).
+function slugRegime(nome: string): string {
+  const n = String(nome || '').trim().toUpperCase();
+  if (n === 'APRENDIZ' || n === 'MENOR APRENDIZ') return 'aprendiz';
+  return n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
 export class CurriculosController {
-  // ========== CARGOS (catalogo editavel) ==========
+  // ========== CARGOS ==========
+  // Fonte unica de verdade: o cadastro OFICIAL de cargos (rh_cargos), o mesmo
+  // editado em Configuracoes de RH > Cargos (com salario base, EPIs, etc).
+  // Antes vinha da tabela avulsa curriculo_cargos, o que fazia a lista que o
+  // candidato escolhia divergir do cadastro oficial. Agora as 3 telas que
+  // consomem este endpoint (Modelo de Curriculo, Formulario Publico e o Filtro
+  // do Banco de Curriculos) ficam sempre alinhadas com o cadastro oficial.
   static async listarCargos(_req: Request, res: Response) {
     try {
-      const cargos = await AppDataSource.getRepository(CurriculoCargo).find({
-        order: { ordem: 'ASC', nome: 'ASC' },
-      });
+      const cargos = await AppDataSource.query(
+        `SELECT id, nome, ativo FROM rh_cargos WHERE ativo = true ORDER BY nome ASC`
+      );
       res.json({ success: true, cargos });
     } catch (e: any) {
       console.error('[Curriculos] listarCargos:', e);
@@ -133,11 +150,22 @@ export class CurriculosController {
   }
 
   // ========== TIPOS DE VAGA (catalogo editavel) ==========
+  // Fonte unica de verdade: o cadastro oficial de REGIMES DE TRABALHO
+  // (rh_regimes_trabalho), o mesmo editado em Configuracoes de RH > Regimes.
+  // Antes vinha da tabela avulsa curriculo_tipos_vaga. O slug e derivado do
+  // nome (com compatibilidade p/ 'aprendiz'), pois as vagas guardam
+  // tipo_vaga_slug e a tabela de regimes nao tem coluna de slug.
   static async listarTiposVaga(_req: Request, res: Response) {
     try {
-      const tipos = await AppDataSource.getRepository(CurriculoTipoVaga).find({
-        order: { ordem: 'ASC', nome: 'ASC' },
-      });
+      const regimes = await AppDataSource.query(
+        `SELECT id, nome, ativo FROM rh_regimes_trabalho WHERE ativo = true ORDER BY nome ASC`
+      );
+      const tipos = regimes.map((r: any) => ({
+        id: r.id,
+        nome: r.nome,
+        slug: slugRegime(r.nome),
+        ativo: r.ativo,
+      }));
       res.json({ success: true, tipos });
     } catch (e: any) {
       console.error('[Curriculos] listarTiposVaga:', e);
@@ -238,9 +266,11 @@ export class CurriculosController {
   static async obterFormularioPublico(_req: Request, res: Response) {
     try {
       const [cargos, habilidades, tiposVaga, lojas, configsResult, beneficiosCat] = await Promise.all([
-        AppDataSource.getRepository(CurriculoCargo).find({ where: { ativo: true }, order: { ordem: 'ASC', nome: 'ASC' } }),
+        // Cargos e Tipos de Vaga vem do cadastro OFICIAL (rh_cargos / rh_regimes_trabalho),
+        // a mesma fonte das telas internas. Mantem o formulario publico alinhado.
+        AppDataSource.query(`SELECT nome FROM rh_cargos WHERE ativo = true ORDER BY nome ASC`),
         AppDataSource.getRepository(CurriculoHabilidade).find({ where: { ativo: true }, order: { ordem: 'ASC', nome: 'ASC' } }),
-        AppDataSource.getRepository(CurriculoTipoVaga).find({ where: { ativo: true }, order: { ordem: 'ASC', nome: 'ASC' } }),
+        AppDataSource.query(`SELECT id, nome FROM rh_regimes_trabalho WHERE ativo = true ORDER BY nome ASC`),
         // Fonte: rh_empresas (cadastro local do RH, independente da tabela companies global).
         // Filtra empresas com `oculto_recrutamento=true` (filiais so pra documentos, sem vaga real).
         AppDataSource.getRepository(RhEmpresa).find({
@@ -259,9 +289,9 @@ export class CurriculosController {
       (configsResult || []).forEach((c: any) => { cfgMap[c.key] = c.value; });
       res.json({
         success: true,
-        cargos: cargos.map(c => c.nome),
+        cargos: cargos.map((c: any) => c.nome),
         habilidades: habilidades.map(h => h.nome),
-        tipos_vaga: tiposVaga.map(t => ({ slug: t.slug, nome: t.nome })),
+        tipos_vaga: tiposVaga.map((t: any) => ({ slug: slugRegime(t.nome), nome: t.nome })),
         lojas: (lojas || [])
           .map(l => ({
             id: l.id,
@@ -316,11 +346,13 @@ export class CurriculosController {
       if (!interesse_vaga || typeof interesse_vaga !== 'string' || !interesse_vaga.trim()) {
         return res.status(400).json({ success: false, error: 'Interesse de vaga obrigatorio' });
       }
-      // Valida que o slug enviado existe na tabela de tipos ativos
-      const tipoExiste = await AppDataSource.getRepository(CurriculoTipoVaga).findOne({
-        where: { slug: interesse_vaga, ativo: true }
-      });
-      if (!tipoExiste) {
+      // Valida que o slug enviado corresponde a um Regime de Trabalho ATIVO
+      // (mesma fonte do formulario publico: rh_regimes_trabalho).
+      const regimesAtivos = await AppDataSource.query(
+        `SELECT nome FROM rh_regimes_trabalho WHERE ativo = true`
+      );
+      const slugsValidos = new Set((regimesAtivos || []).map((r: any) => slugRegime(r.nome)));
+      if (!slugsValidos.has(interesse_vaga)) {
         return res.status(400).json({ success: false, error: 'Tipo de vaga invalido ou desativado' });
       }
 

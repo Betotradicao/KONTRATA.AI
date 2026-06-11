@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLoja } from '../../contexts/LojaContext';
 import Sidebar from '../../components/Sidebar';
@@ -8,6 +9,7 @@ import { loadModulesConfig, readCachedModulesConfig } from '../../utils/modulesC
 export default function ModeloCurriculo() {
   const { user, logout } = useAuth();
   const { lojaSelecionada } = useLoja();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [cargos, setCargos] = useState([]);
   const [habilidades, setHabilidades] = useState([]);
@@ -209,66 +211,60 @@ export default function ModeloCurriculo() {
             </div>
           </div>
 
-          {/* Cargos */}
+          {/* Cargos — espelham o cadastro OFICIAL (Configuracoes de RH > Cargos).
+              Aqui sao apenas leitura: criar/editar/excluir acontece la. */}
           <div className="bg-white border-2 border-gray-100 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xl">💼</span>
               <h3 className="font-bold text-gray-800">Cargos (experiências como)</h3>
               <span className="text-xs text-gray-500 ml-1">{cargos.length} item(s)</span>
-              <button onClick={() => adicionar('cargo')} className="ml-auto text-sm px-3 py-1 bg-rose-500 text-white rounded-lg font-bold hover:bg-rose-600">
+              <button onClick={() => navigate('/rh/configuracoes?tab=cargos')} className="ml-auto text-sm px-3 py-1 bg-rose-500 text-white rounded-lg font-bold hover:bg-rose-600">
                 + Adicionar
               </button>
             </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Os cargos vêm do <strong>cadastro oficial</strong>. Para criar, renomear ou remover, use
+              {' '}<button onClick={() => navigate('/rh/configuracoes?tab=cargos')} className="text-rose-600 font-semibold hover:underline">Configurações → Cargos</button>.
+            </p>
             {cargos.length === 0 ? (
-              <div className="text-sm text-gray-400 italic text-center py-4">Nenhum cargo cadastrado. Adicione o primeiro.</div>
+              <div className="text-sm text-gray-400 italic text-center py-4">Nenhum cargo no cadastro oficial. Cadastre em Configurações → Cargos.</div>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {cargos.map(c => (
-                  <div key={c.id} className={`group flex items-center gap-1 border-2 rounded-full pl-3 pr-1 py-1 ${c.ativo ? 'border-rose-300 bg-rose-50' : 'border-gray-200 bg-gray-100 opacity-60'}`}>
+                  <div key={c.id} className={`flex items-center border-2 rounded-full px-3 py-1 ${c.ativo ? 'border-rose-300 bg-rose-50' : 'border-gray-200 bg-gray-100 opacity-60'}`}>
                     <span className="text-xs font-semibold text-gray-700">{c.nome}</span>
-                    <button onClick={() => toggleAtivo('cargo', c)} className="text-[10px] text-gray-500 hover:text-gray-700 px-1" title={c.ativo ? 'Desativar' : 'Ativar'}>
-                      {c.ativo ? '✓' : '○'}
-                    </button>
-                    <button onClick={() => renomear('cargo', c)} className="text-[10px] text-gray-500 hover:text-gray-700 px-1" title="Renomear">✏️</button>
-                    <button onClick={() => deletar('cargo', c)} className="text-[10px] text-red-500 hover:text-red-700 px-1" title="Excluir">🗑️</button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Tipos de Vaga */}
+          {/* Tipos de Vaga — espelham o cadastro oficial de Regimes de Trabalho
+              (Configuracoes de RH > Regimes). Aqui sao apenas leitura. */}
           <div className="bg-white border-2 border-gray-100 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xl">🎯</span>
               <h3 className="font-bold text-gray-800">Tipos de Vaga</h3>
               <span className="text-xs text-gray-500 ml-1">{tiposVaga.length} item(s)</span>
-              <button onClick={() => adicionar('tipo-vaga')} className="ml-auto text-sm px-3 py-1 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600">
+              <button onClick={() => navigate('/rh/configuracoes?tab=regimes')} className="ml-auto text-sm px-3 py-1 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600">
                 + Adicionar
               </button>
             </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Os tipos de vaga vêm do cadastro de <strong>Regimes de Trabalho</strong>. Para criar, renomear ou remover, use
+              {' '}<button onClick={() => navigate('/rh/configuracoes?tab=regimes')} className="text-emerald-600 font-semibold hover:underline">Configurações → Regimes</button>.
+            </p>
             {tiposVaga.length === 0 ? (
-              <div className="text-sm text-gray-400 italic text-center py-4">Nenhum tipo de vaga cadastrado. Adicione o primeiro.</div>
+              <div className="text-sm text-gray-400 italic text-center py-4">Nenhum regime ativo. Cadastre em Configurações → Regimes.</div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {tiposVaga.map(t => {
-                  const padrao = t.slug === 'clt' || t.slug === 'aprendiz';
-                  return (
-                    <div key={t.id} className={`group flex items-center gap-1 border-2 rounded-full pl-3 pr-1 py-1 ${t.ativo ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-gray-100 opacity-60'}`}>
-                      <span className="text-xs font-semibold text-gray-700">{t.nome}</span>
-                      <button onClick={() => toggleAtivo('tipo-vaga', t)} className="text-[10px] text-gray-500 hover:text-gray-700 px-1" title={t.ativo ? 'Desativar' : 'Ativar'}>
-                        {t.ativo ? '✓' : '○'}
-                      </button>
-                      <button onClick={() => renomear('tipo-vaga', t)} className="text-[10px] text-gray-500 hover:text-gray-700 px-1" title="Renomear">✏️</button>
-                      {!padrao && (
-                        <button onClick={() => deletar('tipo-vaga', t)} className="text-[10px] text-red-500 hover:text-red-700 px-1" title="Excluir">🗑️</button>
-                      )}
-                    </div>
-                  );
-                })}
+                {tiposVaga.map(t => (
+                  <div key={t.id} className="flex items-center border-2 rounded-full px-3 py-1 border-emerald-300 bg-emerald-50">
+                    <span className="text-xs font-semibold text-gray-700">{t.nome}</span>
+                  </div>
+                ))}
               </div>
             )}
-            <p className="text-[10px] text-gray-400 mt-2">CLT e Aprendiz são padrão (não podem ser excluídos, apenas desativados).</p>
           </div>
 
           {/* Pontos Fortes */}
