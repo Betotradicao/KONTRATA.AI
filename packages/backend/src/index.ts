@@ -47,6 +47,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
     const allowed = [
       /\.kontrata\.ai$/,
+      /\.kontrataai\.com\.br$/,
       /\.prevencaonoradar\.com\.br$/,
       /\.prevencaonoradar\.com$/,
       /^https?:\/\/10\.\d+\.\d+\.\d+/,
