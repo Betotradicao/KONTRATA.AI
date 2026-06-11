@@ -103,7 +103,10 @@ export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => 
     return res.status(401).json({ error: 'Authentication required' });
   }
 
-  if (req.user.type !== 'admin') {
+  // Aceita: usuario 'admin' do sistema OU colaborador com Tipo de Acesso = ADMIN
+  // (login de colaborador vem com type='employee' + role_kontrata='admin').
+  const u = req.user as any;
+  if (u.type !== 'admin' && u.role_kontrata !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
