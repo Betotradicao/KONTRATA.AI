@@ -284,7 +284,7 @@ export default function BancoCurriculos() {
                   </option>
                 ))}
               </FiltroSelect>
-              <FiltroSelect label="Cargo" value={filtros.cargo} onChange={v => setFiltros({ ...filtros, cargo: v })}>
+              <FiltroSelect label="Cargos com Experiência" value={filtros.cargo} onChange={v => setFiltros({ ...filtros, cargo: v })}>
                 <option value="">Todos</option>
                 {cargos.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
               </FiltroSelect>
@@ -328,7 +328,7 @@ export default function BancoCurriculos() {
                       <th className="px-2 py-1.5 text-left font-semibold">Instagram</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Email</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Localização</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Cargos de Interesse</th>
+                      <th className="px-2 py-1.5 text-left font-semibold">Cargos com Experiência</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Disponibilidade</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Experiências</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Perfil Primário</th>
