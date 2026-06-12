@@ -52,6 +52,10 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
         email_recuperacao: employee.email_recuperacao || '',
         role_kontrata: employee.role_kontrata || 'user',
         cod_loja: employee.cod_loja || codLoja || null,
+        // Marca as lojas que o colaborador ja tem acesso (entity guarda cod_loja unico).
+        cod_lojas: Array.isArray(employee.cod_lojas) && employee.cod_lojas.length
+          ? employee.cod_lojas
+          : (employee.cod_loja != null ? [employee.cod_loja] : []),
         is_conferente: employee.is_conferente || false,
         is_cpd: employee.is_cpd || false,
         is_financeiro: employee.is_financeiro || false,

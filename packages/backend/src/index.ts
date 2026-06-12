@@ -30,6 +30,7 @@ import holidaysRouter from './routes/holidays.routes';
 import lgpdRouter from './routes/lgpd.routes';
 import accessLogsRouter from './routes/access-logs.routes';
 import denunciasRouter from './routes/denuncias.routes';
+import whatsappRouter from './routes/whatsapp.routes';
 import { accessLogMiddleware } from './middleware/access-log.middleware';
 
 import { minioService } from './services/minio.service';
@@ -131,6 +132,7 @@ app.use('/api/holidays', holidaysRouter);
 app.use('/api/lgpd', lgpdRouter);
 app.use('/api/access-logs', accessLogsRouter);
 app.use('/api/denuncias', denunciasRouter);
+app.use('/api/whatsapp', whatsappRouter);
 
 // Endpoint generico de upload de imagem usado por varios formularios
 // (foto da empresa, foto do colaborador, foto da loja, etc).
