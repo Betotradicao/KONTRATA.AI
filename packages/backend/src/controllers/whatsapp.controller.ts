@@ -37,4 +37,22 @@ export class WhatsappController {
       return res.json({ success: false, connected: false, error: detail });
     }
   }
+
+  // GET /api/whatsapp/fetch-groups — lista os grupos da instancia (Carregar Grupos)
+  static async fetchGroups(_req: Request, res: Response) {
+    try {
+      const { apiUrl, apiToken, instance } = await getEvoConfig();
+      if (!apiUrl || !apiToken || !instance) {
+        return res.json({ success: false, error: 'Configuracoes da Evolution API nao encontradas' });
+      }
+      const base = String(apiUrl).replace(/\/+$/, '');
+      const url = `${base}/group/fetchAllGroups/${encodeURIComponent(instance)}?getParticipants=false`;
+      const resp = await axios.get(url, { headers: { apikey: apiToken }, timeout: 20000 });
+      return res.json({ success: true, data: resp.data });
+    } catch (error: any) {
+      const detail = error.response?.data?.message || error.message || 'erro ao buscar grupos';
+      console.error('[whatsapp] fetch-groups:', detail);
+      return res.json({ success: false, error: detail });
+    }
+  }
 }
