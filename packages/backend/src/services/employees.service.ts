@@ -185,7 +185,7 @@ export class EmployeesService {
     if (data.sector_id) employee.sector_id = data.sector_id;
     if (data.function_description) employee.function_description = data.function_description;
     if (data.username) employee.username = data.username;
-    if (data.role_kontrata) (employee as any).role_kontrata = data.role_kontrata === 'admin' ? 'admin' : 'user';
+    if ((data as any).role_kontrata) (employee as any).role_kontrata = (data as any).role_kontrata === 'admin' ? 'admin' : 'user';
     if (data.cod_loja !== undefined) employee.cod_loja = data.cod_loja;
     if ((data as any).cod_lojas !== undefined) (employee as any).cod_lojas = (data as any).cod_lojas;
     // Flags de recebimento de NF
