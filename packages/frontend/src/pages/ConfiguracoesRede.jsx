@@ -5,7 +5,7 @@ import Sidebar from '../components/Sidebar';
 import TabsNavigation from '../components/configuracoes/TabsNavigation';
 import ModulosTab from '../components/configuracoes/ModulosTab';
 import APIsTab from '../components/configuracoes/APIsTab';
-import WhatsAppGroupsTab from '../components/configuracoes/WhatsAppGroupsTab';
+import VagasAbertasWhatsTab from '../components/configuracoes/VagasAbertasWhatsTab';
 import EmailTab from '../components/configuracoes/EmailTab';
 import ResetSenhaAdminTab from '../components/configuracoes/ResetSenhaAdminTab';
 import EmpresaConfigTab from '../components/configuracoes/EmpresaConfigTab';
@@ -98,7 +98,7 @@ export default function ConfiguracoesRede() {
           <div className="mt-6">
             {activeTab === 'modulos' && <ModulosTab />}
             {activeTab === 'apis' && <APIsTab />}
-            {activeTab === 'whatsapp-groups' && <WhatsAppGroupsTab />}
+            {activeTab === 'whatsapp-groups' && <VagasAbertasWhatsTab />}
             {activeTab === 'email' && <EmailTab />}
             {activeTab === 'reset-admin' && <ResetSenhaAdminTab />}
             {activeTab === 'personalizacao' && <EmpresaConfigTab />}

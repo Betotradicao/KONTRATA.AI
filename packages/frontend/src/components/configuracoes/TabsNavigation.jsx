@@ -2,7 +2,7 @@ export default function TabsNavigation({ activeTab, onChange, pageType = 'config
   // Abas para Configurações de REDE
   const redeTabs = [
     { id: 'apis', label: 'APIs' },
-    { id: 'whatsapp-groups', label: 'Grupos WhatsApp' },
+    { id: 'whatsapp-groups', label: '📱 Grupos WhatsApp' },
     { id: 'reset-admin', label: 'Resetar Senha Admin' },
     { id: 'email', label: 'Email' },
     { id: 'modulos', label: 'Módulos' },

@@ -31,6 +31,7 @@ import lgpdRouter from './routes/lgpd.routes';
 import accessLogsRouter from './routes/access-logs.routes';
 import denunciasRouter from './routes/denuncias.routes';
 import whatsappRouter from './routes/whatsapp.routes';
+import { startVagasAbertasCron } from './crons/vagas-abertas.cron';
 import { accessLogMiddleware } from './middleware/access-log.middleware';
 
 import { minioService } from './services/minio.service';
@@ -208,6 +209,9 @@ const startServer = async () => {
   server.timeout = 300000;
   server.keepAliveTimeout = 300000;
   server.headersTimeout = 310000;
+
+  // Cron de envio semanal das Vagas em Aberto no WhatsApp
+  try { startVagasAbertasCron(); } catch (e) { console.error('Falha ao iniciar cron vagas-abertas:', e); }
 };
 
 startServer();
