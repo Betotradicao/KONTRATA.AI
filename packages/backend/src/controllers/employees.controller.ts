@@ -208,6 +208,11 @@ export class EmployeesController {
     try {
       const { id } = req.params;
 
+      // Apara espacos do username/nome (dados legados podem ter espaco sobrando,
+      // o que fazia a validacao do username barrar ao salvar).
+      if (typeof req.body.username === 'string') req.body.username = req.body.username.trim();
+      if (typeof req.body.name === 'string') req.body.name = req.body.name.trim();
+
       const validation = validateUpdateEmployee(req.body);
 
       if (!validation.valid) {
