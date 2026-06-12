@@ -13,6 +13,7 @@ export default function EmployeesTab() {
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('ativos'); // ativos | inativos | todos
 
   useEffect(() => {
     loadEmployees(1);
@@ -206,12 +207,23 @@ export default function EmployeesTab() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
         <h2 className="text-xl font-semibold">Gestão de Colaboradores</h2>
         {!showModal && (
-          <button
-            onClick={handleNewEmployee}
-            className="w-full sm:w-auto py-2 sm:py-3 px-3 sm:px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors whitespace-nowrap"
-          >
-            + Novo Colaborador
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="py-2 sm:py-3 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="ativos">✅ Ativos</option>
+              <option value="inativos">🚫 Inativos</option>
+              <option value="todos">Todos</option>
+            </select>
+            <button
+              onClick={handleNewEmployee}
+              className="flex-1 sm:flex-none py-2 sm:py-3 px-3 sm:px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors whitespace-nowrap"
+            >
+              + Novo Colaborador
+            </button>
+          </div>
         )}
       </div>
 
@@ -228,7 +240,7 @@ export default function EmployeesTab() {
       )}
 
       <EmployeesList
-        employees={employees}
+        employees={employees.filter(e => statusFilter === 'todos' ? true : (statusFilter === 'ativos' ? e.active : !e.active))}
         onEdit={handleEdit}
         onToggle={handleToggle}
         onDelete={handleDelete}

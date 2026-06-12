@@ -14,6 +14,8 @@ export class EmployeeResponseDto {
   barcode: string;
   active: boolean;
   cod_loja: number | null;
+  cod_lojas: number[];
+  role_kontrata: string;
   is_conferente: boolean;
   is_cpd: boolean;
   is_financeiro: boolean;
@@ -31,6 +33,10 @@ export class EmployeeResponseDto {
     this.barcode = employee.barcode;
     this.active = employee.active;
     this.cod_loja = employee.cod_loja || null;
+    this.cod_lojas = Array.isArray(employee.cod_lojas) && employee.cod_lojas.length
+      ? employee.cod_lojas
+      : (employee.cod_loja != null ? [employee.cod_loja] : []);
+    this.role_kontrata = employee.role_kontrata || 'user';
     this.is_conferente = employee.is_conferente || false;
     this.is_cpd = employee.is_cpd || false;
     this.is_financeiro = employee.is_financeiro || false;

@@ -125,6 +125,7 @@ export default function EmployeeModal({ employee, onSave, onCancel, onUploadAvat
           name: formData.name,
           function_description: formData.function_description,
           cod_loja: formData.cod_loja,
+          cod_lojas: formData.cod_lojas,
           role_kontrata: formData.role_kontrata,
           permissions: permissions,
         });

@@ -40,6 +40,11 @@ export class Employee {
   @Column({ type: 'int', nullable: true })
   cod_loja: number | null;
 
+  // Lojas a que o colaborador tem acesso (multi-loja). cod_loja segue como a loja
+  // principal/primeira pra compatibilidade com logica antiga.
+  @Column({ type: 'jsonb', nullable: true, default: () => "'[]'" })
+  cod_lojas: number[] | null;
+
   @Column({ type: 'varchar', length: 20, default: 'user' })
   role_kontrata: string;
 

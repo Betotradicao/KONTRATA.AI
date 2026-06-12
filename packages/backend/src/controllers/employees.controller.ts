@@ -75,17 +75,21 @@ export class EmployeesController {
   // POST /api/employees/generate-link - cria employee parcial + token de setup
   static async generateLink(req: AuthRequest, res: Response) {
     try {
-      const { name, function_description, cod_loja, role_kontrata, permissions } = req.body;
+      const { name, function_description, cod_loja, cod_lojas, role_kontrata, permissions } = req.body;
 
       if (!name || !function_description) {
         return res.status(400).json({ errors: ['Nome e Função sao obrigatorios'] });
       }
 
+      const lojasArr: number[] = Array.isArray(cod_lojas) ? cod_lojas.filter((x: any) => x != null) : [];
+      const lojaPrincipal = cod_loja ?? (lojasArr.length ? lojasArr[0] : null);
+
       const employeeRepo = AppDataSource.getRepository(Employee);
       const employee = employeeRepo.create({
         name: String(name).trim(),
         function_description: String(function_description).trim(),
-        cod_loja: cod_loja ?? null,
+        cod_loja: lojaPrincipal,
+        cod_lojas: lojasArr.length ? lojasArr : (lojaPrincipal != null ? [lojaPrincipal] : []),
         role_kontrata: role_kontrata === 'admin' ? 'admin' : 'user',
         sector_id: null as any, // sem setor por enquanto
         username: null,
