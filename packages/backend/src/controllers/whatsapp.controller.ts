@@ -1,15 +1,14 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
-import { AppDataSource } from '../config/database';
+import { ConfigurationService } from '../services/configuration.service';
 
-// Le a config da Evolution API salva na tabela configurations
+// Le a config da Evolution API salva nas configurations. O token e guardado
+// CRIPTOGRAFADO; ConfigurationService.get() ja devolve descriptografado.
 async function getEvoConfig() {
-  const rows = await AppDataSource.query(
-    `SELECT key, value FROM configurations WHERE key IN ('evolution_api_url','evolution_api_token','evolution_instance')`
-  );
-  const m: Record<string, string> = {};
-  (rows || []).forEach((r: any) => { m[r.key] = r.value; });
-  return { apiUrl: m.evolution_api_url, apiToken: m.evolution_api_token, instance: m.evolution_instance };
+  const apiUrl = await ConfigurationService.get('evolution_api_url', '');
+  const apiToken = await ConfigurationService.get('evolution_api_token', '');
+  const instance = await ConfigurationService.get('evolution_instance', '');
+  return { apiUrl, apiToken, instance };
 }
 
 export class WhatsappController {

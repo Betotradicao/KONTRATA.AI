@@ -1076,7 +1076,7 @@ export default function RhVagas() {
                                                     {c.whatsapp ? (
                                                       <a
                                                         href={waLink(c.whatsapp, msgWhatsAppAtivo ? msgWhatsApp : '', { nome: c.nome, supermercado: supermercadoNome, recrutadora: recrutadoraNome })}
-                                                        target="_blank"
+                                                        target="whatsapp_web"
                                                         rel="noopener noreferrer"
                                                         className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
                                                         title="Abrir conversa no WhatsApp"

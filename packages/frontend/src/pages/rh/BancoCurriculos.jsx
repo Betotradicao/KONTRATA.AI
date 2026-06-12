@@ -404,7 +404,7 @@ export default function BancoCurriculos() {
                           {/* WhatsApp */}
                           <td className="px-2 py-1.5 text-gray-700 whitespace-nowrap">
                             {cv.whatsapp ? (
-                              <a href={waLink(cv.whatsapp, msgWhatsAppAtivo ? msgWhatsApp : '', { nome: cv.nome, supermercado: supermercadoNome, recrutadora: recrutadoraNome })} target="_blank" rel="noopener noreferrer"
+                              <a href={waLink(cv.whatsapp, msgWhatsAppAtivo ? msgWhatsApp : '', { nome: cv.nome, supermercado: supermercadoNome, recrutadora: recrutadoraNome })} target="whatsapp_web" rel="noopener noreferrer"
                                 onClick={e => e.stopPropagation()}
                                 className="inline-flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 hover:underline font-medium"
                                 title="Abrir conversa no WhatsApp">
@@ -761,7 +761,7 @@ export function DetalheCV({
                 <h4 className="text-sm font-bold uppercase tracking-wider border-b border-white/20 pb-2 mb-3">📞 Contato</h4>
                 <div className="text-base space-y-2">
                   {cv.whatsapp && (
-                    <a href={waLink(cv.whatsapp, msgWhatsAppAtivo ? msgWhatsApp : '', { nome: cv.nome, supermercado: supermercadoNome, recrutadora: recrutadoraNome })} target="_blank" rel="noopener noreferrer"
+                    <a href={waLink(cv.whatsapp, msgWhatsAppAtivo ? msgWhatsApp : '', { nome: cv.nome, supermercado: supermercadoNome, recrutadora: recrutadoraNome })} target="whatsapp_web" rel="noopener noreferrer"
                       className="flex gap-2 items-center text-emerald-600 hover:text-emerald-700 hover:underline">
                       <span>📱</span><span className="font-medium">{cv.whatsapp}</span>
                       <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
