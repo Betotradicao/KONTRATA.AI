@@ -17,4 +17,8 @@ router.post('/test-group', authenticateToken, WhatsappController.testGroup);
 router.post('/vagas-abertas/enviar', authenticateToken, WhatsappController.enviarVagasAbertas);
 router.get('/vagas-abertas/preview', authenticateToken, WhatsappController.previewVagasAbertas);
 
+// Saúde Ocupacional / ASO (envio semanal pro grupo: vencidos + a vencer)
+router.post('/aso/enviar', authenticateToken, WhatsappController.enviarAso);
+router.get('/aso/preview', authenticateToken, WhatsappController.previewAso);
+
 export default router;

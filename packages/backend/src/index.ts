@@ -32,6 +32,7 @@ import accessLogsRouter from './routes/access-logs.routes';
 import denunciasRouter from './routes/denuncias.routes';
 import whatsappRouter from './routes/whatsapp.routes';
 import { startVagasAbertasCron } from './crons/vagas-abertas.cron';
+import { startAsoVencimentosCron } from './crons/aso-vencimentos.cron';
 import { accessLogMiddleware } from './middleware/access-log.middleware';
 
 import { minioService } from './services/minio.service';
@@ -212,6 +213,8 @@ const startServer = async () => {
 
   // Cron de envio semanal das Vagas em Aberto no WhatsApp
   try { startVagasAbertasCron(); } catch (e) { console.error('Falha ao iniciar cron vagas-abertas:', e); }
+  // Cron de envio semanal de Saúde Ocupacional / ASO no WhatsApp
+  try { startAsoVencimentosCron(); } catch (e) { console.error('Falha ao iniciar cron aso:', e); }
 };
 
 startServer();

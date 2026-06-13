@@ -1,40 +1,39 @@
 # 🚧 Trabalho em Andamento
 
-## Sessão 2026-06-05 — Status candidato modal vs lista (Tradição)
-- Bug: dentro do modal mostrava status correto (ex: Vagas Futuras), na lista da vaga mostrava "Novo". Causa: modal usava `cv.status` global, lista usa arrays locais por vaga. Migração 100%-local de ontem (`27be7f6`) deixou arrays vazios, perdendo triagens antigas.
-- ✅ Migração one-shot vaga 13 (CONFERENTE) Tradição — 27 candidatos sincronizados via [migrar-triagens-vaga.sql](../packages/backend/scripts/migrar-triagens-vaga.sql)
-- ✅ Frontend: `RhVagas.calcStatusLocalNaVaga()` + `DetalheCV.statusEfetivo` em [[../bugs-resolvidos/2026-06-05-status-candidato-modal-vs-lista]]
-- 🔜 Deploy direto Tradição (user autorizou) → testar → migrar fechadas (10/11) + Guibox/NovaCentral se quiser
+## Tarefa atual — Saúde Ocupacional (ASO) no WhatsApp
+Clone do "Vagas em Aberto", na mesma aba *Grupos WhatsApp* (sub-abas: 💼 Vagas em Aberto | 🩺 Saúde Ocupacional).
 
----
+Envio semanal (dia + horário) de **mensagem + PDF** com:
+- 🔴 **VENCIDOS** (ASO vigente já vencido)
+- 🟡 **A VENCER em até X dias** (campo configurável "avisar a partir de X dias", default 45)
 
-## Sessão 30-31/05/2026 — Agente IA de Escala (Etapas 1 e 2 concluídas)
+Cada item: loja, colaborador (matrícula), cargo, data de vencimento, situação (vencido há Xd / faltam Nd). Números espelham o Controle de ASO (vigente = último periódico, senão admissional; ignora dispensados/inativos).
 
-### ✅ Entregue (commit `e7d410a` pushado pro origin/KONTRATAAI)
-- **Agente conversacional** no chat da Escala com persona/regras/saudação configuráveis em `Configurações de REDE → IA → Agente de Escala`
-- **Vault de Memória** (`rh_escala_memoria`): notas markdown estilo Obsidian, auto-save pelo agente, tags, backlinks `[[ref]]`
-- **Function calling via bloco ```executar`**: 4 ações ativas — `pre_preencher_mes`, `mudar_tipo_escala`, `lancar_turno_em_dia`, `limpar_dia`
-- **Validação por senha bcrypt** do usuário logado + cache 5min (banner verde 🔓 / amarelo 🔐)
-- **Auditoria** `rh_escala_agente_acoes` com ANTES/DEPOIS pra rollback futuro
-- **GPT-5/5-mini/5.2** suportados (usa `max_completion_tokens` em vez de `max_tokens`)
-- **Importar arquivo** no chat: PDF/Excel/imagem via Vision pro agente analisar escalas antigas
-- **Agente Recrutador embedded** na mesma aba de Configurações (remove header roxo quando embedded)
-- **Vault de Dados acessíveis**: tela transparência LGPD listando tabelas/campos que o agente vê
+### Arquivos tocados
+Backend:
+- `services/aso-whats.service.ts` (NOVO) — getRelatorio(antecedencia), buildMensagem, buildPdf (paisagem, 2 seções), enviar
+- `crons/aso-vencimentos.cron.ts` (NOVO) — cron semanal (configs whatsapp_aso_*)
+- `controllers/whatsapp.controller.ts` — enviarAso, previewAso
+- `routes/whatsapp.routes.ts` — POST /aso/enviar, GET /aso/preview
+- `index.ts` — startAsoVencimentosCron()
 
-### 🔜 Próxima sessão — Etapa 3
-- [ ] Adicionar ações: `programar_ferias(colab, inicio, fim)`, `lancar_atestado(colab, dias, motivo)`, `criar_excecao(colab, data, tipo)`
-- [ ] Botão **"Desfazer última ação"** no chat — usa snapshot ANTES gravado em `rh_escala_agente_acoes`
-- [ ] Tela de **histórico de ações do agente** — quem pediu, o quê, quando, status, undo
-- [ ] (Futuro) Operations Research solver Python + OR-Tools pra geração automática completa
+Frontend:
+- `components/configuracoes/SaudeOcupacionalWhatsTab.jsx` (NOVO)
+- `components/configuracoes/GruposWhatsappTab.jsx` (NOVO) — wrapper com sub-abas
+- `pages/ConfiguracoesRede.jsx` — renderiza GruposWhatsappTab
 
-### 🧠 Decisões da sessão
-- Persona vai pro system prompt (**afeta como pensa**), saudação é separada (**só recepção no chat**)
-- Agente salva memórias **sozinho** via bloco ` ```save-memoria` (não via botão)
-- Senha exigida **sempre** pra ações destrutivas, cache 5min depois
-- "GRID MENSAL" renomeado pra "ESCALA MENSAL"; itens removidos da sidebar: Memória do Agente, Recrutador IA, Férias/Licenças
-- Agente NÃO aprende sozinho — memória é simulada via Vault (mesmo princípio do ChatGPT Memory / Claude Projects)
+Config keys: whatsapp_group_aso, whatsapp_group_aso_name, whatsapp_aso_dia_semana, whatsapp_aso_schedule_time, whatsapp_aso_dias_antecedencia.
 
-### 📂 Arquivos-chave criados
-- Backend: `rh-escala.controller.ts` (chatAgenteEscala, executarAcaoAgente, validarSenhaAgente, analisarArquivoAgente), `rh-escala-memoria.controller.ts`
-- Frontend: `AgenteEscalaConfig.jsx`, `AgenteEscalaDados.jsx`, `AgenteRecrutadorConfig.jsx`, `RhEscalaMemoria.jsx`, `RhEntrevistasIA.jsx`, `RhEscalaRegrasSetor.jsx`
-- Migrations: 1785180000000 (memoria), 1785190000000 (agente_config), 1785200000000 (saudacao), 1785210000000 (acoes)
+### Status
+- ✅ Testado local: msg + PDF chegam no grupo do WhatsApp.
+- ✅ MENSAGEM: cada colaborador em bloco de 3 linhas (nome+mat / cargo / 📅 vencimento) com linha em branco entre eles.
+- ✅ PDF: removidos emojis dos títulos (Helvetica não renderiza → virava "Ø=Ý").
+- ✅ BUG "Sem loja": join estava em `companies/company_id` (tenant, campos nulos). Corrigido p/ `rh_empresas e ON e.cod_loja = c.empresa_id`. Ver nota `bugs-resolvidos/2026-06-12-colaborador-loja-empresa-id-cod-loja.md`.
+- ✅ PDF agrupado por loja (faixa roxa por loja + cabeçalho de colunas por grupo); coluna "Loja" removida (virou faixa). TS compila.
+- ⏳ **Aguardando reteste local** (Testar Envio) do novo layout msg + PDF.
+
+### Próximo passo
+Reteste. Depois: commit/push (só após validar) e deploy.
+
+## Pendência antiga
+Deploy do lote anterior (whatsapp fixes + Vagas em Aberto, até 23f5225) nos 6 outros clientes — Tradição já tem. Aguardando "ok" por cliente.

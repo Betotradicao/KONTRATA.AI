@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import { ConfigurationService } from '../services/configuration.service';
 import { VagasAbertasWhatsService } from '../services/vagas-abertas-whats.service';
+import { AsoWhatsService } from '../services/aso-whats.service';
 
 // Le a config da Evolution API salva nas configurations. O token e guardado
 // CRIPTOGRAFADO; ConfigurationService.get() ja devolve descriptografado.
@@ -97,6 +98,33 @@ export class WhatsappController {
     try {
       const resumo = await VagasAbertasWhatsService.getResumo();
       return res.json({ success: true, total: resumo.total, mensagem: VagasAbertasWhatsService.buildMensagem(resumo) });
+    } catch (error: any) {
+      return res.json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /api/whatsapp/aso/enviar — monta msg + PDF de ASO (vencidos + a vencer) e envia.
+  static async enviarAso(_req: Request, res: Response) {
+    try {
+      const r = await AsoWhatsService.enviar();
+      return res.json({ success: true, message: `Enviado! ${r.vencidos} vencido(s) e ${r.aVencer} a vencer.`, ...r });
+    } catch (error: any) {
+      console.error('[whatsapp] aso:', error.message);
+      return res.json({ success: false, error: error.response?.data?.message || error.message || 'erro ao enviar' });
+    }
+  }
+
+  // GET /api/whatsapp/aso/preview?antecedencia=45 — texto da msg pra preview na tela.
+  static async previewAso(req: Request, res: Response) {
+    try {
+      const ant = req.query.antecedencia ? parseInt(req.query.antecedencia as string) : undefined;
+      const rel = await AsoWhatsService.getRelatorio(ant);
+      return res.json({
+        success: true,
+        vencidos: rel.vencidos.length,
+        aVencer: rel.aVencer.length,
+        mensagem: AsoWhatsService.buildMensagem(rel),
+      });
     } catch (error: any) {
       return res.json({ success: false, error: error.message });
     }
