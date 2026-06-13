@@ -46,6 +46,20 @@ export class Curriculo {
   @Column({ type: 'varchar', length: 2, nullable: true })
   estado: string | null;
 
+  // Coords geocodadas a partir do CEP (pra distancia residencia->loja). geo_cep
+  // = cep que gerou as coords (re-geocoda se mudar). Ver GeocodeService.
+  @Column({ type: 'double precision', nullable: true })
+  latitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude: number | null;
+
+  @Column({ type: 'varchar', length: 9, nullable: true })
+  geo_cep: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  geo_updated_at: Date | null;
+
   // Guarda array de strings (nome do cargo) marcados pelo candidato
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   cargos: string[];

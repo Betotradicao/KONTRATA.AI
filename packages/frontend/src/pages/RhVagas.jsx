@@ -1020,6 +1020,7 @@ export default function RhVagas() {
                                           <tr className="bg-rose-100 text-rose-900">
                                             <th className="px-2 py-1.5 text-left">Nº</th>
                                             <th className="px-2 py-1.5 text-left">Nome</th>
+                                            <th className="px-2 py-1.5 text-left whitespace-nowrap">📍 KM Residência</th>
                                             <th className="px-2 py-1.5 text-left">WhatsApp</th>
                                             <th className="px-2 py-1.5 text-left">Cidade</th>
                                             <th className="px-2 py-1.5 text-left">Recebido em</th>
@@ -1071,6 +1072,15 @@ export default function RhVagas() {
                                                         {c.nome}
                                                       </button>
                                                     </div>
+                                                  </td>
+                                                  <td className="px-2 py-1.5 whitespace-nowrap">
+                                                    {c.km_residencia ? (
+                                                      <span className="inline-flex items-center gap-1 font-semibold text-indigo-700" title="Distância em linha reta da residência do candidato até a loja desta vaga">
+                                                        📍 {c.km_residencia}
+                                                      </span>
+                                                    ) : (
+                                                      <span className="text-gray-300" title="Sem CEP do candidato/loja ou ainda calculando — atualize em alguns segundos">—</span>
+                                                    )}
                                                   </td>
                                                   <td className="px-2 py-1.5 text-gray-700">
                                                     {c.whatsapp ? (
@@ -1210,7 +1220,7 @@ export default function RhVagas() {
                                                 </tr>
                                                 {isCandExpanded && sel && selIdx >= 0 && (
                                                   <tr key={`row-${c.curriculo_id}-${i}-expand`} className="bg-blue-50 border-t border-blue-200">
-                                                    <td colSpan={16} className="px-3 py-3">
+                                                    <td colSpan={17} className="px-3 py-3">
                                                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                                                         {/* ENTREVISTA */}
                                                         <div className="border border-gray-200 rounded p-2 bg-white">

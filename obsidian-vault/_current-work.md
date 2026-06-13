@@ -1,6 +1,17 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Saúde Ocupacional (ASO) no WhatsApp
+## Tarefa atual — Coluna "KM Residência" em Vagas (distância candidato→loja)
+Coluna 📍 **KM Residência** na lista de candidatos da vaga (RhVagas), entre Nome e WhatsApp. Distância **em linha reta** (haversine) da casa do candidato até a loja da vaga. Geocoding CEP→coords via **AwesomeAPI** (grátis). Ver nota `bugs-resolvidos/2026-06-12-feature-km-residencia-geocoding.md`.
+
+### Status
+- ✅ Implementado: migration (colunas geo), `geocode.service.ts`, `listarVagas` (join loja + distância + warm bg), entities, `RhVagas.jsx` (coluna+célula, colSpan 16→17). TS compila, migration aplicada.
+- ✅ **Geocoding corrigido**: AwesomeAPI errava CEP isolado (Ana Paula 12248-628 caía 12km errado). Trocado pra **Photon/OSM por RUA** (primário) + AwesomeAPI fallback. Re-backfill: 48/49 via Photon. Ana Paula 12km→1,3km, Andreia 417m, Roberto 15km. Validado.
+- ⏳ **Aguardando usuário re-testar local** (Vagas → expandir vaga → ver coluna KM Residência, conferir Ana Paula ~1,3km).
+- Depois: commit/push (após validar) + deploy. **Deploy: rodar backfill geocoding FORÇADO no cliente** (street-first) pra recalcular tudo — registros antigos não re-geocodam sozinhos.
+
+---
+
+## Tarefa anterior (concluída) — Saúde Ocupacional (ASO) no WhatsApp
 Clone do "Vagas em Aberto", na mesma aba *Grupos WhatsApp* (sub-abas: 💼 Vagas em Aberto | 🩺 Saúde Ocupacional).
 
 Envio semanal (dia + horário) de **mensagem + PDF** com:
@@ -30,10 +41,12 @@ Config keys: whatsapp_group_aso, whatsapp_group_aso_name, whatsapp_aso_dia_seman
 - ✅ PDF: removidos emojis dos títulos (Helvetica não renderiza → virava "Ø=Ý").
 - ✅ BUG "Sem loja": join estava em `companies/company_id` (tenant, campos nulos). Corrigido p/ `rh_empresas e ON e.cod_loja = c.empresa_id`. Ver nota `bugs-resolvidos/2026-06-12-colaborador-loja-empresa-id-cod-loja.md`.
 - ✅ PDF agrupado por loja (faixa roxa por loja + cabeçalho de colunas por grupo); coluna "Loja" removida (virou faixa). TS compila.
-- ⏳ **Aguardando reteste local** (Testar Envio) do novo layout msg + PDF.
+- ✅ Validado local + commit `768c6ec` (push na KONTRATAAI).
+- ✅ **DEPLOY Tradição feito** (12/06): git pull + build --no-cache + up --no-deps frontend backend. Backend healthy, cron ASO ativo ("⏰ Cron de Saúde Ocupacional / ASO (WhatsApp) ativo."), server 3010. Postgres/minio intactos.
+- ⚠️ Frontend marca `unhealthy` (PRÉ-EXISTENTE, cosmético): healthcheck usa `wget --quiet --tries=1` (GNU) mas o probe roda o BusyBox wget → não aceita as flags → exit 1. Nginx serve 200 normal em produção. NÃO bloqueia. Pendente decidir se corrige o healthcheck (afeta TODOS os clientes — é template compartilhado).
 
 ### Próximo passo
-Reteste. Depois: commit/push (só após validar) e deploy.
+Tarefa ASO concluída e no ar no Tradição. Pendências: (a) deploy nos outros 5 clientes; (b) opcional: corrigir healthcheck do frontend (-q em vez de --quiet/--tries).
 
 ## Pendência antiga
 Deploy do lote anterior (whatsapp fixes + Vagas em Aberto, até 23f5225) nos 6 outros clientes — Tradição já tem. Aguardando "ok" por cliente.

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { minioService } from '../services/minio.service';
+import { GeocodeService } from '../services/geocode.service';
 
 // ============================================================
 // Helpers pra gravar os campos "extras" do colaborador (alinhados à Ficha
@@ -1190,6 +1191,7 @@ export class RhController {
       const rows = await AppDataSource.query(
         `SELECT v.*, ca.nome AS cargo_nome, d.nome AS departamento_nome,
                 j.nome AS jornada_nome, j.carga_horaria AS jornada_carga_horaria,
+                emp.cep AS loja_cep, emp.latitude AS loja_lat, emp.longitude AS loja_lng, emp.geo_cep AS loja_geo_cep,
                 COALESCE(
                   (SELECT json_agg(json_build_object(
                     'curriculo_id', c.id,
@@ -1220,7 +1222,12 @@ export class RhController {
                       ELSE 'novo'
                     END,
                     'status_global', c.status,
-                    'foto_url', c.foto_url
+                    'foto_url', c.foto_url,
+                    -- CEP + coords pra calcular distancia residencia -> loja da vaga
+                    'cep', c.cep,
+                    'latitude', c.latitude,
+                    'longitude', c.longitude,
+                    'geo_cep', c.geo_cep
                   ) ORDER BY c.created_at DESC)
                    FROM curriculos c
                    WHERE c.vagas_interesse_ids @> jsonb_build_array(v.id)
@@ -1231,10 +1238,43 @@ export class RhController {
          LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id
          LEFT JOIN rh_departamentos d ON d.id = v.departamento_id
          LEFT JOIN rh_jornadas j ON j.id = v.jornada_id
+         LEFT JOIN rh_empresas emp ON emp.cod_loja = v.cod_loja
          ${where}
          ORDER BY v.data_abertura DESC`,
         params
       );
+
+      // KM Residencia: distancia em linha reta da casa do candidato ate a loja
+      // da vaga. Usa coords ja geocodadas; o que faltar geocoda em background
+      // (self-heal: aparece no proximo refresh). Ver GeocodeService.
+      const aGeocodar: Array<{ tipo: 'curriculo' | 'empresa'; chave: number }> = [];
+      for (const v of rows) {
+        const lojaCepNorm = GeocodeService.normalizarCep(v.loja_cep);
+        const lojaCoords = (v.loja_lat != null && v.loja_lng != null) ? { lat: v.loja_lat, lng: v.loja_lng } : null;
+        if (v.cod_loja != null && lojaCepNorm && (!lojaCoords || v.loja_geo_cep !== lojaCepNorm)) {
+          aGeocodar.push({ tipo: 'empresa', chave: v.cod_loja });
+        }
+        const interessados = Array.isArray(v.interessados) ? v.interessados : [];
+        for (const c of interessados) {
+          const candCepNorm = GeocodeService.normalizarCep(c.cep);
+          const candCoords = (c.latitude != null && c.longitude != null) ? { lat: c.latitude, lng: c.longitude } : null;
+          if (candCepNorm && (!candCoords || c.geo_cep !== candCepNorm)) {
+            aGeocodar.push({ tipo: 'curriculo', chave: c.curriculo_id });
+          }
+          if (lojaCoords && candCoords) {
+            const m = GeocodeService.distanciaMetros(candCoords, lojaCoords);
+            c.distancia_m = Math.round(m);
+            c.km_residencia = GeocodeService.formatarDistancia(m);
+          } else {
+            c.distancia_m = null;
+            c.km_residencia = null;
+          }
+        }
+        // limpa colunas auxiliares da loja do payload (nao precisam ir pro front)
+        delete v.loja_cep; delete v.loja_lat; delete v.loja_lng; delete v.loja_geo_cep;
+      }
+      if (aGeocodar.length) GeocodeService.warmInBackground(aGeocodar);
+
       res.json(rows);
     } catch (error) {
       console.error('List vagas error:', error);

@@ -53,6 +53,19 @@ export class RhEmpresa {
   @Column({ nullable: true })
   estado?: string;
 
+  // Coords geocodadas do CEP da loja (pra distancia residencia->loja). Ver GeocodeService.
+  @Column({ type: 'double precision', nullable: true })
+  latitude?: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude?: number | null;
+
+  @Column({ name: 'geo_cep', type: 'varchar', length: 9, nullable: true })
+  geoCep?: string | null;
+
+  @Column({ name: 'geo_updated_at', type: 'timestamptz', nullable: true })
+  geoUpdatedAt?: Date | null;
+
   @Column({ nullable: true })
   telefone?: string;
 
