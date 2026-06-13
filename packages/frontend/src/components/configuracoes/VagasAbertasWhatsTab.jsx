@@ -30,10 +30,11 @@ export default function VagasAbertasWhatsTab() {
   const carregar = async () => {
     try {
       const { data } = await api.get('/config/configurations');
-      setGroupId(data.whatsapp_group_vagas_abertas || '');
-      setGroupName(data.whatsapp_group_vagas_abertas_name || '');
-      setDiaSemana(data.whatsapp_vagas_abertas_dia_semana || '1');
-      setHorario(data.whatsapp_vagas_abertas_schedule_time || '08:00');
+      const cfg = data?.data || data || {}; // resposta vem como { success, data: {...} }
+      setGroupId(cfg.whatsapp_group_vagas_abertas || '');
+      setGroupName(cfg.whatsapp_group_vagas_abertas_name || '');
+      setDiaSemana(cfg.whatsapp_vagas_abertas_dia_semana || '1');
+      setHorario(cfg.whatsapp_vagas_abertas_schedule_time || '08:00');
     } catch { /* ignore */ }
     carregarPreview();
   };
