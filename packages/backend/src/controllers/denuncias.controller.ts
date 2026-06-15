@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../config/database';
+import { DenunciaWhatsService } from '../services/denuncia-whats.service';
 
 // Tipos pre-definidos (NR-1 + Lei 14.457/22)
 const TIPOS_PERMITIDOS = new Set([
@@ -87,6 +88,12 @@ export class DenunciasController {
       );
       const insRows = Array.isArray(insResult?.[0]) ? insResult[0] : insResult;
       const row = Array.isArray(insRows) ? insRows[0] : insRows;
+
+      // Notifica o RH no grupo de WhatsApp (se configurado). Fire-and-forget:
+      // NUNCA pode derrubar o registro da denuncia se o WhatsApp falhar.
+      DenunciaWhatsService.notificar(row.id)
+        .then(r => { if (!r.enviado) console.log('[denuncias] notificacao WhatsApp pulada:', r.motivo); })
+        .catch(err => console.error('[denuncias] falha ao notificar WhatsApp:', err?.message || err));
 
       res.json({
         success: true,

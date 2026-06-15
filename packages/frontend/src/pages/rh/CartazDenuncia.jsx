@@ -16,8 +16,10 @@ const TEMPLATE_H = 1191;
 // Posicoes calibradas em % do tamanho do cartaz, baseado no template original.
 // Logo no canto SUPERIOR DIREITO com moldura branca
 const LOGO_POS  = { left: '92%', top: '4%', size: '11%' };
-// QR cobre o placeholder INTEIRO (incluindo cantos chanfrados e texto "COLOQUE AQUI")
-const QR_BOX    = { left: '74.7%', top: '62.5%', width: '34%', height: '21%' };
+// QR cobre o placeholder branco e MASCARA o texto da arte ("COLOQUE AQUI SEU QR CODE")
+// sem subir no "APONTE A CÂMERA..." de cima. O QR fica alinhado ao TOPO da caixa
+// (paddingTop), e o resto da caixa branca esconde o "SEU QR CODE" embaixo.
+const QR_BOX    = { left: '75%', top: '64%', width: '27%', height: '17.5%' };
 
 export default function CartazDenuncia({ publicUrl, empresaNome, onClose }) {
   const cartazRef = useRef(null);
@@ -173,8 +175,10 @@ export default function CartazDenuncia({ publicUrl, empresaNome, onClose }) {
                   transform: 'translate(-50%, 0)',
                   background: '#fff',
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   justifyContent: 'center',
+                  paddingTop: '4%',
+                  boxSizing: 'border-box',
                   zIndex: 2,
                 }}
               >
@@ -183,7 +187,7 @@ export default function CartazDenuncia({ publicUrl, empresaNome, onClose }) {
                   size={280}
                   level="H"
                   includeMargin={false}
-                  style={{ width: '85%', height: '85%' }}
+                  style={{ height: '72%', width: 'auto' }}
                 />
               </div>
             </div>

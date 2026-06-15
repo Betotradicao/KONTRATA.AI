@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ConfigurationService } from '../services/configuration.service';
 import { VagasAbertasWhatsService } from '../services/vagas-abertas-whats.service';
 import { AsoWhatsService } from '../services/aso-whats.service';
+import { DenunciaWhatsService } from '../services/denuncia-whats.service';
 
 // Le a config da Evolution API salva nas configurations. O token e guardado
 // CRIPTOGRAFADO; ConfigurationService.get() ja devolve descriptografado.
@@ -125,6 +126,30 @@ export class WhatsappController {
         aVencer: rel.aVencer.length,
         mensagem: AsoWhatsService.buildMensagem(rel),
       });
+    } catch (error: any) {
+      return res.json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /api/whatsapp/denuncia-nr1/enviar — dispara uma denuncia de TESTE pro grupo.
+  static async enviarDenunciaNr1(_req: Request, res: Response) {
+    try {
+      await DenunciaWhatsService.enviarTeste();
+      return res.json({ success: true, message: 'Denúncia de teste enviada pro grupo (mensagem + PDF).' });
+    } catch (error: any) {
+      console.error('[whatsapp] denuncia-nr1:', error.message);
+      return res.json({ success: false, error: error.response?.data?.message || error.message || 'erro ao enviar' });
+    }
+  }
+
+  // GET /api/whatsapp/denuncia-nr1/preview — texto da msg pra preview na tela.
+  static async previewDenunciaNr1(_req: Request, res: Response) {
+    try {
+      const empresa_nome = await ConfigurationService.get('client_brand_name', '');
+      const mensagem = DenunciaWhatsService.buildMensagem({
+        protocolo: 'DEN-20260601-AB12', tipo: 'assedio_moral', empresa_nome: empresa_nome || null,
+      });
+      return res.json({ success: true, mensagem });
     } catch (error: any) {
       return res.json({ success: false, error: error.message });
     }

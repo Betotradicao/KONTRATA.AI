@@ -1,6 +1,18 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Aniversariantes do Mês (Config RH)
+## Tarefa atual — Notificação WhatsApp de nova Denúncia (NR-1)
+Toda denúncia nova no Canal de Denúncia dispara msg "ATENÇÃO RH... Nº protocolo..." + PDF num grupo de WhatsApp.
+- Backend: `services/denuncia-whats.service.ts` (NOVO: buildMensagem, buildPdf, notificar(id), enviarTeste). Hook em `denuncias.controller.criarPublica` (fire-and-forget após INSERT — não derruba a denúncia se WhatsApp falhar). Endpoints `POST/GET /whatsapp/denuncia-nr1/{enviar,preview}` + rotas. Config: `whatsapp_group_denuncia_nr1(_name)`.
+- Frontend: `DenunciaNr1WhatsTab.jsx` (NOVO, sem agendamento — é por evento) + sub-aba no `GruposWhatsappTab.jsx`.
+- ✅ TS compila; rotas 401 (existem); back recarregou.
+- ⏳ **Aguardando teste** (Config Rede → Grupos WhatsApp → 🚨 Denúncia NR1: Carregar Grupos + Salvar + Testar Envio).
+
+## Pendente junto (não commitado) — Ajuste QR do cartaz NR-1 (canal denúncia)
+`pages/rh/CartazDenuncia.jsx`: QR encavalava no texto "APONTE A CÂMERA...". Reduzido/baixado o `QR_BOX` (top 64%, width 26%, height 15%, centro 75%) pra cobrir só o placeholder branco; QR agora quadrado (height 88% + width auto, antes esticava). Calibração visual — pode precisar de fino ajuste de %. Testar local em /rh/pesquisa-clima/nr1 → Gerar Cartaz Completo. Depois deploy só Tradição.
+
+---
+
+## Tarefa anterior — Aniversariantes do Mês (Config RH)
 Nova aba 🎂 **Aniversariantes do Mês** em Configurações de RH. Modelo imprimível idêntico ao cartaz do cliente (sem "Jornal da Firma"): cabeçalho com a marca, título "ANIVERSARIANTES DO MÊS DE <MÊS>", tabela laranja (COLABORADOR | DATA DE ANIVERSÁRIO), texto editável de parabéns (default = frases do cartaz), rodapé editável, e logo do tenant. Filtro por mês (default mês atual).
 
 ### Arquivos
@@ -18,8 +30,8 @@ Nova aba 🎂 **Aniversariantes do Mês** em Configurações de RH. Modelo impri
 - Configs salvas: rh_aniversariantes_{cabecalho,mensagem,rodape,fonte_cabecalho,fonte_mensagem,fonte_rodape}.
 
 ### Status
-- ✅ TS compila; front consumindo a API OK (log: GET /rh/aniversariantes 304, user ROBERTO).
-- ⏳ **Aguardando usuário testar/validar** (Config RH → 🎂 Aniversariantes do Mês). Depois: commit/push + deploy.
+- ✅ Validado, commit `c1bd8a9` (push KONTRATAAI).
+- ✅ **DEPLOY feito (13/06)** em Tradição, Guibox, Novacentral, Puma, DAmata — todos backend healthy. Ciclo build --no-cache + up --no-deps, SEM migration/backfill (só código). Faltam: fratelli, mameva.
 
 ---
 

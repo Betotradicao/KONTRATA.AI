@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import VagasAbertasWhatsTab from './VagasAbertasWhatsTab';
 import SaudeOcupacionalWhatsTab from './SaudeOcupacionalWhatsTab';
+import DenunciaNr1WhatsTab from './DenunciaNr1WhatsTab';
 
 const SUBABAS = [
   { id: 'vagas', label: '💼 Vagas em Aberto' },
   { id: 'aso', label: '🩺 Saúde Ocupacional' },
+  { id: 'denuncia', label: '🚨 Denúncia NR1' },
 ];
 
 export default function GruposWhatsappTab() {
@@ -26,6 +28,7 @@ export default function GruposWhatsappTab() {
 
       {sub === 'vagas' && <VagasAbertasWhatsTab />}
       {sub === 'aso' && <SaudeOcupacionalWhatsTab />}
+      {sub === 'denuncia' && <DenunciaNr1WhatsTab />}
     </div>
   );
 }

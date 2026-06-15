@@ -21,4 +21,8 @@ router.get('/vagas-abertas/preview', authenticateToken, WhatsappController.previ
 router.post('/aso/enviar', authenticateToken, WhatsappController.enviarAso);
 router.get('/aso/preview', authenticateToken, WhatsappController.previewAso);
 
+// Denúncia NR-1 (notificação automática ao receber denúncia; teste manual)
+router.post('/denuncia-nr1/enviar', authenticateToken, WhatsappController.enviarDenunciaNr1);
+router.get('/denuncia-nr1/preview', authenticateToken, WhatsappController.previewDenunciaNr1);
+
 export default router;
