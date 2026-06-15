@@ -1,13 +1,40 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Coluna "KM Residência" em Vagas (distância candidato→loja)
+## Tarefa atual — Aniversariantes do Mês (Config RH)
+Nova aba 🎂 **Aniversariantes do Mês** em Configurações de RH. Modelo imprimível idêntico ao cartaz do cliente (sem "Jornal da Firma"): cabeçalho com a marca, título "ANIVERSARIANTES DO MÊS DE <MÊS>", tabela laranja (COLABORADOR | DATA DE ANIVERSÁRIO), texto editável de parabéns (default = frases do cartaz), rodapé editável, e logo do tenant. Filtro por mês (default mês atual).
+
+### Arquivos
+- Backend: `rh.controller.ts` → `listarAniversariantes` (GET /rh/aniversariantes?mes=N, ativos por mês de nascimento); `rh.routes.ts` rota.
+- Frontend: `components/configuracoes/AniversariantesMesTab.jsx` (NOVO); `pages/RhConfiguracoes.jsx` (import + TAB + render).
+- Logo/marca vêm de `client_logo_url` / `client_brand_name` (Personalização) — ver `padroes/branding-logo-nome-empresa.md`.
+- Textos salvos em config `rh_aniversariantes_mensagem` / `rh_aniversariantes_rodape`.
+
+### Recursos (todos implementados)
+- Modelo retrato (A4 portrait) idêntico ao cartaz, sem "Jornal da Firma".
+- Filtro por **mês** (default atual) e por **loja** (`/rh/empresas/stores/list`; filtro `c.empresa_id = cod_loja`). "Todas as lojas" = sem filtro.
+- Painel de edição à esquerda: **Cabeçalho, Mensagem, Rodapé** editáveis (default = frases do cartaz) + **tamanho de fonte por campo** (px). Cartão à direita = preview ao vivo.
+- **Espaço em branco** flexível entre mensagem e rodapé pros parabéns à mão.
+- Botão Imprimir (window.print, só o cartão) + Salvar textos.
+- Configs salvas: rh_aniversariantes_{cabecalho,mensagem,rodape,fonte_cabecalho,fonte_mensagem,fonte_rodape}.
+
+### Status
+- ✅ TS compila; front consumindo a API OK (log: GET /rh/aniversariantes 304, user ROBERTO).
+- ⏳ **Aguardando usuário testar/validar** (Config RH → 🎂 Aniversariantes do Mês). Depois: commit/push + deploy.
+
+---
+
+## Tarefa anterior — Coluna "KM Residência" em Vagas (distância candidato→loja)
 Coluna 📍 **KM Residência** na lista de candidatos da vaga (RhVagas), entre Nome e WhatsApp. Distância **em linha reta** (haversine) da casa do candidato até a loja da vaga. Geocoding CEP→coords via **AwesomeAPI** (grátis). Ver nota `bugs-resolvidos/2026-06-12-feature-km-residencia-geocoding.md`.
 
 ### Status
 - ✅ Implementado: migration (colunas geo), `geocode.service.ts`, `listarVagas` (join loja + distância + warm bg), entities, `RhVagas.jsx` (coluna+célula, colSpan 16→17). TS compila, migration aplicada.
 - ✅ **Geocoding corrigido**: AwesomeAPI errava CEP isolado (Ana Paula 12248-628 caía 12km errado). Trocado pra **Photon/OSM por RUA** (primário) + AwesomeAPI fallback. Re-backfill: 48/49 via Photon. Ana Paula 12km→1,3km, Andreia 417m, Roberto 15km. Validado.
-- ⏳ **Aguardando usuário re-testar local** (Vagas → expandir vaga → ver coluna KM Residência, conferir Ana Paula ~1,3km).
-- Depois: commit/push (após validar) + deploy. **Deploy: rodar backfill geocoding FORÇADO no cliente** (street-first) pra recalcular tudo — registros antigos não re-geocodam sozinhos.
+- ✅ Validado + commit `03de07e` (push KONTRATAAI).
+- ✅ **DEPLOY Tradição feito** (13/06): pull + build --no-cache + up --no-deps. Migration geo aplicada. Backend healthy. Backfill forçado rodado dentro do container (script base64→docker cp→node -w /app): 100/102 curriculos + 2/2 lojas via Photon. Validado em prod: Ana Paula 1.310m, Andreia 417m, Roberto 15km.
+- ⚠️ Frontend `unhealthy` (mesmo bug pré-existente do healthcheck wget BusyBox; serve normal).
+
+### Próximo passo
+KM Residência concluída e no ar. **Lote (ASO + Vagas em Aberto + KM Residência) deployado em (13/06):** Tradição, Guibox, Novacentral, Puma, DAmata — todos backend healthy + backfill geo OK. **Faltam: fratelli, mameva.**
 
 ---
 

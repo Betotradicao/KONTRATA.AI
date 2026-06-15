@@ -164,6 +164,9 @@ router.post('/treinamentos-materiais', authenticateToken, uploadDoc.single('arqu
 router.put('/treinamentos-materiais/:id', authenticateToken, RhController.atualizarTreinamentoMaterial);
 router.delete('/treinamentos-materiais/:id', authenticateToken, RhController.deletarTreinamentoMaterial);
 
+// Aniversariantes do mes
+router.get('/aniversariantes', authenticateToken, RhController.listarAniversariantes);
+
 // Vagas (Recrutamento)
 router.get('/vagas', authenticateToken, RhController.listarVagas);
 router.post('/vagas', authenticateToken, RhController.criarVaga);

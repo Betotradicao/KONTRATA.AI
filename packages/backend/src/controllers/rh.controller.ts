@@ -1177,6 +1177,45 @@ export class RhController {
   }
 
   // =============================================
+  // ANIVERSARIANTES DO MES
+  // =============================================
+  // GET /rh/aniversariantes?mes=9 -> colaboradores ATIVOS que fazem aniversario
+  // no mes, ordenados por dia. Usado no modelo de "Aniversariantes do Mes".
+  static async listarAniversariantes(req: AuthRequest, res: Response) {
+    try {
+      const hoje = new Date();
+      let mes = parseInt(String(req.query.mes || ''), 10);
+      if (!Number.isInteger(mes) || mes < 1 || mes > 12) mes = hoje.getMonth() + 1;
+
+      // Filtro opcional por loja. Vinculo colaborador->loja: c.empresa_id = rh_empresas.cod_loja.
+      const codLoja = parseInt(String(req.query.loja || ''), 10);
+      const params: any[] = [mes];
+      let filtroLoja = '';
+      if (Number.isInteger(codLoja)) {
+        params.push(codLoja);
+        filtroLoja = ` AND c.empresa_id = $2`;
+      }
+
+      const rows = await AppDataSource.query(
+        `SELECT c.nome, c.matricula,
+                to_char(c.data_nascimento, 'DD/MM') AS data_aniversario,
+                EXTRACT(DAY FROM c.data_nascimento)::int AS dia
+         FROM rh_colaboradores c
+         WHERE c.status = 'ativo'
+           AND c.data_nascimento IS NOT NULL
+           AND EXTRACT(MONTH FROM c.data_nascimento) = $1
+           ${filtroLoja}
+         ORDER BY EXTRACT(DAY FROM c.data_nascimento) ASC, c.nome ASC`,
+        params
+      );
+      res.json({ mes, loja: Number.isInteger(codLoja) ? codLoja : null, aniversariantes: rows });
+    } catch (error) {
+      console.error('Aniversariantes error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  // =============================================
   // VAGAS (Recrutamento)
   // =============================================
   static async listarVagas(req: AuthRequest, res: Response) {

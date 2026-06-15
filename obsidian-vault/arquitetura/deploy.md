@@ -30,6 +30,15 @@ powershell -Command "& { ssh vps2-hostinger 'docker ps --filter name=prevencao-<
 
 Esperar `healthy` no backend. Frontend fica "health: starting" por ~30s antes de ficar healthy — normal.
 
+### ⚠️ "A mudança não apareceu!" → quase sempre é CACHE DO NAVEGADOR, não o deploy
+Depois de buildar o frontend, o navegador continua servindo o bundle antigo. ANTES de achar que o build falhou:
+1. **Prova que o servidor está certo** — baixa o JS público e procura a mudança:
+   `curl -s https://<cliente>.kontrataai.com.br/ | grep -oE 'assets/index-[^"]+\.js'` (pega o hash) e
+   `curl -s https://<cliente>.kontrataai.com.br/assets/index-XXXX.js | grep "texto novo"`.
+   Se o texto está lá → deploy OK, é cache do cliente.
+2. **Fix no navegador:** Ctrl+Shift+R (hard refresh) ou aba anônima (Ctrl+Shift+N).
+- Build com `--no-cache` gera hash novo no nome do JS; se o index.html já aponta pro hash novo, o servidor está correto.
+
 ## 📦 Deploy em MÚLTIPLOS clientes
 Rodar sequencialmente (não paralelo, pra não estourar CPU da VPS):
 1. [[../clientes/tradicao|Tradição]]
