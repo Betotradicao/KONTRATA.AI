@@ -4,6 +4,8 @@ import { ConfigurationService } from '../services/configuration.service';
 import { VagasAbertasWhatsService } from '../services/vagas-abertas-whats.service';
 import { AsoWhatsService } from '../services/aso-whats.service';
 import { DenunciaWhatsService } from '../services/denuncia-whats.service';
+import { DpDocsWhatsService } from '../services/dp-docs-whats.service';
+import { AniversarioWhatsService } from '../services/aniversario-whats.service';
 
 // Le a config da Evolution API salva nas configurations. O token e guardado
 // CRIPTOGRAFADO; ConfigurationService.get() ja devolve descriptografado.
@@ -150,6 +152,52 @@ export class WhatsappController {
         protocolo: 'DEN-20260601-AB12', tipo: 'assedio_moral', empresa_nome: empresa_nome || null,
       });
       return res.json({ success: true, mensagem });
+    } catch (error: any) {
+      return res.json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /api/whatsapp/dp-docs/enviar — dispara AGORA as 2 mensagens (vencimento + obrigatorios) pro grupo.
+  static async enviarDpDocs(_req: Request, res: Response) {
+    try {
+      const v = await DpDocsWhatsService.enviarVencimentos(true);
+      const o = await DpDocsWhatsService.enviarObrigatorios(true);
+      return res.json({ success: true, message: `Enviado! ${v.total} vencendo hoje e ${o.total} obrigatório(s) sem documento.` });
+    } catch (error: any) {
+      console.error('[whatsapp] dp-docs:', error.message);
+      return res.json({ success: false, error: error.response?.data?.message || error.message || 'erro ao enviar' });
+    }
+  }
+
+  // GET /api/whatsapp/dp-docs/preview — textos das 2 mensagens pra preview na tela.
+  static async previewDpDocs(_req: Request, res: Response) {
+    try {
+      const venc = await DpDocsWhatsService.getVencimentosHoje();
+      const obrig = await DpDocsWhatsService.getObrigatoriosFaltando();
+      return res.json({
+        success: true,
+        mensagem: DpDocsWhatsService.buildMsgVencimento(venc) + '\n\n— — — — —\n\n' + DpDocsWhatsService.buildMsgObrigatorios(obrig),
+      });
+    } catch (error: any) {
+      return res.json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /api/whatsapp/aniversario/enviar — parabeniza AGORA quem faz aniversario hoje (1 msg/loja).
+  static async enviarAniversario(_req: Request, res: Response) {
+    try {
+      const r = await AniversarioWhatsService.enviar(true);
+      return res.json({ success: true, message: `Enviado! ${r.total} aniversariante(s) em ${r.lojas} loja(s).` });
+    } catch (error: any) {
+      console.error('[whatsapp] aniversario:', error.message);
+      return res.json({ success: false, error: error.response?.data?.message || error.message || 'erro ao enviar' });
+    }
+  }
+
+  // GET /api/whatsapp/aniversario/preview — texto da msg pra preview na tela.
+  static async previewAniversario(_req: Request, res: Response) {
+    try {
+      return res.json({ success: true, mensagem: await AniversarioWhatsService.preview() });
     } catch (error: any) {
       return res.json({ success: false, error: error.message });
     }

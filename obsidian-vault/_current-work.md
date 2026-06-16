@@ -1,11 +1,29 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Notificação WhatsApp de nova Denúncia (NR-1)
+## Tarefa atual — Parabéns de Aniversário no WhatsApp (+ alertas DP)
+Sub-aba 🎉 **Aniversariantes** em Grupos WhatsApp: cron diário no horário X vê quem faz aniversário HOJE e manda parabéns no grupo, **1 msg por loja** ("Equipe {loja}"), tom festivo/editável (placeholders `{nomes}`/`{loja}`).
+- Backend: `services/aniversario-whats.service.ts` (NOVO), `crons/aniversario.cron.ts` (NOVO, registrado index), endpoints `POST/GET /whatsapp/aniversario/{enviar,preview}`. Config: `whatsapp_group_aniversario(_name)`, `whatsapp_aniversario_schedule_time`, `whatsapp_aniversario_mensagem`.
+- Frontend: `AniversarioWhatsTab.jsx` (NOVO) + sub-aba no wrapper.
+- ✅ TS compila, cron ativo, rota 401.
+- ⏳ Testar local. NÃO commitado ainda (junto com a feature DP docs abaixo + ajuste do rótulo "Loja X").
+
+## Tarefa anterior — Alertas WhatsApp dos Documentos de DP
+Sub-aba 📁 **Departamento Pessoal** em Grupos WhatsApp. 2 alertas SEPARADOS:
+1. **Vencimento** (diário, dispara 1x quando `dp_documentos.data_alerta = hoje`).
+2. **Obrigatórios sem documento** (dia X do mês): `dp_subpastas.obrigatorio=true` sem `dp_documentos`.
+Modelo: dp_pastas→dp_subpastas→dp_documentos; loja via `dp_pastas.company_id = rh_empresas.id`.
+- Backend: `services/dp-docs-whats.service.ts` (NOVO), `crons/dp-docs.cron.ts` (NOVO, diário, registrado no index), endpoints `POST/GET /whatsapp/dp-docs/{enviar,preview}` + rotas. Config: `whatsapp_group_dp_docs(_name)`, `whatsapp_dp_docs_schedule_time`, `whatsapp_dp_docs_dia_mes`.
+- Frontend: `DepartamentoPessoalWhatsTab.jsx` (NOVO) + sub-aba no `GruposWhatsappTab.jsx`.
+- ✅ TS compila; backend de pé com cron ativo; rotas 401. SEM migration. Local zerado de dados DP (testar envio mostra "nenhum"); prod (Tradição) tem dados.
+- ⏳ Usuário vai testar local. Depois commit/push + deploy.
+
+## Tarefa anterior — Notificação WhatsApp de nova Denúncia (NR-1)
 Toda denúncia nova no Canal de Denúncia dispara msg "ATENÇÃO RH... Nº protocolo..." + PDF num grupo de WhatsApp.
 - Backend: `services/denuncia-whats.service.ts` (NOVO: buildMensagem, buildPdf, notificar(id), enviarTeste). Hook em `denuncias.controller.criarPublica` (fire-and-forget após INSERT — não derruba a denúncia se WhatsApp falhar). Endpoints `POST/GET /whatsapp/denuncia-nr1/{enviar,preview}` + rotas. Config: `whatsapp_group_denuncia_nr1(_name)`.
 - Frontend: `DenunciaNr1WhatsTab.jsx` (NOVO, sem agendamento — é por evento) + sub-aba no `GruposWhatsappTab.jsx`.
-- ✅ TS compila; rotas 401 (existem); back recarregou.
-- ⏳ **Aguardando teste** (Config Rede → Grupos WhatsApp → 🚨 Denúncia NR1: Carregar Grupos + Salvar + Testar Envio).
+- ✅ Validado + commit `f57969c` (push KONTRATAAI). Inclui tbm o fix do QR do cartaz.
+- ✅ **DEPLOY feito (13/06)** em Tradição, Guibox, Novacentral, Puma, DAmata — todos backend healthy. build --no-cache + up --no-deps, SEM migration. Faltam: fratelli, mameva.
+- ⚠️ Em cada cliente, o RH precisa **configurar o grupo** na aba 🚨 Denúncia NR1 (Carregar Grupos + Salvar) — senão não dispara.
 
 ## Pendente junto (não commitado) — Ajuste QR do cartaz NR-1 (canal denúncia)
 `pages/rh/CartazDenuncia.jsx`: QR encavalava no texto "APONTE A CÂMERA...". Reduzido/baixado o `QR_BOX` (top 64%, width 26%, height 15%, centro 75%) pra cobrir só o placeholder branco; QR agora quadrado (height 88% + width auto, antes esticava). Calibração visual — pode precisar de fino ajuste de %. Testar local em /rh/pesquisa-clima/nr1 → Gerar Cartaz Completo. Depois deploy só Tradição.

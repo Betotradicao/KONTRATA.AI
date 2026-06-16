@@ -25,4 +25,12 @@ router.get('/aso/preview', authenticateToken, WhatsappController.previewAso);
 router.post('/denuncia-nr1/enviar', authenticateToken, WhatsappController.enviarDenunciaNr1);
 router.get('/denuncia-nr1/preview', authenticateToken, WhatsappController.previewDenunciaNr1);
 
+// Documentos / Departamento Pessoal (vencimento + obrigatórios faltando)
+router.post('/dp-docs/enviar', authenticateToken, WhatsappController.enviarDpDocs);
+router.get('/dp-docs/preview', authenticateToken, WhatsappController.previewDpDocs);
+
+// Aniversariantes (parabéns diário no grupo)
+router.post('/aniversario/enviar', authenticateToken, WhatsappController.enviarAniversario);
+router.get('/aniversario/preview', authenticateToken, WhatsappController.previewAniversario);
+
 export default router;

@@ -33,6 +33,8 @@ import denunciasRouter from './routes/denuncias.routes';
 import whatsappRouter from './routes/whatsapp.routes';
 import { startVagasAbertasCron } from './crons/vagas-abertas.cron';
 import { startAsoVencimentosCron } from './crons/aso-vencimentos.cron';
+import { startDpDocsCron } from './crons/dp-docs.cron';
+import { startAniversarioCron } from './crons/aniversario.cron';
 import { accessLogMiddleware } from './middleware/access-log.middleware';
 
 import { minioService } from './services/minio.service';
@@ -215,6 +217,10 @@ const startServer = async () => {
   try { startVagasAbertasCron(); } catch (e) { console.error('Falha ao iniciar cron vagas-abertas:', e); }
   // Cron de envio semanal de Saúde Ocupacional / ASO no WhatsApp
   try { startAsoVencimentosCron(); } catch (e) { console.error('Falha ao iniciar cron aso:', e); }
+  // Cron diário de Documentos / Departamento Pessoal no WhatsApp
+  try { startDpDocsCron(); } catch (e) { console.error('Falha ao iniciar cron dp-docs:', e); }
+  // Cron diário de Aniversariantes no WhatsApp
+  try { startAniversarioCron(); } catch (e) { console.error('Falha ao iniciar cron aniversario:', e); }
 };
 
 startServer();
