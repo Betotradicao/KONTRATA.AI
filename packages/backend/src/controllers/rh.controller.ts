@@ -1344,11 +1344,19 @@ export class RhController {
       const { id } = req.params;
       const { cargo_id, departamento_id, titulo, descricao, quantidade_vagas, salario_min, salario_max, data_abertura, data_fechamento, status, motivo_fechamento, requisitos, beneficios, selecionados, cod_loja, experiencia_obrigatoria, experiencia_meses_minimo, turnos, jornada_id, hora_entrada, hora_almoco_ini, hora_almoco_fim, hora_saida, tipo_vaga_slug } = req.body;
       const nn = (v: any) => (v === '' || v === undefined ? null : v);
+      // data_fechamento e autoritativo no backend: ao finalizar (Contratado(a)/Fechada)
+      // grava a data (preserva a existente; senao usa a do body ou hoje); ao reabrir, limpa.
+      const STATUS_FINALIZADO = ['Contratado(a)', 'Fechada'];
+      const [vagaAtual] = await AppDataSource.query(`SELECT data_fechamento FROM rh_vagas WHERE id = $1`, [id]);
+      // prioridade: data que veio do modal (correcao manual) > existente > hoje
+      const dataFechamentoFinal = STATUS_FINALIZADO.includes(status)
+        ? (nn(data_fechamento) || vagaAtual?.data_fechamento || new Date())
+        : null;
       const result = await AppDataSource.query(
         `UPDATE rh_vagas SET cargo_id=$1, departamento_id=$2, titulo=$3, descricao=$4, quantidade_vagas=$5, salario_min=$6, salario_max=$7, data_abertura=$8, data_fechamento=$9, status=$10, motivo_fechamento=$11, requisitos=$12, beneficios=$13, selecionados=$14::jsonb, cod_loja=$15, experiencia_obrigatoria=$16, experiencia_meses_minimo=$17, turnos=$18::jsonb, jornada_id=$19,
             hora_entrada=$20, hora_almoco_ini=$21, hora_almoco_fim=$22, hora_saida=$23, tipo_vaga_slug=$24
          WHERE id=$25 RETURNING *`,
-        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), nn(data_fechamento), status, motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionados || []), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), nn(tipo_vaga_slug), id]
+        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), dataFechamentoFinal, status, motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionados || []), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), nn(tipo_vaga_slug), id]
       );
       if (result.length === 0) return res.status(404).json({ error: 'Vaga nao encontrada' });
       res.json(result[0]);
@@ -1439,9 +1447,11 @@ export class RhController {
       //    'Contratado(a)' e volta pra 'Em Selecao' automaticamente)
       const temContratado = selecionados.some((x: any) => x?.contratado === true);
       if (temContratado) {
-        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Contratado(a)' WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
+        // grava data_fechamento ao contratar (preserva se ja existia); pra coluna "Dias em Aberto" / indicadores
+        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Contratado(a)', data_fechamento = COALESCE(data_fechamento, now()) WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
       } else {
-        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Em Selecao' WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
+        // voltou a abrir: limpa a data de fechamento
+        await AppDataSource.query(`UPDATE rh_vagas SET status = 'Em Selecao', data_fechamento = NULL WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
       }
 
       res.json({ success: true, status_local: s, nome: cv.nome });

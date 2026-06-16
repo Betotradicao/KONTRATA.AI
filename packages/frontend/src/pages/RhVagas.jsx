@@ -37,6 +37,7 @@ const initialForm = {
   salario_min: '',
   salario_max: '',
   data_abertura: '',
+  data_fechamento: '',
   status: 'Aberta',
   requisitos: '',
   beneficios: '',
@@ -213,6 +214,7 @@ export default function RhVagas() {
         salario_min: salarioInicial || '',
         salario_max: vaga.salario_max || '',
         data_abertura: vaga.data_abertura ? vaga.data_abertura.substring(0, 10) : '',
+        data_fechamento: vaga.data_fechamento ? vaga.data_fechamento.substring(0, 10) : '',
         status: vaga.status || 'Aberta',
         requisitos: vaga.requisitos || '',
         beneficios: vaga.beneficios || '',
@@ -467,8 +469,15 @@ export default function RhVagas() {
     // Auto-gera titulo com base no cargo selecionado se nao informado
     const cargoSelecionado = cargos.find(c => String(c.id) === String(formData.cargo_id));
     const codLojaSelecionada = formData.cod_loja !== '' && formData.cod_loja != null ? Number(formData.cod_loja) : null;
+    // data_fechamento: registra QUANDO a vaga foi contratada/fechada (pra coluna "Dias em Aberto"
+    // e indicadores). Finalizou e ainda nao tinha data -> hoje. Voltou a abrir -> limpa.
+    const finalizada = STATUS_FINALIZADO_VALUES.includes(formData.status);
+    const dataFechamento = finalizada
+      ? (formData.data_fechamento || new Date().toISOString().substring(0, 10))
+      : null;
     const basePayload = {
       ...formData,
+      data_fechamento: dataFechamento,
       titulo: (formData.titulo && formData.titulo.trim()) || cargoSelecionado?.nome || 'Vaga',
       experiencia_obrigatoria: !!formData.experiencia_obrigatoria,
       experiencia_meses_minimo: formData.experiencia_obrigatoria && formData.experiencia_meses_minimo !== ''
@@ -549,7 +558,8 @@ export default function RhVagas() {
     }
     if (statusBuscado === 'contratado') {
       return ints.some(c => c.status === 'contratado')
-        || sels.some(s => s.contratado);
+        || sels.some(s => s.contratado)
+        || STATUS_FINALIZADO_VALUES.includes(v.status); // vaga fechada manualmente como Contratado(a)
     }
     return false;
   };
@@ -669,6 +679,10 @@ export default function RhVagas() {
                 if (s.contratado) nContratados++;
                 else nSelecionados++;
               });
+              // Vaga fechada manualmente como Contratado(a)/Fechada, sem candidato marcado,
+              // tambem conta como contratado (senao o card fica zerado).
+              const temContratadoMarcado = ints.some(c => c.status === 'contratado') || sels.some(s => s.contratado);
+              if (!temContratadoMarcado && STATUS_FINALIZADO_VALUES.includes(v.status)) nContratados++;
             });
             // Vagas em aberto = status Aberta ou Em Selecao (ainda nao foram contratadas/canceladas)
             const nAbertas = vagasFiltradasPorLoja.filter(v => v.status === 'Aberta' || v.status === 'Em Selecao').length;
@@ -906,10 +920,21 @@ export default function RhVagas() {
                           <td className="px-2 py-3 text-sm">
                             {(() => {
                               if (!v.data_abertura) return <span className="text-gray-300">—</span>;
-                              if (STATUS_FINALIZADO_VALUES.includes(v.status) || v.status === 'Cancelada') {
-                                return <span className="text-gray-400 text-xs">—</span>;
+                              const DIA = 1000 * 60 * 60 * 24;
+                              const abertura = new Date(v.data_abertura).getTime();
+                              const finalizada = STATUS_FINALIZADO_VALUES.includes(v.status) || v.status === 'Cancelada';
+                              if (finalizada) {
+                                // Vaga contratada/fechada: mostra quantos dias ficou aberta ATÉ o fechamento.
+                                if (!v.data_fechamento) return <span className="text-gray-400 text-xs">—</span>;
+                                const dias = Math.max(0, Math.floor((new Date(v.data_fechamento).getTime() - abertura) / DIA));
+                                return (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-purple-50 text-purple-700 border-purple-200"
+                                    title="Dias que a vaga ficou aberta até ser contratada">
+                                    {dias === 0 ? 'Mesmo dia' : dias === 1 ? '1 dia' : `${dias} dias`} ✓
+                                  </span>
+                                );
                               }
-                              const dias = Math.floor((Date.now() - new Date(v.data_abertura).getTime()) / (1000 * 60 * 60 * 24));
+                              const dias = Math.floor((Date.now() - abertura) / DIA);
                               const cor = dias <= 7 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : dias <= 30 ? 'bg-amber-50 text-amber-700 border-amber-200'
                                 : 'bg-red-50 text-red-700 border-red-200';
@@ -1005,6 +1030,11 @@ export default function RhVagas() {
                                   visiveis = todos.filter(c => (c.status === 'selecionado' || c.status === 'aprovado'));
                                 } else if (filtroSt === 'recusado') {
                                   visiveis = todos.filter(c => (c.status === 'recusado' || c.status === 'reprovado'));
+                                } else if (filtroSt === 'contratado') {
+                                  visiveis = todos.filter(c => c.status === 'contratado');
+                                  // vaga fechada manualmente como Contratado(a)/Fechada (sem candidato marcado):
+                                  // mostra TODOS os candidatos da vaga em vez de esconder.
+                                  if (visiveis.length === 0 && STATUS_FINALIZADO_VALUES.includes(v.status)) visiveis = todos;
                                 } else if (filtroSt) {
                                   visiveis = todos.filter(c => c.status === filtroSt);
                                 }
@@ -1548,6 +1578,19 @@ export default function RhVagas() {
                       ))}
                     </select>
                   </div>
+                  {STATUS_FINALIZADO_VALUES.includes(formData.status) && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">🏁 Data de Fechamento (contratação)</label>
+                      <input
+                        type="date"
+                        name="data_fechamento"
+                        value={formData.data_fechamento}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                      <span className="text-[11px] text-gray-500 italic">Usada pra calcular os "Dias em Aberto" até a contratação. Deixe em branco pra usar hoje.</span>
+                    </div>
+                  )}
                   <div className="md:col-span-2 bg-sky-50 border border-sky-200 rounded-lg p-3">
                     <label className="block text-sm font-semibold text-gray-800 mb-1">🕐 Disponibilidade de horário</label>
                     <p className="text-xs text-gray-500 mb-2">Marque os turnos disponíveis para esta vaga</p>

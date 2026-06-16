@@ -1,10 +1,18 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Cadastro colaborador: obrigatórios + ordenação colunas
+## Tarefa atual — Melhorias em Vagas (Contratados + Dias até contratação)
+Tudo em RhVagas.jsx + rh.controller (SEM migration). Validado local.
+- Card/filtro **Contratados** inclui vagas com status finalizado (Contratado(a)/Fechada), não só candidato marcado (`vagaTemCandidatoStatus` + contagem `nContratados`).
+- Vaga contratada sem candidato marcado: ao expandir, mostra TODOS os candidatos (visiveis fallback).
+- Coluna **Dias em Aberto**: finalizada mostra dias até `data_fechamento` (badge roxo "X dias ✓").
+- **data_fechamento** gravado ao finalizar nos 3 caminhos: atualizarVaga (autoritativo: body>existente>now), setCandidatoStatusVaga (COALESCE(data_fechamento,now); limpa ao reabrir). Campo "Data de Fechamento" editável no modal (aparece quando finalizada).
+- ⏳ NÃO commitado. Validado pelo usuário ("agora foi"). Commit + deploy quando ele pedir.
+
+## Tarefa anterior — Cadastro colaborador: obrigatórios + ordenação colunas
 (frontend only, em cima do commit de uniforme 7c62eb4 ainda NÃO deployado)
 - **Obrigatórios no cadastro** (RhCadastroGeral `camposObrigatorios` + `*` nos labels): Escolaridade (pessoais), CEP (endereco), Escala/Escala Especial Domingo/Regime de Trabalho/Setor/Salário (profissionais).
 - **Ordenação A-Z das colunas**: bug era SETOR (ordenava por `setor_nome` nulo; célula mostra `setor_departamento_nome`). Comparador agora usa o mesmo fallback + vazios por último. Demais colunas já ordenavam.
-- ⏳ Testar local. Commit junto com uniforme + deploy (uniforme TEM migration).
+- ✅ Commits `7c62eb4` (uniforme) + `820a6bb` (obrigatórios+sort). **DEPLOY Tradição feito (13/06)**: build --no-cache + up --no-deps. Backend healthy, migration uniforme aplicada em prod (colunas confirmadas), bundle com os campos. Só Tradição (demais não subiram).
 
 ## Tarefa anterior — Campos Uniforme no cadastro do colaborador
 2 campos novos em RhCadastroGeral (Dados Pessoais › Características pessoais): **Tamanho de Uniforme** (PP/P/M/G/GG/XG/XXG) e **Tipo Uniforme** (NORMAL/BABY LOOK).
