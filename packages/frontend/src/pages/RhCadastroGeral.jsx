@@ -214,6 +214,8 @@ export default function RhCadastroGeral() {
     cor_cabelos: '',
     cor_olhos: '',
     deficiente: '',
+    tamanho_uniforme: '',
+    tipo_uniforme: '',
     // Cônjuge
     conjuge_nome: '',
     conjuge_cpf: '',
@@ -488,6 +490,8 @@ export default function RhCadastroGeral() {
         cor_cabelos: colaborador.cor_cabelos || '',
         cor_olhos: colaborador.cor_olhos || '',
         deficiente: colaborador.deficiente || '',
+        tamanho_uniforme: colaborador.tamanho_uniforme || '',
+        tipo_uniforme: colaborador.tipo_uniforme || '',
         // Cônjuge
         conjuge_nome: colaborador.conjuge_nome || '',
         conjuge_cpf: colaborador.conjuge_cpf || '',
@@ -1339,6 +1343,21 @@ export default function RhCadastroGeral() {
                       <div>
                         <label className={labelClass}>Cor dos olhos</label>
                         <input type="text" className={inputClass} value={formData.cor_olhos} onChange={(e) => handleChange('cor_olhos', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>👕 Tamanho de Uniforme</label>
+                        <select className={selectClass} value={formData.tamanho_uniforme} onChange={(e) => handleChange('tamanho_uniforme', e.target.value)}>
+                          <option value="">—</option>
+                          {['PP','P','M','G','GG','XG','XXG'].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>👕 Tipo Uniforme</label>
+                        <select className={selectClass} value={formData.tipo_uniforme} onChange={(e) => handleChange('tipo_uniforme', e.target.value)}>
+                          <option value="">—</option>
+                          <option value="NORMAL">Normal</option>
+                          <option value="BABY LOOK">Baby Look</option>
+                        </select>
                       </div>
                     </div>
                   </div>

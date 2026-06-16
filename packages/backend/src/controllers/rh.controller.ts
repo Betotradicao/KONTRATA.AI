@@ -15,6 +15,7 @@ const CAMPOS_EXTRAS_COLAB = [
   'rg_orgao_emissor', 'rg_uf', 'rg_emissao',
   'naturalidade_uf',
   'raca_cor', 'tipo_sanguineo', 'altura', 'peso', 'cor_cabelos', 'cor_olhos', 'deficiente',
+  'tamanho_uniforme', 'tipo_uniforme',
   'ctps_uf', 'ctps_emissao',
   'titulo_zona', 'titulo_secao', 'titulo_emissao',
   'reservista_uf', 'reservista_emissao',

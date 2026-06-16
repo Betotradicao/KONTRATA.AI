@@ -1,11 +1,17 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Parabéns de Aniversário no WhatsApp (+ alertas DP)
+## Tarefa atual — Campos Uniforme no cadastro do colaborador
+2 campos novos em RhCadastroGeral (Dados Pessoais › Características pessoais): **Tamanho de Uniforme** (PP/P/M/G/GG/XG/XXG) e **Tipo Uniforme** (NORMAL/BABY LOOK).
+- Backend: migration `1785420000000-AddUniformeColaborador` (colunas `tamanho_uniforme`, `tipo_uniforme` em rh_colaboradores); add na whitelist `CAMPOS_EXTRAS_COLAB` (rh.controller) → salva via `gravarCamposExtrasColab` no create+update; GET já traz via `SELECT c.*`.
+- Frontend: `pages/RhCadastroGeral.jsx` — 2 selects + state inicial + populate ao editar (save manda formData inteiro).
+- ✅ TS compila, migration aplicada local. ⏳ Testar local. Depois commit/push + deploy (TEM migration — roda sozinha no boot).
+
+## Tarefa anterior — Parabéns de Aniversário no WhatsApp (+ alertas DP)
 Sub-aba 🎉 **Aniversariantes** em Grupos WhatsApp: cron diário no horário X vê quem faz aniversário HOJE e manda parabéns no grupo, **1 msg por loja** ("Equipe {loja}"), tom festivo/editável (placeholders `{nomes}`/`{loja}`).
 - Backend: `services/aniversario-whats.service.ts` (NOVO), `crons/aniversario.cron.ts` (NOVO, registrado index), endpoints `POST/GET /whatsapp/aniversario/{enviar,preview}`. Config: `whatsapp_group_aniversario(_name)`, `whatsapp_aniversario_schedule_time`, `whatsapp_aniversario_mensagem`.
 - Frontend: `AniversarioWhatsTab.jsx` (NOVO) + sub-aba no wrapper.
-- ✅ TS compila, cron ativo, rota 401.
-- ⏳ Testar local. NÃO commitado ainda (junto com a feature DP docs abaixo + ajuste do rótulo "Loja X").
+- ✅ Commit `0605b75` (push). **DEPLOY Tradição feito (13/06)**: build --no-cache + up --no-deps. Backend healthy, ambos crons ativos (DP docs + Aniversariantes), endpoints 401. SEM migration. Só Tradição (demais clientes não subiram).
+- ⚠️ RH precisa configurar os grupos nas abas 📁 Departamento Pessoal e 🎉 Aniversariantes (+ Ctrl+Shift+R).
 
 ## Tarefa anterior — Alertas WhatsApp dos Documentos de DP
 Sub-aba 📁 **Departamento Pessoal** em Grupos WhatsApp. 2 alertas SEPARADOS:
