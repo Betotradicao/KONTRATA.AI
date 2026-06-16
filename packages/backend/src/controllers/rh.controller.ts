@@ -1352,11 +1352,16 @@ export class RhController {
       const dataFechamentoFinal = STATUS_FINALIZADO.includes(status)
         ? (nn(data_fechamento) || vagaAtual?.data_fechamento || new Date())
         : null;
+      // Coerencia: vaga NAO finalizada nao pode ter candidato marcado contratado.
+      // Ao reabrir (Em Selecao/Aberta) limpa contratado dos selecionados (viram Selecionados de novo).
+      const selecionadosFinal = (Array.isArray(selecionados) && !STATUS_FINALIZADO.includes(status))
+        ? selecionados.map((s: any) => ({ ...s, contratado: false }))
+        : (selecionados || []);
       const result = await AppDataSource.query(
         `UPDATE rh_vagas SET cargo_id=$1, departamento_id=$2, titulo=$3, descricao=$4, quantidade_vagas=$5, salario_min=$6, salario_max=$7, data_abertura=$8, data_fechamento=$9, status=$10, motivo_fechamento=$11, requisitos=$12, beneficios=$13, selecionados=$14::jsonb, cod_loja=$15, experiencia_obrigatoria=$16, experiencia_meses_minimo=$17, turnos=$18::jsonb, jornada_id=$19,
             hora_entrada=$20, hora_almoco_ini=$21, hora_almoco_fim=$22, hora_saida=$23, tipo_vaga_slug=$24
          WHERE id=$25 RETURNING *`,
-        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), dataFechamentoFinal, status, motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionados || []), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), nn(tipo_vaga_slug), id]
+        [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), dataFechamentoFinal, status, motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionadosFinal), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), nn(tipo_vaga_slug), id]
       );
       if (result.length === 0) return res.status(404).json({ error: 'Vaga nao encontrada' });
       res.json(result[0]);

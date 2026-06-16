@@ -557,9 +557,9 @@ export default function RhVagas() {
       return ints.some(c => c.status === 'recusado' || c.status === 'reprovado');
     }
     if (statusBuscado === 'contratado') {
-      return ints.some(c => c.status === 'contratado')
-        || sels.some(s => s.contratado)
-        || STATUS_FINALIZADO_VALUES.includes(v.status); // vaga fechada manualmente como Contratado(a)
+      // Contratado = STATUS DA VAGA finalizado. Se voltar pra Em Seleção, sai daqui
+      // e volta pra "Vagas em Aberto". Nao depende de candidato marcado.
+      return STATUS_FINALIZADO_VALUES.includes(v.status);
     }
     return false;
   };
@@ -666,7 +666,7 @@ export default function RhVagas() {
               const ints = Array.isArray(v.interessados) ? v.interessados : [];
               ints.forEach(c => {
                 const st = c.status || 'novo';
-                if (st === 'contratado') nContratados++;
+                if (st === 'contratado') { /* contabilizado pelo STATUS DA VAGA, nao pelo candidato */ }
                 else if (st === 'selecionado' || st === 'aprovado') nSelecionados++;
                 else if (st === 'recusado' || st === 'reprovado') nRecusados++;
                 else if (st === 'em_analise') nVagasFuturas++;
@@ -676,15 +676,12 @@ export default function RhVagas() {
               sels.forEach(s => {
                 const jaContado = ints.some(i => Number(i.curriculo_id) === Number(s.curriculo_id));
                 if (jaContado) return;
-                if (s.contratado) nContratados++;
-                else nSelecionados++;
+                if (!s.contratado) nSelecionados++;
               });
-              // Vaga fechada manualmente como Contratado(a)/Fechada, sem candidato marcado,
-              // tambem conta como contratado (senao o card fica zerado).
-              const temContratadoMarcado = ints.some(c => c.status === 'contratado') || sels.some(s => s.contratado);
-              if (!temContratadoMarcado && STATUS_FINALIZADO_VALUES.includes(v.status)) nContratados++;
             });
-            // Vagas em aberto = status Aberta ou Em Selecao (ainda nao foram contratadas/canceladas)
+            // Contratados = vagas com STATUS finalizado (Contratado(a)/Fechada). Se voltar pra
+            // Em Selecao, sai daqui e conta em "Vagas em Aberto".
+            nContratados = vagasFiltradasPorLoja.filter(v => STATUS_FINALIZADO_VALUES.includes(v.status)).length;
             const nAbertas = vagasFiltradasPorLoja.filter(v => v.status === 'Aberta' || v.status === 'Em Selecao').length;
             const cards = [
               { key: 'em_aberto', label: 'Vagas em Aberto', count: nAbertas, emoji: '🔓', cor: 'green' },
