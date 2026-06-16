@@ -1,6 +1,12 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Campos Uniforme no cadastro do colaborador
+## Tarefa atual — Cadastro colaborador: obrigatórios + ordenação colunas
+(frontend only, em cima do commit de uniforme 7c62eb4 ainda NÃO deployado)
+- **Obrigatórios no cadastro** (RhCadastroGeral `camposObrigatorios` + `*` nos labels): Escolaridade (pessoais), CEP (endereco), Escala/Escala Especial Domingo/Regime de Trabalho/Setor/Salário (profissionais).
+- **Ordenação A-Z das colunas**: bug era SETOR (ordenava por `setor_nome` nulo; célula mostra `setor_departamento_nome`). Comparador agora usa o mesmo fallback + vazios por último. Demais colunas já ordenavam.
+- ⏳ Testar local. Commit junto com uniforme + deploy (uniforme TEM migration).
+
+## Tarefa anterior — Campos Uniforme no cadastro do colaborador
 2 campos novos em RhCadastroGeral (Dados Pessoais › Características pessoais): **Tamanho de Uniforme** (PP/P/M/G/GG/XG/XXG) e **Tipo Uniforme** (NORMAL/BABY LOOK).
 - Backend: migration `1785420000000-AddUniformeColaborador` (colunas `tamanho_uniforme`, `tipo_uniforme` em rh_colaboradores); add na whitelist `CAMPOS_EXTRAS_COLAB` (rh.controller) → salva via `gravarCamposExtrasColab` no create+update; GET já traz via `SELECT c.*`.
 - Frontend: `pages/RhCadastroGeral.jsx` — 2 selects + state inicial + populate ao editar (save manda formData inteiro).

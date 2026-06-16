@@ -47,11 +47,18 @@ export default function RhCadastroGeral() {
     if (sortField) {
       list = [...list];
       const mult = sortDir === 'asc' ? 1 : -1;
+      // resolve o valor de ordenacao espelhando o que a celula exibe
+      // (ex: SETOR cai pra setor_departamento_nome quando setor_nome e nulo).
+      const valor = (row) => {
+        if (sortField === 'setor_nome') return row.setor_nome || row.setor_departamento_nome;
+        return row[sortField];
+      };
       list.sort((a, b) => {
-        let va = a[sortField];
-        let vb = b[sortField];
-        if (va == null) return 1;
-        if (vb == null) return -1;
+        let va = valor(a);
+        let vb = valor(b);
+        const vazio = (x) => x == null || String(x).trim() === '';
+        if (vazio(va)) return 1;   // vazios sempre por ultimo
+        if (vazio(vb)) return -1;
         if (sortField === 'salario') {
           return (Number(va) - Number(vb)) * mult;
         }
@@ -549,10 +556,17 @@ export default function RhCadastroGeral() {
     { aba: 'pessoais',      campo: 'cpf',             label: 'CPF' },
     { aba: 'pessoais',      campo: 'data_nascimento', label: 'Data de Nascimento' },
     { aba: 'pessoais',      campo: 'sexo',            label: 'Sexo' },
+    { aba: 'pessoais',      campo: 'escolaridade_id', label: 'Escolaridade' },
+    { aba: 'endereco',      campo: 'cep',             label: 'CEP' },
     { aba: 'profissionais', campo: 'company_id',      label: 'Empresa / Loja' },
     { aba: 'profissionais', campo: 'cargo_id',        label: 'Cargo' },
     { aba: 'profissionais', campo: 'jornada_id',      label: 'Jornada' },
+    { aba: 'profissionais', campo: 'escala_id',          label: 'Escala' },
+    { aba: 'profissionais', campo: 'escala_domingo_id',  label: 'Escala Especial Domingo' },
+    { aba: 'profissionais', campo: 'regime_trabalho_id', label: 'Regime de Trabalho' },
+    { aba: 'profissionais', campo: 'departamento_id',    label: 'Setor' },
     { aba: 'profissionais', campo: 'data_admissao',   label: 'Data de Admissão' },
+    { aba: 'profissionais', campo: 'salario',         label: 'Salário' },
   ];
 
   const handleSubmit = async (e) => {
@@ -1244,7 +1258,7 @@ export default function RhCadastroGeral() {
                         </select>
                       </div>
                       <div>
-                        <label className={labelClass}>Escolaridade</label>
+                        <label className={labelClass}>Escolaridade *</label>
                         <select className={selectClass} value={formData.escolaridade_id} onChange={(e) => handleChange('escolaridade_id', e.target.value)}>
                           <option value="">Selecione...</option>
                           {escolaridades.map(esc => (
@@ -1368,7 +1382,7 @@ export default function RhCadastroGeral() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className={labelClass}>CEP</label>
+                        <label className={labelClass}>CEP *</label>
                         <input type="text" className={inputClass} value={formData.cep} onChange={(e) => handleChange('cep', e.target.value)} placeholder="00000-000" />
                       </div>
                       <div className="md:col-span-2">
@@ -1440,7 +1454,7 @@ export default function RhCadastroGeral() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className={labelClass}>Escala</label>
+                        <label className={labelClass}>Escala *</label>
                         <select className={selectClass} value={formData.escala_id} onChange={(e) => handleChange('escala_id', e.target.value)}>
                           <option value="">Selecione...</option>
                           {escalas.map(esc => (
@@ -1449,7 +1463,7 @@ export default function RhCadastroGeral() {
                         </select>
                       </div>
                       <div>
-                        <label className={labelClass}>Escala Especial Domingo</label>
+                        <label className={labelClass}>Escala Especial Domingo *</label>
                         <select className={selectClass} value={formData.escala_domingo_id} onChange={(e) => handleChange('escala_domingo_id', e.target.value)}>
                           <option value="">Nenhum</option>
                           {escalasDomingo.map(ed => (
@@ -1458,7 +1472,7 @@ export default function RhCadastroGeral() {
                         </select>
                       </div>
                       <div>
-                        <label className={labelClass}>Regime de Trabalho</label>
+                        <label className={labelClass}>Regime de Trabalho *</label>
                         <select className={selectClass} value={formData.regime_trabalho_id} onChange={(e) => handleChange('regime_trabalho_id', e.target.value)}>
                           <option value="">Selecione...</option>
                           {regimes.map(r => (
@@ -1469,7 +1483,7 @@ export default function RhCadastroGeral() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className={labelClass}>Setor (vem das Configurações RH &gt; Setores)</label>
+                        <label className={labelClass}>Setor (vem das Configurações RH &gt; Setores) *</label>
                         <select className={selectClass} value={formData.departamento_id || ''} onChange={(e) => handleChange('departamento_id', e.target.value)}>
                           <option value="">Selecione...</option>
                           {setores.map(s => (
@@ -1482,7 +1496,7 @@ export default function RhCadastroGeral() {
                         <input type="date" required className={inputClass} value={formData.data_admissao} onChange={(e) => handleChange('data_admissao', e.target.value)} />
                       </div>
                       <div>
-                        <label className={labelClass}>Salario (R$)</label>
+                        <label className={labelClass}>Salario (R$) *</label>
                         <input type="number" step="0.01" className={inputClass} value={formData.salario} onChange={(e) => handleChange('salario', e.target.value)} placeholder="0,00" />
                       </div>
                     </div>
