@@ -1,6 +1,12 @@
 # 🚧 Trabalho em Andamento
 
-## Tarefa atual — Melhorias em Vagas (Contratados + Dias até contratação)
+## Última tarefa — Fix Contratados (status da vaga) — commit 9e308c3
+- Card/filtro "Contratados" = SÓ status da vaga (Contratado(a)/Fechada). Em Seleção/Aberta → Vagas em Aberto. `vagaTemCandidatoStatus('contratado')` e `nContratados` baseados em `STATUS_FINALIZADO_VALUES.includes(v.status)`.
+- Backend `atualizarVaga`: ao reabrir (status não finalizado) limpa `contratado` dos selecionados.
+- ⚠️ Triagem em lote pós-contratação foi TENTADA e REVERTIDA (bagunçou UI: painel lateral + currículo z-index + festa). Refazer do zero, simples: popup central que não fecha ao clicar fora, currículo por cima. NÃO está no código.
+- ✅ DEPLOY Tradição feito (commits 20a704a + 9e308c3): build --no-cache + up --no-deps, backend healthy, sem migration. Demais clientes não subiram.
+
+## Tarefa anterior — Melhorias em Vagas (Contratados + Dias até contratação)
 Tudo em RhVagas.jsx + rh.controller (SEM migration). Validado local.
 - Card/filtro **Contratados** inclui vagas com status finalizado (Contratado(a)/Fechada), não só candidato marcado (`vagaTemCandidatoStatus` + contagem `nContratados`).
 - Vaga contratada sem candidato marcado: ao expandir, mostra TODOS os candidatos (visiveis fallback).

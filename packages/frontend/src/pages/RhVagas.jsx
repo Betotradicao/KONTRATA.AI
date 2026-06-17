@@ -571,6 +571,81 @@ export default function RhVagas() {
       return vagaTemCandidatoStatus(v, filtroCardCandidato);
     });
 
+  // Ordenacao das colunas: clicou = ordena A-Z; clicou de novo = inverte. Sem setinha.
+  const [vSort, setVSort] = useState({ field: null, dir: 'asc' });
+  const toggleVSort = (field) => setVSort(s => s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
+  const lojaNomeOrd = (v) => {
+    if (v.cod_loja == null) return 'Todas';
+    const l = lojas.find(x => String(x.codLoja) === String(v.cod_loja));
+    return l?.apelido || l?.nomeFantasia || `Loja ${v.cod_loja}`;
+  };
+  const contaInt = (v, sts) => (Array.isArray(v.interessados) ? v.interessados : []).filter(c => sts.includes(c.status || 'novo')).length;
+  const valVaga = (v, f) => {
+    switch (f) {
+      case 'loja': return lojaNomeOrd(v);
+      case 'status': return v.status === 'Fechada' ? 'Contratado(a)' : (v.status || '');
+      case 'interessados': return contaInt(v, ['novo']);
+      case 'recusados': return contaInt(v, ['recusado', 'reprovado']);
+      case 'vagas_futuras': return contaInt(v, ['em_analise']);
+      case 'selecionados': return contaInt(v, ['selecionado', 'aprovado']);
+      case 'contratados': {
+        // separa laranja (manual) de roxo (por candidato): manual = -1 (sobe no clique A-Z),
+        // depois as contratadas por candidato (qtd). Assim os laranjas ficam juntos no topo.
+        const cand = contaInt(v, ['contratado']);
+        if (cand === 0 && STATUS_FINALIZADO_VALUES.includes(v.status)) return -1;
+        return cand;
+      }
+      case 'titulo': return v.titulo || '';
+      case 'cargo': return v.cargo_nome || '';
+      case 'salario': return Number(v.salario_min) || 0;
+      case 'jornada': return v.jornada_nome || '';
+      case 'beneficios': return v.beneficios || '';
+      case 'experiencia': return v.experiencia_obrigatoria ? (Number(v.experiencia_meses_minimo) || 0) : -1;
+      case 'data_abertura': return v.data_abertura || '';
+      case 'dias_aberto': {
+        if (!v.data_abertura) return -1;
+        const fim = (STATUS_FINALIZADO_VALUES.includes(v.status) && v.data_fechamento) ? new Date(v.data_fechamento).getTime() : Date.now();
+        return Math.floor((fim - new Date(v.data_abertura).getTime()) / 86400000);
+      }
+      default: return '';
+    }
+  };
+  const vNumericos = ['interessados', 'recusados', 'vagas_futuras', 'selecionados', 'contratados', 'salario', 'experiencia', 'dias_aberto'];
+  const vagasOrdenadas = vSort.field
+    ? [...vagasFiltradas].sort((a, b) => {
+        const mult = vSort.dir === 'asc' ? 1 : -1;
+        const va = valVaga(a, vSort.field), vb = valVaga(b, vSort.field);
+        if (vNumericos.includes(vSort.field)) return ((Number(va) || 0) - (Number(vb) || 0)) * mult;
+        return String(va).localeCompare(String(vb), 'pt-BR', { sensitivity: 'base', numeric: true }) * mult;
+      })
+    : vagasFiltradas;
+
+  // Ordenacao da tabela de CANDIDATOS da vaga (clicou = A-Z; de novo = inverte).
+  const [cSort, setCSort] = useState({ field: null, dir: 'asc' });
+  const toggleCSort = (field) => setCSort(s => s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
+  const valCand = (c, f) => {
+    switch (f) {
+      case 'num': return Number(c.curriculo_id) || 0;
+      case 'nome': return c.nome || '';
+      case 'km': return c.distancia_m == null ? Number.POSITIVE_INFINITY : Number(c.distancia_m);
+      case 'whatsapp': return c.whatsapp || '';
+      case 'cidade': return c.cidade || '';
+      case 'recebido': return c.created_at || '';
+      case 'status': return c.status || 'novo';
+      default: return '';
+    }
+  };
+  const cNumericos = ['num', 'km'];
+  const ordenarVisiveis = (lista) => {
+    if (!cSort.field) return lista;
+    const mult = cSort.dir === 'asc' ? 1 : -1;
+    return [...lista].sort((a, b) => {
+      const va = valCand(a, cSort.field), vb = valCand(b, cSort.field);
+      if (cNumericos.includes(cSort.field)) return (va - vb) * mult;
+      return String(va).localeCompare(String(vb), 'pt-BR', { sensitivity: 'base', numeric: true }) * mult;
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-100">
@@ -746,23 +821,35 @@ export default function RhVagas() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-8"></th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Loja</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-2 py-3 text-center text-xs font-medium text-rose-600 uppercase">❤️ Interessados</th>
-                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">🚫 Recusados</th>
-                    <th className="px-2 py-3 text-center text-xs font-medium text-amber-600 uppercase">🔎 Vagas Futuras</th>
-                    <th className="px-2 py-3 text-center text-xs font-medium text-blue-600 uppercase">🎯 Selecionados</th>
-                    <th className="px-2 py-3 text-center text-xs font-medium text-purple-600 uppercase">🎉 Contratados</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titulo</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salario</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jornada</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Benefícios</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Experiência</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Abertura</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dias Em Aberto</th>
-                    <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acoes</th>
+                    {(() => {
+                      const thBase = 'px-2 py-3 text-xs font-medium uppercase cursor-pointer select-none hover:bg-gray-100 transition';
+                      const ativo = (f) => vSort.field === f ? 'bg-gray-200' : '';
+                      const H = ({ f, cor = 'text-gray-500', align = 'text-left', children }) => (
+                        <th onClick={() => toggleVSort(f)} title="Clique pra ordenar A-Z (clique de novo inverte)"
+                          className={`${thBase} ${align} ${cor} ${ativo(f)}`}>{children}</th>
+                      );
+                      return (
+                        <>
+                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase w-8"></th>
+                          <H f="loja">Loja</H>
+                          <H f="status">Status</H>
+                          <H f="interessados" cor="text-rose-600" align="text-center">❤️ Interessados</H>
+                          <H f="recusados" align="text-center">🚫 Recusados</H>
+                          <H f="vagas_futuras" cor="text-amber-600" align="text-center">🔎 Vagas Futuras</H>
+                          <H f="selecionados" cor="text-blue-600" align="text-center">🎯 Selecionados</H>
+                          <H f="contratados" cor="text-purple-600" align="text-center">🎉 Contratados</H>
+                          <H f="titulo">Titulo</H>
+                          <H f="cargo">Cargo</H>
+                          <H f="salario">Salario</H>
+                          <H f="jornada">Jornada</H>
+                          <H f="beneficios">Benefícios</H>
+                          <H f="experiencia">Experiência</H>
+                          <H f="data_abertura">Data Abertura</H>
+                          <H f="dias_aberto">Dias Em Aberto</H>
+                          <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acoes</th>
+                        </>
+                      );
+                    })()}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -773,7 +860,7 @@ export default function RhVagas() {
                       </td>
                     </tr>
                   ) : (
-                    vagasFiltradas.flatMap((v) => {
+                    vagasOrdenadas.flatMap((v) => {
                       const sels = Array.isArray(v.selecionados) ? v.selecionados : [];
                       const interessados = Array.isArray(v.interessados) ? v.interessados : [];
                       const isExpanded = expandedVagaId === v.id;
@@ -865,6 +952,12 @@ export default function RhVagas() {
                                       className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-full text-sm font-bold transition"
                                       title="Clique pra ver os contratados"
                                     >🎉 {totalContratados}</button>
+                                  ) : STATUS_FINALIZADO_VALUES.includes(v.status) ? (
+                                    <button
+                                      onClick={() => setExpandedVagaId(isExpanded ? null : v.id)}
+                                      className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-full text-sm font-bold transition"
+                                      title="Vaga contratada MANUALMENTE (sem candidato selecionado). Clique pra ver os candidatos."
+                                    >🎉 1</button>
                                   ) : <span className="text-gray-300 text-xs">—</span>}
                                 </td>
                               </>
@@ -1035,6 +1128,7 @@ export default function RhVagas() {
                                 } else if (filtroSt) {
                                   visiveis = todos.filter(c => c.status === filtroSt);
                                 }
+                                visiveis = ordenarVisiveis(visiveis);
                                 if (visiveis.length === 0) return null;
                                 return (
                                   <div>
@@ -1045,15 +1139,15 @@ export default function RhVagas() {
                                       <table className="w-full text-xs">
                                         <thead>
                                           <tr className="bg-rose-100 text-rose-900">
-                                            <th className="px-2 py-1.5 text-left">Nº</th>
-                                            <th className="px-2 py-1.5 text-left">Nome</th>
-                                            <th className="px-2 py-1.5 text-left whitespace-nowrap">📍 KM Residência</th>
-                                            <th className="px-2 py-1.5 text-left">WhatsApp</th>
-                                            <th className="px-2 py-1.5 text-left">Cidade</th>
-                                            <th className="px-2 py-1.5 text-left">Recebido em</th>
+                                            <th onClick={() => toggleCSort('num')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'num' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">Nº</th>
+                                            <th onClick={() => toggleCSort('nome')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'nome' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">Nome</th>
+                                            <th onClick={() => toggleCSort('km')} className={`px-2 py-1.5 text-left whitespace-nowrap cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'km' ? 'bg-rose-200' : ''}`} title="Ordenar por distância">📍 KM Residência</th>
+                                            <th onClick={() => toggleCSort('whatsapp')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'whatsapp' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">WhatsApp</th>
+                                            <th onClick={() => toggleCSort('cidade')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'cidade' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">Cidade</th>
+                                            <th onClick={() => toggleCSort('recebido')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'recebido' ? 'bg-rose-200' : ''}`} title="Ordenar por data">Recebido em</th>
                                             <th className="px-2 py-1.5 text-center">Ações</th>
                                             <th className="px-2 py-1.5 text-center">Processo</th>
-                                            <th className="px-2 py-1.5 text-left">Status</th>
+                                            <th onClick={() => toggleCSort('status')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'status' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">Status</th>
                                             <th className="px-2 py-1.5 text-center">Entrevista</th>
                                             <th className="px-2 py-1.5 text-center">Data</th>
                                             <th className="px-2 py-1.5 text-center">Hora</th>

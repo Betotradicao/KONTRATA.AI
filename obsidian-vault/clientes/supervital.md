@@ -30,6 +30,10 @@ Cada cliente é configurado diferente: Tradição usa 5, SuperVital e Nunes usam
 ## 🐛 Bugs já resolvidos neste cliente
 - [[../bugs-resolvidos/2026-04-15-tiposSaida-gestao|NF Transferência contaminando valor na Gestão Inteligente]]
 - [[../bugs-resolvidos/2026-04-15-dif-anual-itens|Dif Anual em branco nos itens da Compra x Venda]]
+- [[../bugs-resolvidos/2026-06-17-supervital-backend-unhealthy-autoheal|Backend trava (unhealthy) → "Verificando configuração" infinito + autoheal]]
+
+## 🛡️ Auto-recuperação (autoheal)
+Backend tem label `autoheal=true` e há um container `willfarrell/autoheal` na VPS que **reinicia automaticamente** o backend se ficar `unhealthy` (~30s). É o único container marcado (modo label — não toca nos Kontrata). Resolve o "cai sozinho vira e mexe". Ver [[../bugs-resolvidos/2026-06-17-supervital-backend-unhealthy-autoheal|nota do incidente]].
 
 ## 🚀 Deploy
 

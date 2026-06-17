@@ -1451,13 +1451,17 @@ export class RhController {
       //   (cobre o caso de voltar contratado p/ selecionado: vaga sai de
       //    'Contratado(a)' e volta pra 'Em Selecao' automaticamente)
       const temContratado = selecionados.some((x: any) => x?.contratado === true);
+      const tinhaContratadoAntes = (Array.isArray(vaga.selecionados) ? vaga.selecionados : []).some((x: any) => x?.contratado === true);
       if (temContratado) {
         // grava data_fechamento ao contratar (preserva se ja existia); pra coluna "Dias em Aberto" / indicadores
         await AppDataSource.query(`UPDATE rh_vagas SET status = 'Contratado(a)', data_fechamento = COALESCE(data_fechamento, now()) WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
-      } else {
-        // voltou a abrir: limpa a data de fechamento
+      } else if (tinhaContratadoAntes) {
+        // SO reabre quando o candidato contratado foi des-contratado agora.
+        // Se a vaga foi fechada manualmente (nunca teve candidato contratado),
+        // NAO mexe no status — senao triar os outros candidatos reabria a vaga.
         await AppDataSource.query(`UPDATE rh_vagas SET status = 'Em Selecao', data_fechamento = NULL WHERE id = $1 AND status <> 'Fechada'`, [vagaId]);
       }
+      // else: nem contratado antes nem depois -> preserva o status atual (Contratado manual / Em Selecao)
 
       res.json({ success: true, status_local: s, nome: cv.nome });
     } catch (e: any) {
