@@ -35,6 +35,7 @@ import { startVagasAbertasCron } from './crons/vagas-abertas.cron';
 import { startAsoVencimentosCron } from './crons/aso-vencimentos.cron';
 import { startDpDocsCron } from './crons/dp-docs.cron';
 import { startAniversarioCron } from './crons/aniversario.cron';
+import { startDisparoVagasCron } from './crons/disparo-vagas.cron';
 import { accessLogMiddleware } from './middleware/access-log.middleware';
 
 import { minioService } from './services/minio.service';
@@ -221,6 +222,8 @@ const startServer = async () => {
   try { startDpDocsCron(); } catch (e) { console.error('Falha ao iniciar cron dp-docs:', e); }
   // Cron diário de Aniversariantes no WhatsApp
   try { startAniversarioCron(); } catch (e) { console.error('Falha ao iniciar cron aniversario:', e); }
+  // Cron de Disparo de Vagas no WhatsApp (semanal ou mensal)
+  try { startDisparoVagasCron(); } catch (e) { console.error('Falha ao iniciar cron disparo-vagas:', e); }
 };
 
 startServer();

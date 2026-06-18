@@ -11,6 +11,12 @@ Estamos com vagas abertas e queremos você com a gente! 💼
 
 É rápido e fácil. Esperamos por você! 🧡`;
 
+// getDay: 0=Dom ... 6=Sab
+const DIAS_SEMANA = [
+  { v: '1', label: 'Seg' }, { v: '2', label: 'Ter' }, { v: '3', label: 'Qua' },
+  { v: '4', label: 'Qui' }, { v: '5', label: 'Sex' }, { v: '6', label: 'Sáb' }, { v: '0', label: 'Dom' },
+];
+
 export default function DisparoVagasWhatsTab() {
   const [grupos, setGrupos] = useState([]);            // [{ id, nome }]
   const [intervalo, setIntervalo] = useState('5');     // segundos entre grupos
@@ -19,6 +25,11 @@ export default function DisparoVagasWhatsTab() {
   const [arteUrl, setArteUrl] = useState('');
   const [arteNome, setArteNome] = useState('');
   const [arteMime, setArteMime] = useState('');
+  // Agendamento: modo '' (manual) | 'semana' | 'mes'
+  const [modo, setModo] = useState('');
+  const [diasSemana, setDiasSemana] = useState([]); // ['1','2'...] getDay 0=Dom..6=Sab
+  const [diaMes, setDiaMes] = useState('1');
+  const [horario, setHorario] = useState('08:00');
   const [gruposDisponiveis, setGruposDisponiveis] = useState([]);
   const [loadingGrupos, setLoadingGrupos] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -41,6 +52,10 @@ export default function DisparoVagasWhatsTab() {
       setArteUrl(cfg.whatsapp_disparo_vagas_arte_url || '');
       setArteNome(cfg.whatsapp_disparo_vagas_arte_nome || '');
       setArteMime(cfg.whatsapp_disparo_vagas_arte_mime || '');
+      setModo(cfg.whatsapp_disparo_vagas_modo || '');
+      setDiasSemana(String(cfg.whatsapp_disparo_vagas_dia_semana || '').split(',').map(s => s.trim()).filter(Boolean));
+      setDiaMes(cfg.whatsapp_disparo_vagas_dia_mes || '1');
+      setHorario(cfg.whatsapp_disparo_vagas_horario || '08:00');
     } catch { /* ignore */ }
   };
 
@@ -94,6 +109,10 @@ export default function DisparoVagasWhatsTab() {
         whatsapp_disparo_vagas_arte_url: arteUrl || ' ',
         whatsapp_disparo_vagas_arte_nome: arteNome || ' ',
         whatsapp_disparo_vagas_arte_mime: arteMime || ' ',
+        whatsapp_disparo_vagas_modo: modo || ' ',
+        whatsapp_disparo_vagas_dia_semana: diasSemana.join(',') || ' ',
+        whatsapp_disparo_vagas_dia_mes: String(diaMes || '1'),
+        whatsapp_disparo_vagas_horario: horario || '08:00',
       });
       flash('Configuração salva!');
     } catch (e) {
@@ -119,6 +138,7 @@ export default function DisparoVagasWhatsTab() {
     }
   };
 
+  const toggleDia = (v) => setDiasSemana(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const inputCls = 'px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500';
   const preview = (mensagem || '').replace(/\{link\}/gi, link || '(link)');
   const isImagem = (arteMime || '').startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(arteNome);
@@ -208,6 +228,55 @@ export default function DisparoVagasWhatsTab() {
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">💬 Mensagem (use {'{link}'})</label>
             <textarea value={mensagem} onChange={e => setMensagem(e.target.value)} rows={7} className={`w-full ${inputCls} font-mono`} />
+          </div>
+
+          {/* Agendamento automático: toda semana OU 1x ao mês (um anula o outro) */}
+          <div className="border border-purple-200 rounded-lg p-3 bg-purple-50/40 space-y-3">
+            <label className="block text-xs font-semibold text-gray-700">📅 Agendamento automático</label>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="modo-disparo" checked={modo === 'semana'} onChange={() => setModo('semana')} className="accent-orange-500" /> Toda semana
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="modo-disparo" checked={modo === 'mes'} onChange={() => setModo('mes')} className="accent-orange-500" /> 1 vez ao mês
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer text-gray-500">
+                <input type="radio" name="modo-disparo" checked={!modo} onChange={() => setModo('')} className="accent-gray-400" /> Desligado (só manual)
+              </label>
+            </div>
+
+            {modo === 'semana' && (
+              <div>
+                <div className="text-[11px] text-gray-500 mb-1">Dias da semana (pode marcar vários):</div>
+                <div className="flex flex-wrap gap-1">
+                  {DIAS_SEMANA.map(d => (
+                    <button key={d.v} type="button" onClick={() => toggleDia(d.v)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold border transition ${diasSemana.includes(d.v) ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50'}`}>
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {modo === 'mes' && (
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Dia do mês (1–28)</label>
+                <input type="number" min="1" max="28" value={diaMes} onChange={e => setDiaMes(e.target.value)} className="w-24 px-2 py-1 border border-gray-300 rounded text-sm" />
+              </div>
+            )}
+
+            {modo && (
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">⏰ Horário do disparo</label>
+                <input type="time" value={horario} onChange={e => setHorario(e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-sm" />
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {modo === 'semana'
+                    ? `Vai disparar ${diasSemana.length ? 'nos dias marcados' : '(marque os dias)'} às ${horario}.`
+                    : `Vai disparar todo dia ${diaMes} do mês às ${horario}.`} (Lembre de Salvar.)
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 pt-1">
