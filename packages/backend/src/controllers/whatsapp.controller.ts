@@ -6,6 +6,8 @@ import { AsoWhatsService } from '../services/aso-whats.service';
 import { DenunciaWhatsService } from '../services/denuncia-whats.service';
 import { DpDocsWhatsService } from '../services/dp-docs-whats.service';
 import { AniversarioWhatsService } from '../services/aniversario-whats.service';
+import { DisparoVagasWhatsService } from '../services/disparo-vagas-whats.service';
+import { minioService } from '../services/minio.service';
 
 // Le a config da Evolution API salva nas configurations. O token e guardado
 // CRIPTOGRAFADO; ConfigurationService.get() ja devolve descriptografado.
@@ -200,6 +202,43 @@ export class WhatsappController {
       return res.json({ success: true, mensagem: await AniversarioWhatsService.preview() });
     } catch (error: any) {
       return res.json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /api/whatsapp/disparo-vagas/enviar?teste=true — dispara pros grupos (com intervalo).
+  static async enviarDisparoVagas(req: Request, res: Response) {
+    try {
+      const teste = String(req.query.teste || '') === 'true';
+      const r = await DisparoVagasWhatsService.enviar(teste);
+      return res.json({ success: true, message: `Disparado pra ${r.enviados}/${r.total} grupo(s)${teste ? ' (teste — só o 1º)' : ''}.` });
+    } catch (error: any) {
+      console.error('[whatsapp] disparo-vagas:', error.message);
+      return res.json({ success: false, error: error.response?.data?.message || error.message || 'erro ao disparar' });
+    }
+  }
+
+  // GET /api/whatsapp/disparo-vagas/preview — texto final (com link) pra preview.
+  static async previewDisparoVagas(_req: Request, res: Response) {
+    try {
+      const { mensagem, link } = await DisparoVagasWhatsService.getConfig();
+      return res.json({ success: true, mensagem: DisparoVagasWhatsService.buildTexto(mensagem, link) });
+    } catch (error: any) {
+      return res.json({ success: false, error: error.message });
+    }
+  }
+
+  // POST /api/whatsapp/disparo-vagas/arte — upload do PDF da arte (multipart) -> MinIO -> url.
+  static async uploadArteDisparo(req: Request, res: Response) {
+    try {
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ success: false, error: 'Arquivo obrigatorio' });
+      const ext = (file.originalname || 'pdf').split('.').pop() || 'pdf';
+      const objectName = `disparo-vagas/arte_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const url = await minioService.uploadFile(objectName, file.buffer, file.mimetype || 'application/pdf');
+      return res.json({ success: true, url, nome: file.originalname || `arte.${ext}`, mime: file.mimetype || '' });
+    } catch (e: any) {
+      console.error('[whatsapp] uploadArteDisparo:', e.message);
+      return res.status(500).json({ success: false, error: e.message });
     }
   }
 }

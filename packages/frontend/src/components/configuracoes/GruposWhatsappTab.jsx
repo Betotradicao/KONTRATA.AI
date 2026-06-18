@@ -4,8 +4,10 @@ import SaudeOcupacionalWhatsTab from './SaudeOcupacionalWhatsTab';
 import DenunciaNr1WhatsTab from './DenunciaNr1WhatsTab';
 import DepartamentoPessoalWhatsTab from './DepartamentoPessoalWhatsTab';
 import AniversarioWhatsTab from './AniversarioWhatsTab';
+import DisparoVagasWhatsTab from './DisparoVagasWhatsTab';
 
 const SUBABAS = [
+  { id: 'disparo_vagas', label: '📣 Disparo de Vagas' },
   { id: 'vagas', label: '💼 Vagas em Aberto' },
   { id: 'aso', label: '🩺 Saúde Ocupacional' },
   { id: 'denuncia', label: '🚨 Denúncia NR1' },
@@ -14,7 +16,7 @@ const SUBABAS = [
 ];
 
 export default function GruposWhatsappTab() {
-  const [sub, setSub] = useState('vagas');
+  const [sub, setSub] = useState('disparo_vagas');
 
   return (
     <div className="space-y-5">
@@ -30,6 +32,7 @@ export default function GruposWhatsappTab() {
         ))}
       </div>
 
+      {sub === 'disparo_vagas' && <DisparoVagasWhatsTab />}
       {sub === 'vagas' && <VagasAbertasWhatsTab />}
       {sub === 'aso' && <SaudeOcupacionalWhatsTab />}
       {sub === 'denuncia' && <DenunciaNr1WhatsTab />}

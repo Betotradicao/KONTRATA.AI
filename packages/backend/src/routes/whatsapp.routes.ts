@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { WhatsappController } from '../controllers/whatsapp.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router: Router = Router();
+const uploadArte = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 // GET /api/whatsapp/connection-status — testa conexao com a Evolution API
 router.get('/connection-status', authenticateToken, WhatsappController.connectionStatus);
@@ -32,5 +34,10 @@ router.get('/dp-docs/preview', authenticateToken, WhatsappController.previewDpDo
 // Aniversariantes (parabéns diário no grupo)
 router.post('/aniversario/enviar', authenticateToken, WhatsappController.enviarAniversario);
 router.get('/aniversario/preview', authenticateToken, WhatsappController.previewAniversario);
+
+// Disparo de Vagas (recrutamento em massa pros grupos, com intervalo + arte PDF)
+router.post('/disparo-vagas/enviar', authenticateToken, WhatsappController.enviarDisparoVagas);
+router.get('/disparo-vagas/preview', authenticateToken, WhatsappController.previewDisparoVagas);
+router.post('/disparo-vagas/arte', authenticateToken, uploadArte.single('arte'), WhatsappController.uploadArteDisparo);
 
 export default router;
