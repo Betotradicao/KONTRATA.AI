@@ -1646,6 +1646,37 @@ export class RhController {
     }
   }
 
+  // POST /rh/vagas/:vagaId/sincronizar-banco
+  // Replica a posicao ATUAL de cada candidato da vaga no Banco de Curriculos
+  // (selecionado->aprovado/contratado, recusado->recusado, vagas_futuras->em_analise).
+  // Usado pelo prompt de triagem pos-contratacao ("Nao" = mantem posicoes atuais;
+  // "Sim" usa como baseline antes do RH ajustar manualmente). Interessados puros
+  // (status 'novo', em nenhum array) NAO sao tocados — evita rebaixar quem tem
+  // status melhor vindo de outra vaga.
+  static async sincronizarBancoVaga(req: AuthRequest, res: Response) {
+    try {
+      const vagaId = parseInt(req.params.vagaId);
+      const [vaga] = await AppDataSource.query(
+        `SELECT id, selecionados, recusados, vagas_futuras FROM rh_vagas WHERE id = $1`, [vagaId]
+      );
+      if (!vaga) return res.status(404).json({ error: 'Vaga nao encontrada' });
+      const arr = (x: any) => (Array.isArray(x) ? x : []);
+      for (const s of arr(vaga.selecionados)) {
+        await RhController.carimbarCandidatoGlobal(s?.curriculo_id, s?.contratado === true ? 'contratado' : 'selecionado', vagaId);
+      }
+      for (const r of arr(vaga.recusados)) {
+        await RhController.carimbarCandidatoGlobal(r?.curriculo_id, 'recusado', vagaId);
+      }
+      for (const f of arr(vaga.vagas_futuras)) {
+        await RhController.carimbarCandidatoGlobal(f?.curriculo_id, 'em_analise', vagaId);
+      }
+      res.json({ success: true });
+    } catch (e: any) {
+      console.error('[Rh] sincronizarBancoVaga:', e);
+      res.status(500).json({ error: e.message });
+    }
+  }
+
   static async deletarVaga(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;

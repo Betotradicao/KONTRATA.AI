@@ -46,5 +46,20 @@ Banco de Currículos usa **`recusado`** (não `reprovado` — esse é só **alia
 - `RhController.reverterContratadoGlobalVaga(selecionadosAntes, vagaId)` — reverte na reabertura.
 - Chamado em: `setCandidatoStatusVaga` (contrata→carimba / des-contrata→reverte), `atualizarVaga` (finaliza→carimba / reabre→reverte), `deletarVaga` (carimba ANTES do DELETE pra trava enxergar a vaga via `id <> $1`).
 
+## Prompt de triagem pós-contratação (UX)
+Ao contratar (vaga finaliza + festa 🎉), ao fechar a festa abre um 2º modal
+educativo: explica o que significa cada posição (Interessados/Recusados/Vagas
+Futuras/Selecionados) e pergunta **"Deseja triar agora?"**:
+- **Não** → `POST /rh/vagas/:id/sincronizar-banco` (replica posições atuais no Banco) + fecha.
+- **Sim** → mesmo sincronizar (baseline) + `filtroCardCandidato='contratado'` +
+  `expandedVagaId=vagaId` (abre a vaga na visão Contratados pra triar cada um;
+  como a vaga está finalizada, a lista mostra TODOS os candidatos).
+
+Backend: `sincronizarBancoVaga` reusa `carimbarCandidatoGlobal` por candidato
+(selecionado→aprovado/contratado, recusado→recusado, vagas_futuras→em_analise).
+NÃO toca interessados puros (novo) pra não rebaixar status vindo de outra vaga.
+Frontend `RhVagas.jsx`: estados `triagemPrompt` + `fecharFesta`/`triagemSim`/`triagemNao`;
+festa carrega `vaga_id`. Filtro "Contratados" + vaga finalizada → mostra `todos`.
+
 ## Lição reutilizável
 Quando há status **local-por-item** + status **global único**, NÃO sincronize em tempo real (ambíguo p/ item em N processos). Sincronize no **evento terminal** (fechar/excluir), e proteja o global contra rebaixar quem ainda está ativo em outro processo aberto.

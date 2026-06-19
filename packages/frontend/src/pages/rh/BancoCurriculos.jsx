@@ -182,7 +182,7 @@ export default function BancoCurriculos() {
     selecionado: 'Selecionado',
     agendada: 'Entrevista agendada',
     realizada: 'Entrevista realizada',
-    passou: 'Passou na entrevista',
+    passou: 'Aprovado na entrevista',
     aguarda_decisao: 'Aguarda decisao',
     nao_compareceu: 'Nao compareceu',
     reprovado: 'Reprovado',

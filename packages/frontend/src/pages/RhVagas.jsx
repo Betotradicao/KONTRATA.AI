@@ -332,6 +332,39 @@ export default function RhVagas() {
   const [candidatoExpandido, setCandidatoExpandido] = useState(null); // 'vagaId-curriculoId'
   // Modal de festa ao contratar — { nome, vaga_titulo }
   const [festa, setFesta] = useState(null);
+  // Prompt de triagem pos-contratacao: { vaga_id, vaga_titulo }
+  const [triagemPrompt, setTriagemPrompt] = useState(null);
+
+  // Fecha a festa e, se veio de uma contratacao (tem vaga_id), abre o prompt de triagem.
+  const fecharFesta = () => {
+    const v = festa;
+    setFesta(null);
+    if (v?.vaga_id) setTriagemPrompt({ vaga_id: v.vaga_id, vaga_titulo: v.vaga_titulo || '' });
+  };
+
+  // Replica as posicoes atuais dos candidatos da vaga no Banco de Curriculos.
+  const sincronizarBanco = async (vagaId) => {
+    try { await api.post(`/rh/vagas/${vagaId}/sincronizar-banco`); } catch { /* silencioso */ }
+  };
+
+  // "Nao": mantem posicoes atuais e replica no Banco. Fecha o prompt.
+  const triagemNao = async () => {
+    const vagaId = triagemPrompt?.vaga_id;
+    setTriagemPrompt(null);
+    if (vagaId) { await sincronizarBanco(vagaId); await fetchAll(); toast.success('Posições atuais replicadas no Banco de Currículos'); }
+  };
+
+  // "Sim": replica como baseline e leva pra triagem (visao Contratados + vaga expandida).
+  const triagemSim = async () => {
+    const vagaId = triagemPrompt?.vaga_id;
+    setTriagemPrompt(null);
+    if (vagaId) {
+      await sincronizarBanco(vagaId);
+      await fetchAll();
+      setFiltroCardCandidato('contratado');
+      setExpandedVagaId(vagaId);
+    }
+  };
   // Modal Calendario de Entrevistas
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
 
@@ -400,7 +433,7 @@ export default function RhVagas() {
     // mostra festa e atualiza status da vaga.
     atualizarStatusInteressado(sel.curriculo_id, 'contratado', vaga.id);
     celebrarContratacao();
-    setFesta({ nome: sel.nome, vaga_titulo: vaga.titulo || '' });
+    setFesta({ nome: sel.nome, vaga_titulo: vaga.titulo || '', vaga_id: vaga.id });
   };
 
   const atualizarStatusInteressado = async (curriculoId, novoStatus, vagaId = null) => {
@@ -492,6 +525,12 @@ export default function RhVagas() {
       if (!ok) return;
     }
 
+    // Finalizou a vaga manualmente pelo modal (mudou pra Contratado(a)/Fechada e
+    // nao era antes): dispara festa (sem nome de candidato) + prompt de triagem.
+    const eraFinalizada = STATUS_FINALIZADO_VALUES.includes(editando?.status);
+    const virouFinalizada = !!editando && finalizada && !eraFinalizada;
+    const vagaIdEdit = editando?.id;
+    const tituloFinal = basePayload.titulo;
     try {
       setSalvando(true);
       if (editando) {
@@ -507,7 +546,11 @@ export default function RhVagas() {
         toast.success('Vaga criada com sucesso');
       }
       fecharModal();
-      fetchAll();
+      await fetchAll();
+      if (virouFinalizada && vagaIdEdit) {
+        celebrarContratacao();
+        setFesta({ nome: null, vaga_titulo: tituloFinal, vaga_id: vagaIdEdit });
+      }
     } catch (err) {
       toast.error('Erro ao salvar vaga');
       console.error(err);
@@ -1122,9 +1165,10 @@ export default function RhVagas() {
                                   visiveis = todos.filter(c => (c.status === 'recusado' || c.status === 'reprovado'));
                                 } else if (filtroSt === 'contratado') {
                                   visiveis = todos.filter(c => c.status === 'contratado');
-                                  // vaga fechada manualmente como Contratado(a)/Fechada (sem candidato marcado):
-                                  // mostra TODOS os candidatos da vaga em vez de esconder.
-                                  if (visiveis.length === 0 && STATUS_FINALIZADO_VALUES.includes(v.status)) visiveis = todos;
+                                  // Vaga finalizada (Contratado(a)/Fechada): mostra TODOS os candidatos
+                                  // da vaga (nao so o contratado), pra o RH continuar triando cada um —
+                                  // cada triagem numa vaga finalizada reflete no Banco de Curriculos.
+                                  if (STATUS_FINALIZADO_VALUES.includes(v.status)) visiveis = todos;
                                 } else if (filtroSt) {
                                   visiveis = todos.filter(c => c.status === filtroSt);
                                 }
@@ -1249,7 +1293,7 @@ export default function RhVagas() {
                                                           if (window.confirm(`Confirmar contratação de ${c.nome}? Isso encerra a vaga (status vira "Contratado(a)").`)) {
                                                             atualizarStatusInteressado(c.curriculo_id, 'contratado', v.id);
                                                             celebrarContratacao();
-                                                            setFesta({ nome: c.nome, vaga_titulo: v.titulo || '' });
+                                                            setFesta({ nome: c.nome, vaga_titulo: v.titulo || '', vaga_id: v.id });
                                                           }
                                                         }}
                                                         className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition shadow-sm ${isCont ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-500 border border-gray-200'}`}
@@ -1301,7 +1345,7 @@ export default function RhVagas() {
                                                         : sel.resultado_entrevista === 'aguarda_decisao' ? 'bg-amber-100 text-amber-800'
                                                         : 'bg-red-100 text-red-800'
                                                       }`}>
-                                                        {({passou:'Passou', aguarda_decisao:'Aguarda decisão', nao_compareceu:'Não compareceu', reprovado:'Reprovado', desistiu:'Desistiu'})[sel.resultado_entrevista] || sel.resultado_entrevista}
+                                                        {({passou:'Aprovado', aguarda_decisao:'Aguarda decisão', nao_compareceu:'Não compareceu', reprovado:'Reprovado', desistiu:'Desistiu'})[sel.resultado_entrevista] || sel.resultado_entrevista}
                                                       </span>
                                                     ) : <span className="text-gray-300">—</span>}
                                                   </td>
@@ -1400,7 +1444,7 @@ export default function RhVagas() {
                                                         <div className="border border-gray-200 rounded p-2 bg-white">
                                                           <div className="font-bold text-gray-700 mb-1">Resultado da Entrevista</div>
                                                           {[
-                                                            { v: 'passou', l: 'Passou' },
+                                                            { v: 'passou', l: 'Aprovado' },
                                                             { v: 'aguarda_decisao', l: 'Aguarda decisao' },
                                                             { v: 'nao_compareceu', l: 'Nao compareceu' },
                                                             { v: 'reprovado', l: 'Reprovado' },
@@ -1946,7 +1990,7 @@ export default function RhVagas() {
                               <div className="border border-gray-200 rounded p-2 bg-gray-50">
                                 <div className="font-bold text-gray-700 mb-1">Resultado da Entrevista</div>
                                 {[
-                                  { v: 'passou', l: 'Passou' },
+                                  { v: 'passou', l: 'Aprovado' },
                                   { v: 'aguarda_decisao', l: 'Aguarda decisao' },
                                   { v: 'nao_compareceu', l: 'Nao compareceu' },
                                   { v: 'reprovado', l: 'Reprovado' },
@@ -1980,7 +2024,7 @@ export default function RhVagas() {
                               {/* POS-ENTREVISTA - so aparece se passou */}
                               {sel.resultado_entrevista === 'passou' && (
                                 <div className="border border-green-300 rounded p-2 bg-green-50">
-                                  <div className="font-bold text-green-800 mb-1">Pos-Entrevista (Passou)</div>
+                                  <div className="font-bold text-green-800 mb-1">Pos-Entrevista (Aprovado)</div>
                                   {[
                                     { v: 'aguarda_agendar_exames', l: 'Aguardando Agendar Exames' },
                                     { v: 'aguarda_resultado_exames', l: 'Aguardando Resultado Exames' },
@@ -2157,7 +2201,7 @@ export default function RhVagas() {
                               {grupos[dia].map((e, i) => {
                                 const hora = (e.data.split('T')[1] || '').slice(0, 5) || '—';
                                 const resLabel = e.contratado ? '🎉 Contratado'
-                                  : e.resultado === 'passou' ? '✓ Passou'
+                                  : e.resultado === 'passou' ? '✓ Aprovado'
                                   : e.resultado === 'aguarda_decisao' ? '⏳ Aguarda decisão'
                                   : e.resultado === 'reprovado' ? '❌ Reprovado'
                                   : e.resultado === 'desistiu' ? '❌ Desistiu'
@@ -2193,28 +2237,62 @@ export default function RhVagas() {
 
         {/* Modal de FESTA ao contratar 🎉 */}
         {festa && (
-          <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setFesta(null)}>
+          <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={fecharFesta}>
             <div
               className="relative bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 rounded-3xl shadow-2xl p-8 max-w-lg w-full text-center text-white"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-7xl mb-3 animate-bounce">🎊🎉🎊</div>
               <h2 className="text-4xl font-extrabold mb-2 drop-shadow-lg">PARABÉNS!</h2>
-              <p className="text-2xl font-bold mb-1">🎈 {festa.nome} 🎈</p>
-              <p className="text-base mb-3 opacity-95">passou em todo o processo seletivo!</p>
+              {festa.nome ? (
+                <>
+                  <p className="text-2xl font-bold mb-1">🎈 {festa.nome} 🎈</p>
+                  <p className="text-base mb-3 opacity-95">passou em todo o processo seletivo!</p>
+                </>
+              ) : (
+                <p className="text-xl font-bold mb-3 opacity-95">Vaga finalizada! 🎯</p>
+              )}
               {festa.vaga_titulo && (
                 <p className="text-sm mb-4 bg-white/20 rounded-full px-4 py-1 inline-block">
                   Vaga: <strong>{festa.vaga_titulo}</strong>
                 </p>
               )}
-              <p className="text-lg font-bold mt-2">🥳 Bem-vindo(a) à equipe! 🎁</p>
+              {festa.nome && <p className="text-lg font-bold mt-2">🥳 Bem-vindo(a) à equipe! 🎁</p>}
               <div className="text-5xl mt-4">🎂🎈🎁🎊</div>
               <button
-                onClick={() => setFesta(null)}
+                onClick={fecharFesta}
                 className="mt-6 px-8 py-3 bg-white text-purple-700 font-bold rounded-full text-lg shadow-lg hover:bg-yellow-100 hover:scale-105 transition"
               >
-                ✓ Fechar
+                ✓ Continuar
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Prompt de TRIAGEM pos-contratacao */}
+        {triagemPrompt && (
+          <div className="fixed inset-0 bg-black/70 z-[101] flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-5 rounded-t-2xl">
+                <h2 className="text-2xl font-extrabold">🏁 Parabéns por finalizar essa vaga!</h2>
+                {triagemPrompt.vaga_titulo && <p className="text-sm opacity-90 mt-1">{triagemPrompt.vaga_titulo}</p>}
+              </div>
+              <div className="px-6 py-5 text-sm text-gray-700 space-y-3">
+                <p>Agora você tem uma <strong>etapa importante</strong>: decidir a triagem dos candidatos dessa vaga. A forma como você definir é como o currículo vai aparecer no <strong>Banco de Currículos</strong> — assim, numa próxima vaga, você já tem candidatos pré-selecionados. 🎯</p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                  <p className="font-bold text-amber-800">💡 Dica importante</p>
+                  <p><span className="font-semibold text-rose-600">❤️ Interessados:</span> o ideal é migrá-los para outra posição, pra não ficarem sempre constando como candidato novo no Banco.</p>
+                  <p><span className="font-semibold text-gray-700">🚫 Recusados:</span> candidatos que na sua visão não se enquadram em nenhuma vaga, nem atual nem futura.</p>
+                  <p><span className="font-semibold text-amber-700">🔎 Vagas Futuras:</span> não se enquadram nesta vaga agora, mas têm potencial pra uma vaga futura.</p>
+                  <p><span className="font-semibold text-blue-700">✓ Selecionados:</span> chegaram a fazer entrevista ou foram fortes candidatos a uma vaga preenchida por outro. Aconselhamos <strong>manter como Selecionados</strong> (em vez de Vagas Futuras) pra já guardá-los num filtro de candidato melhor rankeado.</p>
+                </div>
+                <p className="font-bold text-gray-800">Deseja triar os candidatos agora?</p>
+                <p className="text-xs text-gray-500">Se optar por <strong>Não</strong>, os candidatos serão mantidos com as posições atuais (e replicadas no Banco de Currículos).</p>
+              </div>
+              <div className="px-6 py-4 border-t flex gap-3 justify-end">
+                <button onClick={triagemNao} className="px-5 py-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition">Não, manter assim</button>
+                <button onClick={triagemSim} className="px-5 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold shadow transition">Sim, triar agora</button>
+              </div>
             </div>
           </div>
         )}
