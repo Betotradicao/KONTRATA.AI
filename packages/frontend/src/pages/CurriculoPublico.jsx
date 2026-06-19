@@ -296,6 +296,7 @@ export default function CurriculoPublico() {
     e.preventDefault();
     setErro('');
     if (!form.nome.trim()) { setErro('Informe seu nome completo.'); return; }
+    if (!form.data_nascimento) { setErro('Informe sua data de nascimento.'); window.scrollTo(0, 0); return; }
     if (!form.interesse_vaga) { setErro('Selecione o interesse de vaga.'); window.scrollTo(0, 0); return; }
     // Vagas que exigem experiencia: o tempo informado na funcao precisa
     // atingir o minimo exigido pela vaga (experiencia_meses_minimo).
@@ -1138,7 +1139,7 @@ export default function CurriculoPublico() {
               {/* Campos */}
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
                 <FieldReq label="Nome completo" value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
-                <Field label="Data de nascimento" type="date" value={form.data_nascimento} onChange={v => setForm({ ...form, data_nascimento: v })} />
+                <Field label="Data de nascimento *" type="date" value={form.data_nascimento} onChange={v => setForm({ ...form, data_nascimento: v })} />
                 <Field label="WhatsApp" placeholder="(00) 00000-0000" value={form.whatsapp} onChange={v => setForm({ ...form, whatsapp: v })} caseSensitive />
                 <Field label="E-mail" type="email" value={form.email} onChange={v => setForm({ ...form, email: v })} caseSensitive />
                 <Field label="Instagram (@)" value={form.instagram} onChange={v => setForm({ ...form, instagram: v })} caseSensitive />
@@ -1596,7 +1597,7 @@ function DocumentoLgpd({ tipo }) {
     return (
       <div className="space-y-4 text-sm text-gray-800 leading-relaxed">
         <h3 className="font-bold text-base text-gray-900">Termo de Consentimento — Banco de Currículos</h3>
-        <p className="text-xs text-gray-500">Última atualização: 04/05/2026</p>
+        <p className="text-xs text-gray-500">Última atualização: 18/06/2026</p>
 
         <div>
           <h4 className="font-bold text-gray-800">📌 Quem coleta seus dados</h4>
@@ -1614,6 +1615,11 @@ function DocumentoLgpd({ tipo }) {
             <li>Cargos de interesse</li>
             <li>Perfil comportamental DISC (se você optar por preencher)</li>
           </ul>
+          <p className="text-xs text-gray-500 mt-1">
+            No currículo, <strong>nome</strong> e <strong>data de nascimento</strong> são obrigatórios. A data de nascimento é usada para
+            verificar idade mínima, enquadramento (ex.: Menor Aprendiz) e exigências trabalhistas — <strong>nunca</strong> como critério
+            de exclusão por idade. Dados como CPF, RG, sexo e estado civil são solicitados apenas <strong>na admissão</strong>, se você for contratado.
+          </p>
         </div>
 
         <div>
@@ -1623,13 +1629,14 @@ function DocumentoLgpd({ tipo }) {
             <li>Comunicar com você sobre o processo seletivo</li>
             <li>Compor o banco de talentos para oportunidades futuras</li>
             <li>Realizar entrevistas, inclusive por meio de IA (Recrutador IA)</li>
+            <li>Calcular a distância aproximada entre o seu endereço (CEP) e a loja, como apoio logístico ao processo</li>
           </ul>
         </div>
 
         <div>
           <h4 className="font-bold text-gray-800">⏱️ Por quanto tempo</h4>
           <ul className="list-disc list-inside space-y-0.5">
-            <li><strong>Se contratado</strong>: seus dados são integrados ao seu cadastro como colaborador</li>
+            <li><strong>Se contratado</strong>: seus dados são integrados ao seu cadastro como colaborador. Nessa etapa podem ser coletados dados sensíveis para cumprir obrigações legais — <strong>raça/cor</strong> e <strong>deficiência</strong> (exigências do eSocial e da cota de PCD) — e, de forma <strong>opcional</strong>, <strong>tipo sanguíneo</strong> (apenas para casos de emergência). Esses dados têm acesso restrito.</li>
             <li><strong>Se não contratado</strong>: dados mantidos por <strong>até 12 meses</strong>, depois excluídos ou anonimizados</li>
           </ul>
         </div>
@@ -1639,7 +1646,7 @@ function DocumentoLgpd({ tipo }) {
           <ul className="list-disc list-inside space-y-0.5">
             <li>Apenas com a equipe de RH da empresa autorizada</li>
             <li>Com a Kontrata.ai como Operadora da plataforma</li>
-            <li>Com sub-operadores autorizados (hospedagem, IA quando aplicável)</li>
+            <li>Com sub-operadores autorizados (hospedagem, IA quando aplicável, e serviços de geolocalização para calcular a distância a partir do seu CEP)</li>
             <li>Com autoridades quando legalmente exigido</li>
           </ul>
         </div>

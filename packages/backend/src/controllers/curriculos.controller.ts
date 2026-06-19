@@ -343,6 +343,7 @@ export class CurriculosController {
       } = req.body;
 
       if (!nome?.trim()) return res.status(400).json({ success: false, error: 'Nome obrigatorio' });
+      if (!data_nascimento) return res.status(400).json({ success: false, error: 'Data de nascimento obrigatoria' });
       if (!interesse_vaga || typeof interesse_vaga !== 'string' || !interesse_vaga.trim()) {
         return res.status(400).json({ success: false, error: 'Interesse de vaga obrigatorio' });
       }

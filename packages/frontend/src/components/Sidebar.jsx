@@ -56,7 +56,14 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
     return Array.isArray(cached.config) ? cached.config : [];
   });
   // Sidebar fixo aberto na Kontrata — sem persistencia de estado
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar_collapsed') === 'true'; } catch { return false; }
+  });
+  const toggleCollapsed = () => setIsCollapsed(v => {
+    const nv = !v;
+    try { localStorage.setItem('sidebar_collapsed', String(nv)); } catch { /* ignore */ }
+    return nv;
+  });
   const [lojaDropdownOpen, setLojaDropdownOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState(null);
   const navigate = useNavigate();
@@ -506,7 +513,16 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           <Logo size="medium" />
         )}
 
-        {/* Botão de Toggle removido — sidebar fica sempre aberto */}
+        {/* Botão discreto pra recolher/expandir o menu (ganha tela). Persiste no localStorage. */}
+        <button
+          onClick={toggleCollapsed}
+          title={isCollapsed ? 'Expandir menu' : 'Recolher menu'}
+          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/15 hover:bg-white/35 text-white flex items-center justify-center transition"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
       </div>
 
       {/* Menu Items */}

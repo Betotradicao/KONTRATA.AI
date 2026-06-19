@@ -1347,7 +1347,7 @@ export class RhController {
       // data_fechamento e autoritativo no backend: ao finalizar (Contratado(a)/Fechada)
       // grava a data (preserva a existente; senao usa a do body ou hoje); ao reabrir, limpa.
       const STATUS_FINALIZADO = ['Contratado(a)', 'Fechada'];
-      const [vagaAtual] = await AppDataSource.query(`SELECT data_fechamento FROM rh_vagas WHERE id = $1`, [id]);
+      const [vagaAtual] = await AppDataSource.query(`SELECT data_fechamento, status, selecionados FROM rh_vagas WHERE id = $1`, [id]);
       // prioridade: data que veio do modal (correcao manual) > existente > hoje
       const dataFechamentoFinal = STATUS_FINALIZADO.includes(status)
         ? (nn(data_fechamento) || vagaAtual?.data_fechamento || new Date())
@@ -1364,6 +1364,21 @@ export class RhController {
         [nn(cargo_id), nn(departamento_id), titulo, descricao, quantidade_vagas || 1, nn(salario_min), nn(salario_max), nn(data_abertura), dataFechamentoFinal, status, motivo_fechamento, requisitos, beneficios, JSON.stringify(selecionadosFinal), cod_loja ?? null, !!experiencia_obrigatoria, experiencia_obrigatoria ? (nn(experiencia_meses_minimo)) : null, JSON.stringify(Array.isArray(turnos) ? turnos : []), nn(jornada_id), nn(hora_entrada), nn(hora_almoco_ini), nn(hora_almoco_fim), nn(hora_saida), nn(tipo_vaga_slug), id]
       );
       if (result.length === 0) return res.status(404).json({ error: 'Vaga nao encontrada' });
+
+      // Sincroniza o status GLOBAL no Banco de Curriculos:
+      // - finalizou (Contratado(a)/Fechada) -> carimba SO quem ja esta contratado.
+      //   Os demais candidatos NAO sao tocados aqui: o RH triará cada um na mao
+      //   (e cada triagem na vaga finalizada reflete no Banco via setCandidatoStatusVaga).
+      // - reabriu (estava finalizada e saiu) -> reverte o contratado de antes.
+      if (STATUS_FINALIZADO.includes(status)) {
+        await RhController.carimbarStatusGlobalVaga(result[0], { incluirRecusados: false });
+      } else {
+        const estavaFinalizada = STATUS_FINALIZADO.includes(vagaAtual?.status) || !!vagaAtual?.data_fechamento;
+        if (estavaFinalizada) {
+          await RhController.reverterContratadoGlobalVaga(vagaAtual?.selecionados, Number(id));
+        }
+      }
+
       res.json(result[0]);
     } catch (error) {
       console.error('Update vaga error:', error);
@@ -1371,10 +1386,123 @@ export class RhController {
     }
   }
 
+  // Carimba o status GLOBAL (curriculos.status / Banco de Curriculos) dos
+  // candidatos de uma vaga QUANDO ela e FINALIZADA (Contratado(a)/Fechada) ou
+  // EXCLUIDA. Escreve SOMENTE em curriculos.status — NUNCA toca no JSONB de
+  // outra vaga, pra nao repetir o bug de status vazando entre processos.
+  // Regras:
+  //  - contratado=true -> 'contratado' (definitivo; sobrescreve qualquer status)
+  //  - recusado        -> 'recusado'  (SO se o candidato nao estiver selecionado
+  //                       em OUTRA vaga ABERTA — nao queima bom candidato)
+  //  - demais          -> nao mexe (seguem disponiveis no banco)
+  static async carimbarStatusGlobalVaga(vaga: any, opts: { incluirRecusados?: boolean } = {}) {
+    const incluirRecusados = opts.incluirRecusados !== false;
+    try {
+      const sel = Array.isArray(vaga?.selecionados) ? vaga.selecionados : [];
+      const rec = Array.isArray(vaga?.recusados) ? vaga.recusados : [];
+      const idDe = (x: any) => Number(x?.curriculo_id) || 0;
+
+      const contratadosIds = [...new Set(sel.filter((x: any) => x?.contratado === true).map(idDe).filter(Boolean))];
+      for (const cid of contratadosIds) {
+        await AppDataSource.query(`UPDATE curriculos SET status = 'contratado' WHERE id = $1`, [cid]);
+      }
+
+      if (!incluirRecusados) return;
+      const recusadosIds = [...new Set(rec.map(idDe).filter(Boolean))].filter((id) => !contratadosIds.includes(id));
+      for (const cid of recusadosIds) {
+        const [ativoEmOutra] = await AppDataSource.query(
+          `SELECT 1 FROM rh_vagas
+            WHERE id <> $1
+              AND status NOT IN ('Contratado(a)', 'Fechada')
+              AND EXISTS (
+                SELECT 1 FROM jsonb_array_elements(COALESCE(selecionados, '[]'::jsonb)) s
+                 WHERE (s->>'curriculo_id')::int = $2
+              )
+            LIMIT 1`,
+          [vaga.id, cid]
+        );
+        if (!ativoEmOutra) {
+          await AppDataSource.query(`UPDATE curriculos SET status = 'recusado' WHERE id = $1 AND status <> 'contratado'`, [cid]);
+        }
+      }
+    } catch (e) {
+      console.error('[Rh] carimbarStatusGlobalVaga:', e);
+    }
+  }
+
+  // Reverte o carimbo de 'contratado' quando a vaga REABRE: candidatos que
+  // estavam contratados NESTA vaga voltam a 'novo' no banco, exceto se ainda
+  // estiverem contratados em OUTRA vaga.
+  static async reverterContratadoGlobalVaga(selecionadosAntes: any[], vagaId: number) {
+    try {
+      const ids = [...new Set((Array.isArray(selecionadosAntes) ? selecionadosAntes : [])
+        .filter((x: any) => x?.contratado === true)
+        .map((x: any) => Number(x?.curriculo_id) || 0)
+        .filter(Boolean))];
+      for (const cid of ids) {
+        const [contratadoEmOutra] = await AppDataSource.query(
+          `SELECT 1 FROM rh_vagas
+            WHERE id <> $1
+              AND EXISTS (
+                SELECT 1 FROM jsonb_array_elements(COALESCE(selecionados, '[]'::jsonb)) s
+                 WHERE (s->>'curriculo_id')::int = $2 AND (s->>'contratado')::boolean = true
+              )
+            LIMIT 1`,
+          [vagaId, cid]
+        );
+        if (!contratadoEmOutra) {
+          await AppDataSource.query(`UPDATE curriculos SET status = 'novo' WHERE id = $1 AND status = 'contratado'`, [cid]);
+        }
+      }
+    } catch (e) {
+      console.error('[Rh] reverterContratadoGlobalVaga:', e);
+    }
+  }
+
+  // Carimba o status GLOBAL (Banco de Curriculos) de UM candidato a partir do
+  // status LOCAL que ele acabou de receber na vaga. Usado quando a vaga ja esta
+  // FINALIZADA: cada triagem manual reflete no Banco. Mapa posicao -> global:
+  //   contratado->contratado | selecionado->aprovado | recusado->recusado
+  //   em_analise->em_analise | novo->novo
+  // Trava: nunca rebaixa quem esta contratado em OUTRA vaga (so contratado vence).
+  static async carimbarCandidatoGlobal(curriculoId: number, statusLocal: string, vagaId: number) {
+    try {
+      const cid = Number(curriculoId);
+      if (!cid) return;
+      const map: Record<string, string> = {
+        contratado: 'contratado', selecionado: 'aprovado', aprovado: 'aprovado',
+        recusado: 'recusado', em_analise: 'em_analise', novo: 'novo',
+      };
+      const global = map[statusLocal];
+      if (!global) return;
+
+      if (global === 'contratado') {
+        await AppDataSource.query(`UPDATE curriculos SET status = 'contratado' WHERE id = $1`, [cid]);
+        return;
+      }
+      // Qualquer outro status: nao rebaixa quem esta contratado em OUTRA vaga.
+      const [contratadoEmOutra] = await AppDataSource.query(
+        `SELECT 1 FROM rh_vagas
+          WHERE id <> $1
+            AND EXISTS (
+              SELECT 1 FROM jsonb_array_elements(COALESCE(selecionados, '[]'::jsonb)) s
+               WHERE (s->>'curriculo_id')::int = $2 AND (s->>'contratado')::boolean = true
+            )
+          LIMIT 1`,
+        [vagaId, cid]
+      );
+      if (contratadoEmOutra) return;
+      await AppDataSource.query(`UPDATE curriculos SET status = $2 WHERE id = $1`, [cid, global]);
+    } catch (e) {
+      console.error('[Rh] carimbarCandidatoGlobal:', e);
+    }
+  }
+
   // POST /rh/vagas/:vagaId/candidato-status
   // Define o status LOCAL do candidato dentro da vaga (selecionado, recusado,
   // em_analise/vagas_futuras, contratado, novo). Move o curriculo entre os 3
-  // arrays JSONB: selecionados, recusados, vagas_futuras. Sem efeito global.
+  // arrays JSONB: selecionados, recusados, vagas_futuras. Sem efeito global
+  // ENQUANTO a vaga esta aberta — o carimbo global so acontece no fechamento.
   static async setCandidatoStatusVaga(req: AuthRequest, res: Response) {
     try {
       const vagaId = parseInt(req.params.vagaId);
@@ -1463,6 +1591,21 @@ export class RhController {
       }
       // else: nem contratado antes nem depois -> preserva o status atual (Contratado manual / Em Selecao)
 
+      // Sincroniza com o Banco de Curriculos.
+      // Regra: enquanto a vaga esta ABERTA, status fica 100% LOCAL (nao mexe no
+      // Banco). Quando a vaga esta FINALIZADA (Contratado(a)/Fechada), cada
+      // triagem manual do candidato reflete no status global (cada posicao -> seu
+      // status). Assim o Alexandre fica "Selecionado" no Banco e so muda se voce
+      // mudar a posicao dele aqui na vaga.
+      const [vagaPos] = await AppDataSource.query(`SELECT status FROM rh_vagas WHERE id = $1`, [vagaId]);
+      const finalizada = ['Contratado(a)', 'Fechada'].includes(vagaPos?.status);
+      if (finalizada) {
+        await RhController.carimbarCandidatoGlobal(curriculo_id, s, vagaId);
+      } else if (tinhaContratadoAntes && !temContratado) {
+        // Vaga reabriu ao des-contratar -> reverte o contratado de antes p/ 'novo'.
+        await RhController.reverterContratadoGlobalVaga(vaga.selecionados, vagaId);
+      }
+
       res.json({ success: true, status_local: s, nome: cv.nome });
     } catch (e: any) {
       console.error('[Rh] setCandidatoStatusVaga:', e);
@@ -1506,6 +1649,11 @@ export class RhController {
   static async deletarVaga(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
+      // Carimba o status global ANTES de excluir (tratamento "A"): contratados
+      // viram contratado, recusados viram recusado. Roda antes do DELETE pra a
+      // trava "ativo em outra vaga aberta" ainda enxergar esta vaga via id <> $1.
+      const [vagaDel] = await AppDataSource.query(`SELECT id, selecionados, recusados FROM rh_vagas WHERE id = $1`, [id]);
+      if (vagaDel) await RhController.carimbarStatusGlobalVaga(vagaDel);
       const result = await AppDataSource.query('DELETE FROM rh_vagas WHERE id = $1 RETURNING id', [id]);
       if (result.length === 0) return res.status(404).json({ error: 'Vaga nao encontrada' });
       res.json({ message: 'Vaga deletada com sucesso' });

@@ -353,7 +353,7 @@ export default function RhFerias({ user }) {
                             </td>
                             <td className="px-3 py-2">
                               <div className="text-gray-700">{c.cargo_nome || '—'}</div>
-                              {c.setor_nome && <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border ${setorCor(c.setor_id)} mt-1`}>{c.setor_nome}</span>}
+                              {c.setor_nome && <span className={`inline-block text-xs font-medium px-2.5 py-1 rounded-full border ${setorCor(c.setor_id)} mt-1`}>{c.setor_nome}</span>}
                             </td>
                             <td className="px-3 py-2 text-gray-700">{fmtData(c.data_admissao)}</td>
                             <td className="px-3 py-2">
