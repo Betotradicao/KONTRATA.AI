@@ -8,6 +8,8 @@ import { RhApontamentosController } from '../controllers/rh-apontamentos.control
 import { RhEmpresasController } from '../controllers/rh-empresas.controller';
 import { RhEscalaController } from '../controllers/rh-escala.controller';
 import { RhEscalaMemoriaController } from '../controllers/rh-escala-memoria.controller';
+import { RhComplianceMemoriaController } from '../controllers/rh-compliance-memoria.controller';
+import { RhComplianceController } from '../controllers/rh-compliance.controller';
 import { RhFolhaController } from '../controllers/rh-folha.controller';
 import { RhFichasAdmissaoController } from '../controllers/rh-fichas-admissao.controller';
 import { RhFeriasController } from '../controllers/rh-ferias.controller';
@@ -354,6 +356,15 @@ router.put('/escala/memoria/:id', authenticateToken, RhEscalaMemoriaController.a
 router.delete('/escala/memoria/:id', authenticateToken, RhEscalaMemoriaController.deletar);
 router.post('/escala/memoria/buscar-relevantes', authenticateToken, RhEscalaMemoriaController.buscarRelevantes);
 router.post('/escala/memoria/upload-doc', authenticateToken, uploadDoc.single('file'), RhEscalaMemoriaController.uploadDocumento);
+
+// ===== Base de Conhecimento do Agente Compliance (vault proprio) =====
+router.get('/compliance/memoria', authenticateToken, RhComplianceMemoriaController.listar);
+router.get('/compliance/memoria/:slug', authenticateToken, RhComplianceMemoriaController.obter);
+router.post('/compliance/memoria', authenticateToken, RhComplianceMemoriaController.criar);
+router.put('/compliance/memoria/:id', authenticateToken, RhComplianceMemoriaController.atualizar);
+router.delete('/compliance/memoria/:id', authenticateToken, RhComplianceMemoriaController.deletar);
+router.post('/compliance/memoria/upload-doc', authenticateToken, uploadDoc.single('file'), RhComplianceMemoriaController.uploadDocumento);
+router.post('/compliance/chat', authenticateToken, RhComplianceController.chat);
 
 // Fichas de Admissão (1ª FASE — RH preenche, candidato completa via link público)
 // ROTAS PÚBLICAS (sem auth) — candidato acessa via token UUID

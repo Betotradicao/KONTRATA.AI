@@ -10,7 +10,7 @@ const TIPOS = [
   { key: 'cct_sindicato',        label: 'CCT / Sindicato',    icon: '⚖️', cor: 'red' },
   { key: 'acordo_coletivo',      label: 'Acordo Coletivo',    icon: '🤝', cor: 'rose' },
   { key: 'escala_historica',     label: 'Escalas Antigas',    icon: '📅', cor: 'blue' },
-  { key: 'regulamento_interno',  label: 'Regulamento',        icon: '📜', cor: 'orange' },
+  { key: 'regulamento_interno',  label: 'Regulamento Interno', icon: '📜', cor: 'orange' },
   { key: 'restricao_colaborador', label: 'Restrições',        icon: '🩺', cor: 'pink' },
   { key: 'colaborador',          label: 'Colaboradores',      icon: '👤', cor: 'indigo' },
   { key: 'setor',                label: 'Setores',            icon: '🏪', cor: 'amber' },
@@ -111,7 +111,12 @@ function renderMd(md, onLink) {
   return out;
 }
 
-export default function RhEscalaMemoria() {
+export default function RhEscalaMemoria({
+  apiBase = '/rh/escala/memoria',
+  tipos = TIPOS,
+  tiposUpload = TIPOS_UPLOAD,
+  titulo = 'Vault do Agente de Escala',
+} = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [empresas, setEmpresas] = useState([]);
   const [empresaId, setEmpresaId] = useState(localStorage.getItem('escalaEmpresaId') || '');
@@ -124,7 +129,7 @@ export default function RhEscalaMemoria() {
   const [novoModal, setNovoModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadTipo, setUploadTipo] = useState('cct_sindicato');
+  const [uploadTipo, setUploadTipo] = useState(tiposUpload[0] || 'outro');
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadProcessando, setUploadProcessando] = useState(false);
   const [uploadResultado, setUploadResultado] = useState(null);
@@ -137,7 +142,7 @@ export default function RhEscalaMemoria() {
       fd.append('file', uploadFile);
       fd.append('tipo', uploadTipo);
       if (empresaId) fd.append('empresaId', empresaId);
-      const { data } = await api.post('/rh/escala/memoria/upload-doc', fd, {
+      const { data } = await api.post(`${apiBase}/upload-doc`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 180000,
       });
@@ -170,7 +175,7 @@ export default function RhEscalaMemoria() {
       if (empresaId) params.set('empresaId', empresaId);
       if (tipoFiltro) params.set('tipo', tipoFiltro);
       if (busca) params.set('q', busca);
-      const { data } = await api.get(`/rh/escala/memoria?${params}`);
+      const { data } = await api.get(`${apiBase}?${params}`);
       setNotas(data || []);
     } catch (e) {
       console.error(e);
@@ -195,7 +200,7 @@ export default function RhEscalaMemoria() {
 
   const abrirPorSlug = async (slug) => {
     try {
-      const { data } = await api.get(`/rh/escala/memoria/${slug}?empresaId=${empresaId}`);
+      const { data } = await api.get(`${apiBase}/${slug}?empresaId=${empresaId}`);
       setSelecionada(data);
       setEditando(false);
       setSearchParams({ slug });
@@ -215,7 +220,7 @@ export default function RhEscalaMemoria() {
     if (!form.titulo.trim()) { alert('Titulo obrigatorio'); return; }
     try {
       const tags = form.tags.split(',').map(t => t.trim()).filter(Boolean);
-      const { data } = await api.post('/rh/escala/memoria', {
+      const { data } = await api.post(apiBase, {
         empresaId: empresaId || null,
         titulo: form.titulo,
         tipo: form.tipo,
@@ -227,6 +232,31 @@ export default function RhEscalaMemoria() {
       abrirPorSlug(data.slug);
     } catch (e) {
       alert(e.response?.data?.error || e.message);
+    }
+  };
+
+  // Cria a nota a partir de um PDF/arquivo direto no modal "Nova nota":
+  // a IA lê e transcreve o conteúdo na categoria escolhida (form.tipo).
+  const criarPorUpload = async () => {
+    if (!uploadFile) { alert('Selecione um PDF/arquivo'); return; }
+    setUploadProcessando(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', uploadFile);
+      fd.append('tipo', form.tipo);
+      if (empresaId) fd.append('empresaId', empresaId);
+      const { data } = await api.post(`${apiBase}/upload-doc`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000,
+      });
+      setNovoModal(false);
+      setUploadFile(null);
+      await carregarLista();
+      if (data.memoria?.slug) abrirPorSlug(data.memoria.slug);
+    } catch (e) {
+      alert('❌ Falha ao ler o arquivo: ' + (e.response?.data?.error || e.message));
+    } finally {
+      setUploadProcessando(false);
     }
   };
 
@@ -245,7 +275,7 @@ export default function RhEscalaMemoria() {
     if (!selecionada) return;
     try {
       const tags = form.tags.split(',').map(t => t.trim()).filter(Boolean);
-      await api.put(`/rh/escala/memoria/${selecionada.id}`, {
+      await api.put(`${apiBase}/${selecionada.id}`, {
         titulo: form.titulo,
         tipo: form.tipo,
         tags,
@@ -263,7 +293,7 @@ export default function RhEscalaMemoria() {
     if (!selecionada) return;
     if (!window.confirm(`Excluir a nota "${selecionada.titulo}"?`)) return;
     try {
-      await api.delete(`/rh/escala/memoria/${selecionada.id}`);
+      await api.delete(`${apiBase}/${selecionada.id}`);
       setSelecionada(null);
       setSearchParams({});
       await carregarLista();
@@ -274,7 +304,7 @@ export default function RhEscalaMemoria() {
 
   const agrupadas = useMemo(() => {
     const map = {};
-    TIPOS.forEach(t => { map[t.key] = []; });
+    tipos.forEach(t => { map[t.key] = []; });
     notas.forEach(n => {
       if (!map[n.tipo]) map[n.tipo] = [];
       map[n.tipo].push(n);
@@ -327,7 +357,7 @@ export default function RhEscalaMemoria() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          {TIPOS.map(t => {
+          {tipos.map(t => {
             const lista = agrupadas[t.key] || [];
             if (lista.length === 0 && tipoFiltro && tipoFiltro !== t.key) return null;
             return (
@@ -371,7 +401,7 @@ export default function RhEscalaMemoria() {
           <div className="flex-1 flex items-center justify-center text-center p-8">
             <div>
               <div className="text-6xl mb-3">🧠</div>
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">Vault do Agente de Escala</h3>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">{titulo}</h3>
               <p className="text-sm text-gray-500 max-w-md">
                 Aqui ficam as "memórias" do agente IA. Tudo que você salvar (sobre colaboradores, setores, regras ou padrões) ele consulta antes de responder no chat.
               </p>
@@ -387,7 +417,7 @@ export default function RhEscalaMemoria() {
             <div className="border-b border-gray-200 bg-white px-6 py-3 flex items-center justify-between">
               <div>
                 <div className="text-[11px] uppercase tracking-wider text-gray-400">
-                  {TIPOS.find(t => t.key === selecionada.tipo)?.icon} {TIPOS.find(t => t.key === selecionada.tipo)?.label || selecionada.tipo}
+                  {tipos.find(t => t.key === selecionada.tipo)?.icon} {tipos.find(t => t.key === selecionada.tipo)?.label || selecionada.tipo}
                 </div>
                 <h1 className="text-xl font-bold text-gray-800">{selecionada.titulo}</h1>
                 <div className="flex items-center gap-2 mt-1">
@@ -432,7 +462,7 @@ export default function RhEscalaMemoria() {
                             onClick={() => abrirPorSlug(b.slug)}
                             className="block text-sm text-purple-700 hover:underline"
                           >
-                            {TIPOS.find(t => t.key === b.tipo)?.icon || '📄'} {b.titulo}
+                            {tipos.find(t => t.key === b.tipo)?.icon || '📄'} {b.titulo}
                           </button>
                         ))}
                       </div>
@@ -458,7 +488,7 @@ export default function RhEscalaMemoria() {
                         onChange={(e) => setForm(f => ({ ...f, tipo: e.target.value }))}
                         className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
                       >
-                        {TIPOS.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
+                        {tipos.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
                       </select>
                     </div>
                   </div>
@@ -515,7 +545,7 @@ export default function RhEscalaMemoria() {
                   onChange={(e) => setForm(f => ({ ...f, tipo: e.target.value }))}
                   className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
                 >
-                  {TIPOS.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
+                  {tipos.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
                 </select>
               </div>
               <div>
@@ -536,10 +566,29 @@ export default function RhEscalaMemoria() {
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono"
                 />
               </div>
+
+              {/* Anexar PDF/arquivo — a IA lê e transcreve na categoria escolhida */}
+              <div className="border-2 border-dashed border-pink-200 rounded-lg p-3 bg-pink-50/40">
+                <label className="block text-xs font-bold text-pink-700 mb-1">📎 Ou anexe um PDF/Excel/Foto (a IA lê e transcreve)</label>
+                <input
+                  type="file"
+                  accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="block w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:rounded file:border-0 file:bg-pink-100 file:text-pink-700 file:font-semibold hover:file:bg-pink-200 cursor-pointer"
+                />
+                {uploadFile && <p className="text-[11px] text-gray-500 mt-1">📄 {uploadFile.name} ({(uploadFile.size / 1024).toFixed(0)} KB)</p>}
+                <p className="text-[10px] text-gray-400 mt-1">Escolheu arquivo? Use o botão <strong>Ler PDF e criar</strong>. O título vira o nome do arquivo e o conteúdo é o texto integral.</p>
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button onClick={() => setNovoModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
-              <button onClick={salvarNova} className="px-4 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700">Criar nota</button>
+              <button onClick={() => { setNovoModal(false); setUploadFile(null); }} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+              {uploadFile ? (
+                <button onClick={criarPorUpload} disabled={uploadProcessando} className="px-4 py-2 text-sm bg-pink-600 text-white rounded hover:bg-pink-700 disabled:opacity-50">
+                  {uploadProcessando ? '⏳ Lendo...' : '📎 Ler PDF e criar'}
+                </button>
+              ) : (
+                <button onClick={salvarNova} className="px-4 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700">Criar nota</button>
+              )}
             </div>
           </div>
         </div>
@@ -565,7 +614,7 @@ export default function RhEscalaMemoria() {
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">1. Que tipo de documento é?</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {TIPOS.filter(t => TIPOS_UPLOAD.includes(t.key)).map(t => (
+                      {tipos.filter(t => tiposUpload.includes(t.key)).map(t => (
                         <button
                           key={t.key}
                           onClick={() => setUploadTipo(t.key)}

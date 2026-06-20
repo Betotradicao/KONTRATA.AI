@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import AgenteEscalaConfig from './AgenteEscalaConfig';
 import AgenteRecrutadorConfig from './AgenteRecrutadorConfig';
+import AgenteComplianceConfig from './AgenteComplianceConfig';
 
 // Modelos disponíveis
 const MODELS = [
@@ -503,11 +504,22 @@ export default function AITab() {
           >
             🧑‍💼 Agente Recrutador
           </button>
+          <button
+            onClick={() => setSecaoAtiva('agente_compliance')}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition ${
+              secaoAtiva === 'agente_compliance'
+                ? 'border-teal-500 text-teal-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            🛡️ Agente Compliance
+          </button>
         </div>
       </div>
 
       {secaoAtiva === 'agente_escala' && <AgenteEscalaConfig />}
       {secaoAtiva === 'agente_recrutador' && <AgenteRecrutadorConfig />}
+      {secaoAtiva === 'agente_compliance' && <AgenteComplianceConfig />}
 
       {secaoAtiva === 'chave' && (<>
 
