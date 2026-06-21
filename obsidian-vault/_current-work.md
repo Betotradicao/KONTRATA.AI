@@ -1,5 +1,19 @@
 # 🚧 Trabalho em Andamento
 
+## Tarefa atual — Contrato de Trabalho por função (cláusulas por cargo)
+Novo doc "Contrato de Trabalho" (1º card de DOCS 2ª FASE) montado por função.
+- ✅ Backend: migration `1785700000000` (tabela `rh_contrato_clausulas` + seed do doc),
+  `contrato-clausulas.controller.ts` (CRUD + biblioteca 14 padrão), geração estendida
+  ($CLAUSULAS$, $SALARIO$, $DATA_INICIO$, $EXP_FIM_1/2$). Rotas `/rh/contrato/clausulas*`.
+- ✅ Frontend: `ContratoClausulasPanel.jsx` (NOVO) + plugado no `RhConfiguracoes.jsx`
+  (painel quando doc tem $CLAUSULAS$ + campo data de início no Gerar + 5 variáveis).
+- ✅ Logo no PDF: automático (mesmo motor). Local OK (migration aplicada, rotas 401, front compila).
+- ⏳ UNCOMMITADO. Testar local, depois commit/push.
+- Detalhes: `bugs-resolvidos/2026-06-feature-contrato-trabalho-clausulas-por-funcao.md`.
+
+---
+
+
 ## Tarefa atual — Agente Compliance (4º agente de IA)
 Agente de norma interna/feedback que vai responder num grupo de WhatsApp por gatilho ("Helen, isso é permitido?").
 - ✅ Aba 🛡️ Agente Compliance criada (AITab) + `AgenteComplianceConfig.jsx` com sub-abas Atendimento/Persona/Base de Conhecimento.

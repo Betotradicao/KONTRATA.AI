@@ -237,6 +237,17 @@ router.put('/docs-padronizados/:id',                            authenticateToke
 router.delete('/docs-padronizados/:id',                         authenticateToken, DocsPadronizadosController.deletar);
 router.get('/docs-padronizados/:id/gerar/:colaboradorId',       authenticateToken, DocsPadronizadosController.gerarParaColaborador);
 
+// Clausulas do Contrato de Trabalho (por cargo)
+import { ContratoClausulasController } from '../controllers/contrato-clausulas.controller';
+router.get('/contrato/clausulas/biblioteca',  authenticateToken, ContratoClausulasController.biblioteca);
+router.get('/contrato/clausulas',             authenticateToken, ContratoClausulasController.listar);
+router.post('/contrato/clausulas/ensure/:cargoId', authenticateToken, ContratoClausulasController.ensureSeed);
+router.post('/contrato/clausulas',            authenticateToken, ContratoClausulasController.criar);
+router.post('/contrato/clausulas/add-biblioteca', authenticateToken, ContratoClausulasController.addBiblioteca);
+router.put('/contrato/clausulas/reordenar',   authenticateToken, ContratoClausulasController.reordenar);
+router.put('/contrato/clausulas/:id',         authenticateToken, ContratoClausulasController.atualizar);
+router.delete('/contrato/clausulas/:id',      authenticateToken, ContratoClausulasController.deletar);
+
 // Apontamentos (Lancamentos Financeiros)
 router.get('/apontamentos', authenticateToken, RhApontamentosController.listar);
 router.get('/apontamentos/periodos', authenticateToken, RhApontamentosController.listarPeriodos);

@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 import EmployeesTab from '../components/configuracoes/EmployeesTab';
 import AniversariantesMesTab from '../components/configuracoes/AniversariantesMesTab';
+import ContratoClausulasPanel from '../components/configuracoes/ContratoClausulasPanel';
 import FichasAdmissaoSection from './rh/FichasAdmissaoSection';
 import ContaSalarioSection from './rh/ContaSalarioSection';
 
@@ -1965,6 +1966,8 @@ function DocsPadronizadosTab() {
   const [datasOcorrencia, setDatasOcorrencia] = useState([]); // array de YYYY-MM-DD pra advertencia
   const [dataInputTmp, setDataInputTmp] = useState('');       // valor do input antes de adicionar
   const [passoDatasConfirmado, setPassoDatasConfirmado] = useState(false); // passou pelo passo de datas?
+  const [dataInicioGerar, setDataInicioGerar] = useState(''); // Contrato: data de inicio (YYYY-MM-DD)
+  const [contratoSubAba, setContratoSubAba] = useState('doc'); // Contrato: 'doc' | 'clausulas'
 
   const VARIAVEIS = [
     { tag: '$NOME$',         desc: 'Nome completo' },
@@ -1972,6 +1975,11 @@ function DocsPadronizadosTab() {
     { tag: '$RG$',           desc: 'RG' },
     { tag: '$MATRICULA$',    desc: 'Matrícula' },
     { tag: '$CARGO$',        desc: 'Nome do cargo' },
+    { tag: '$SALARIO$',      desc: 'Salário do colaborador (sem o "R$")' },
+    { tag: '$CLAUSULAS$',    desc: 'Cláusulas da função (Contrato — montadas abaixo)' },
+    { tag: '$DATA_INICIO$',  desc: 'Data de início do contrato (escolhida ao gerar)' },
+    { tag: '$EXP_FIM_1$',    desc: '1º período de experiência (+45 dias da data início)' },
+    { tag: '$EXP_FIM_2$',    desc: 'Fim da prorrogação (+90 dias da data início)' },
     { tag: '$EPIS_DO_CARGO$', desc: 'Lista de EPIs do cargo (uma por linha)' },
     { tag: '$EPIS_TABELA$',  desc: 'Tabela de EPIs (DATA/CUSTO/QTDE/EQUIP/CA/ASS)' },
     { tag: '$CTPS$',         desc: 'Nº da CTPS' },
@@ -2029,6 +2037,7 @@ function DocsPadronizadosTab() {
     }
     const d = docs.find(x => x.id === abaAtiva);
     if (d) setDocEditado({ ...d });
+    setContratoSubAba('doc'); // volta pro documento ao trocar de aba
   }, [abaAtiva, docs.length]);
 
   // Ao abrir o modal de gerar: carrega as empresas pra escolher primeiro.
@@ -2040,6 +2049,7 @@ function DocsPadronizadosTab() {
     setDatasOcorrencia([]);
     setDataInputTmp('');
     setPassoDatasConfirmado(false);
+    setDataInicioGerar('');
     setColaboradores([]);
     (async () => {
       try {
@@ -2062,6 +2072,10 @@ function DocsPadronizadosTab() {
   const precisaMotivo = () => !!docEditado?.conteudo?.includes('$MOTIVO_ADVERTENCIA$');
   // Doc usa $DATAS_OCORRENCIA$ -> precisamos do passo de coletar datas no modal Gerar
   const precisaDatas = () => !!docEditado?.conteudo?.includes('$DATAS_OCORRENCIA$');
+  // Contrato: usa $DATA_INICIO$ ou $CLAUSULAS$ -> pede a data de início ao gerar
+  const precisaDataInicio = () => !!(docEditado?.conteudo?.includes('$DATA_INICIO$') || docEditado?.conteudo?.includes('$CLAUSULAS$'));
+  // É o Contrato de Trabalho? (tem $CLAUSULAS$) -> mostra sub-abas Documento | Cláusulas
+  const ehContrato = () => !!docEditado?.conteudo?.includes('$CLAUSULAS$');
 
   // Depois que a empresa é escolhida, lista só os colaboradores dela.
   useEffect(() => {
@@ -2122,10 +2136,15 @@ function DocsPadronizadosTab() {
       toast.error('Selecione o motivo da advertência antes de continuar');
       return;
     }
+    if (precisaDataInicio() && !dataInicioGerar) {
+      toast.error('Informe a data de início do contrato antes de continuar');
+      return;
+    }
     try {
       const params = [];
       if (motivoSel) params.push(`motivo_id=${motivoSel}`);
       if (datasOcorrencia.length) params.push(`datas_ocorrencia=${encodeURIComponent(datasOcorrencia.join(','))}`);
+      if (dataInicioGerar) params.push(`data_inicio=${dataInicioGerar}`);
       const qs = params.length ? `?${params.join('&')}` : '';
       const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${colaboradorId}${qs}`);
       setResultado(r.data);
@@ -2239,12 +2258,16 @@ function DocsPadronizadosTab() {
     // Aplica layout mais compacto so quando o doc for Advertencia (detectado
     // pelo titulo) pra caber em 1 folha A4 sem afetar os outros docs.
     const isAdvert = /advert/i.test(resultado.titulo || '');
-    const cfg = isAdvert
+    // Contrato tem MUITAS cláusulas -> modo bem compacto pra caber em 1 folha A4.
+    const isContrato = /contrato/i.test(resultado.titulo || '');
+    const cfg = isContrato
+      ? { pageMargin: '10mm', font: '7.7pt',   lh: '1.15', logoMb: '4px',  h1Size: '11pt', h1Mb: '6px',  pMb: '4px' }
+      : isAdvert
       ? { pageMargin: '14mm', font: '10.5pt',  lh: '1.3',  logoMb: '8px',  h1Size: '13pt', h1Mb: '10px', pMb: '6px' }
       : { pageMargin: '25mm', font: '12pt',    lh: '1.5',  logoMb: '20px', h1Size: '16pt', h1Mb: '30px', pMb: '12px' };
     w.document.write('<!DOCTYPE html><html><head><title>' + resultado.titulo + '</title>' +
       `<style>@page{size:A4;margin:${cfg.pageMargin}}body{font-family:Times New Roman,serif;font-size:${cfg.font};line-height:${cfg.lh};color:#000}` +
-      `.logo-wrap{text-align:center;margin:0 0 ${cfg.logoMb}}.logo-wrap img{max-height:${isAdvert ? '55px' : '80px'};max-width:${isAdvert ? '160px' : '200px'};object-fit:contain}` +
+      `.logo-wrap{text-align:center;margin:0 0 ${cfg.logoMb}}.logo-wrap img{max-height:${isContrato ? '42px' : isAdvert ? '55px' : '80px'};max-width:${isContrato ? '130px' : isAdvert ? '160px' : '200px'};object-fit:contain}` +
       `h1{font-size:${cfg.h1Size};text-align:center;margin:0 0 ${cfg.h1Mb};line-height:1.2}` +
       `p{margin:0 0 ${cfg.pMb};text-align:justify;white-space:pre-wrap}` +
       'table{page-break-inside:auto}tr{page-break-inside:avoid}</style></head><body>' +
@@ -2368,6 +2391,20 @@ function DocsPadronizadosTab() {
               </div>
             </div>
 
+            {/* Sub-abas do Contrato: Documento | Cláusulas por Função */}
+            {ehContrato() && (
+              <div className="flex gap-1 border-b border-gray-200 mb-4">
+                <button type="button" onClick={() => setContratoSubAba('doc')}
+                  className={`px-4 py-2 text-sm font-semibold border-b-2 transition ${contratoSubAba === 'doc' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>📄 Contrato de Trabalho</button>
+                <button type="button" onClick={() => setContratoSubAba('clausulas')}
+                  className={`px-4 py-2 text-sm font-semibold border-b-2 transition ${contratoSubAba === 'clausulas' ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>📑 Cláusulas por Função</button>
+              </div>
+            )}
+
+            {ehContrato() && contratoSubAba === 'clausulas' ? (
+              <ContratoClausulasPanel />
+            ) : (
+            <>
             {/* Editor — grid 2/3 + 1/3 */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div className="lg:col-span-3 space-y-3">
@@ -2467,6 +2504,8 @@ function DocsPadronizadosTab() {
                 </div>
               </div>
             </div>
+            </>
+            )}
           </div>
         )}
       </div>
@@ -2661,18 +2700,29 @@ function DocsPadronizadosTab() {
                   </div>
                 </div>
               ) : (
-                /* Passo final: colaboradores da empresa */
-                loadingColabs ? (
-                  <p className="text-sm text-gray-400 text-center py-4">Carregando colaboradores...</p>
-                ) : colaboradores.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">Nenhum colaborador nesta empresa.</p>
-                ) : colaboradores.map(c => (
-                  <button key={c.id} onClick={() => gerarPdf(c.id)}
-                    className="w-full text-left p-2 hover:bg-emerald-50 rounded border border-transparent hover:border-emerald-300">
-                    <div className="font-semibold text-sm text-gray-800">{c.nome}</div>
-                    <div className="text-xs text-gray-500">Mat. {c.matricula || '-'} · {c.cargo_nome || '-'}</div>
-                  </button>
-                ))
+                /* Passo final: [data de início do contrato] + colaboradores da empresa */
+                <>
+                  {precisaDataInicio() && (
+                    <div className="mb-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                      <label className="text-xs font-bold uppercase text-indigo-900 block mb-1">📅 Data de início do contrato *</label>
+                      <input type="date" value={dataInicioGerar}
+                        onChange={e => setDataInicioGerar(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      <p className="text-[11px] text-gray-500 mt-1">Calcula automático o 1º período (+45 dias) e a prorrogação (+90 dias). Depois clique no colaborador pra gerar.</p>
+                    </div>
+                  )}
+                  {loadingColabs ? (
+                    <p className="text-sm text-gray-400 text-center py-4">Carregando colaboradores...</p>
+                  ) : colaboradores.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">Nenhum colaborador nesta empresa.</p>
+                  ) : colaboradores.map(c => (
+                    <button key={c.id} onClick={() => gerarPdf(c.id)}
+                      className="w-full text-left p-2 hover:bg-emerald-50 rounded border border-transparent hover:border-emerald-300">
+                      <div className="font-semibold text-sm text-gray-800">{c.nome}</div>
+                      <div className="text-xs text-gray-500">Mat. {c.matricula || '-'} · {c.cargo_nome || '-'}</div>
+                    </button>
+                  ))}
+                </>
               )}
             </div>
 

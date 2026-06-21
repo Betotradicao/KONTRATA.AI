@@ -129,6 +129,17 @@ export class DocsPadronizadosController {
           return s;
         });
 
+      // Contrato de Trabalho: data de início (manual) -> $DATA_INICIO$ e as datas
+      // de experiência ($EXP_FIM_1$ = +45 dias, $EXP_FIM_2$ = +90 dias).
+      const dataInicioRaw = (req.query.data_inicio as string | undefined) || '';
+      let dataInicioDate: Date | null = null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dataInicioRaw)) {
+        dataInicioDate = new Date(dataInicioRaw + 'T00:00:00');
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dataInicioRaw)) {
+        const [d, m, y] = dataInicioRaw.split('/');
+        dataInicioDate = new Date(`${y}-${m}-${d}T00:00:00`);
+      }
+
       const [doc] = await AppDataSource.query(
         `SELECT * FROM rh_docs_padronizados WHERE id = $1`, [id]
       );
@@ -136,7 +147,7 @@ export class DocsPadronizadosController {
 
       const [colab] = await AppDataSource.query(
         `SELECT c.id, c.nome, c.cpf, c.rg, c.matricula,
-                c.ctps, c.serie_ctps, c.data_admissao, c.endereco,
+                c.ctps, c.serie_ctps, c.data_admissao, c.endereco, c.salario, c.cargo_id,
                 c.bairro AS colab_bairro, c.cidade AS colab_cidade,
                 c.estado AS colab_estado, c.cep AS colab_cep,
                 ca.nome AS cargo_nome,
@@ -230,7 +241,40 @@ export class DocsPadronizadosController {
         ? episLista.map(e => `(  ) ${e.nome}`).join('\n')
         : '(nenhum EPI obrigatório cadastrado para este cargo)';
 
+      // Salário formatado (pt-BR), datas de experiência e montagem das cláusulas.
+      const formatMoeda = (v: any) => {
+        const n = Number(v);
+        if (v == null || v === '' || isNaN(n)) return '';
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      };
+      const addDias = (base: Date, dias: number) => { const x = new Date(base); x.setDate(x.getDate() + dias); return x; };
+      const PLACEHOLDER_DATA = '____/____/______';
+      const dataInicioStr = dataInicioDate ? formatData(dataInicioDate) : PLACEHOLDER_DATA;
+      const expFim1Str = dataInicioDate ? formatData(addDias(dataInicioDate, 45)) : PLACEHOLDER_DATA;
+      const expFim2Str = dataInicioDate ? formatData(addDias(dataInicioDate, 90)) : PLACEHOLDER_DATA;
+
+      // $CLAUSULAS$: monta as cláusulas configuradas pro cargo do colaborador.
+      let clausulasTexto = '';
+      if (String(doc.conteudo).includes('$CLAUSULAS$') && colab.cargo_id) {
+        try {
+          const cls = await AppDataSource.query(
+            `SELECT conteudo FROM rh_contrato_clausulas WHERE cargo_id = $1 AND ativo = true ORDER BY ordem, id`,
+            [colab.cargo_id]
+          );
+          clausulasTexto = cls.length
+            ? cls.map((c: any, i: number) => `${i + 1}. ${c.conteudo}`).join('\n\n')
+            : '(Nenhuma cláusula configurada para esta função. Configure em Contrato de Trabalho → Cláusulas por Função.)';
+        } catch { clausulasTexto = ''; }
+      }
+
       const vars: Record<string, string> = {
+        // $CLAUSULAS$ vem PRIMEIRO: ao injetar, as variáveis dentro das cláusulas
+        // (ex.: $DATA_INICIO$) são substituídas pelas entradas seguintes do loop.
+        '$CLAUSULAS$':    clausulasTexto,
+        '$SALARIO$':      formatMoeda(colab.salario),
+        '$DATA_INICIO$':  dataInicioStr,
+        '$EXP_FIM_1$':    expFim1Str,
+        '$EXP_FIM_2$':    expFim2Str,
         '$NOME$':         colab.nome || '',
         '$CPF$':          formatCpf(colab.cpf),
         '$RG$':           colab.rg || '',
