@@ -101,6 +101,54 @@ export default function BancoCurriculos() {
   // liberando espaço pra ver ~2x mais currículos. Volta ao subir ao topo.
   const [topVisivel, setTopVisivel] = useState(true);
 
+  // Ordenação por coluna: clica no cabeçalho → A→Z; clica de novo → Z→A.
+  const [ordenacao, setOrdenacao] = useState({ campo: null, dir: 'asc' });
+  const ordenarPor = (campo) =>
+    setOrdenacao(o => o.campo === campo ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' } : { campo, dir: 'asc' });
+  const idadeDe = (cv) => {
+    if (!cv?.data_nascimento) return null;
+    const n = new Date(cv.data_nascimento);
+    if (isNaN(n.getTime())) return null;
+    const h = new Date();
+    let i = h.getFullYear() - n.getFullYear();
+    const m = h.getMonth() - n.getMonth();
+    if (m < 0 || (m === 0 && h.getDate() < n.getDate())) i--;
+    return (i < 0 || i > 120) ? null : i;
+  };
+  const valorOrdenacao = (cv, campo) => {
+    switch (campo) {
+      case 'id': return cv.id ?? 0;
+      case 'nome': return (cv.nome || '').toUpperCase();
+      case 'idade': return idadeDe(cv);
+      case 'status': return (STATUS_LABEL[cv.status]?.label || '').toUpperCase();
+      case 'interesse_vaga': return (tipoVagaNome(cv.interesse_vaga) || '').toUpperCase();
+      case 'whatsapp': return (cv.whatsapp || '').replace(/\D/g, '');
+      case 'instagram': return igHandle(cv.instagram).toUpperCase();
+      case 'email': return (cv.email || '').toUpperCase();
+      case 'localizacao': return [cv.bairro, cv.cidade].filter(Boolean).join(' ').toUpperCase();
+      case 'cargos': return ((cv.cargos && cv.cargos[0]) || '').toUpperCase();
+      case 'disponibilidade': return ((cv.disponibilidade_turnos && cv.disponibilidade_turnos[0]) || '').toUpperCase();
+      case 'data': return cv.created_at ? new Date(cv.created_at).getTime() : 0;
+      default: return '';
+    }
+  };
+  const curriculosOrdenados = (() => {
+    if (!ordenacao.campo) return curriculos;
+    return [...curriculos].sort((a, b) => {
+      const va = valorOrdenacao(a, ordenacao.campo);
+      const vb = valorOrdenacao(b, ordenacao.campo);
+      const ea = va === null || va === undefined || va === '';
+      const eb = vb === null || vb === undefined || vb === '';
+      if (ea && eb) return 0;
+      if (ea) return 1;   // vazios sempre por último
+      if (eb) return -1;
+      const r = (typeof va === 'number' && typeof vb === 'number')
+        ? va - vb
+        : String(va).localeCompare(String(vb), 'pt-BR');
+      return ordenacao.dir === 'asc' ? r : -r;
+    });
+  })();
+
   const carregar = async () => {
     setLoading(true);
     try {
@@ -333,27 +381,27 @@ export default function BancoCurriculos() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-600 text-white text-xs uppercase sticky top-0 z-20">
                     <tr>
-                      <th className="px-2 py-1.5 text-left font-semibold">Nº</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Candidato</th>
-                      <th className="px-2 py-1.5 text-center font-semibold">Idade</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Status</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Vaga</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">WhatsApp</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Instagram</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Email</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Localização</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Cargos com Experiência</th>
-                      <th className="px-2 py-1.5 text-left font-semibold">Disponibilidade</th>
+                      <ThSort label="Nº" campo="id" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Candidato" campo="nome" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Idade" campo="idade" align="text-center" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Status" campo="status" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Vaga" campo="interesse_vaga" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="WhatsApp" campo="whatsapp" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Instagram" campo="instagram" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Email" campo="email" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Localização" campo="localizacao" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Cargos com Experiência" campo="cargos" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Disponibilidade" campo="disponibilidade" align="text-left" ord={ordenacao} onSort={ordenarPor} />
                       <th className="px-2 py-1.5 text-left font-semibold">Experiências</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Perfil Primário</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Perfil Secundário</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Entrevista</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Relatório</th>
-                      <th className="px-2 py-1.5 text-right font-semibold">Data</th>
+                      <ThSort label="Data" campo="data" align="text-right" ord={ordenacao} onSort={ordenarPor} />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {curriculos.map(cv => {
+                    {curriculosOrdenados.map(cv => {
                       const st = STATUS_LABEL[cv.status] || STATUS_LABEL.novo;
                       return (
                         <tr key={cv.id} onClick={() => setSelecionado(cv)}
@@ -590,6 +638,23 @@ export default function BancoCurriculos() {
         />
       )}
     </div>
+  );
+}
+
+// Cabeçalho de coluna clicável pra ordenar (A→Z / Z→A) com indicador.
+function ThSort({ label, campo, align = 'text-left', ord, onSort }) {
+  const ativo = ord.campo === campo;
+  const justify = align === 'text-center' ? 'justify-center' : align === 'text-right' ? 'justify-end' : 'justify-start';
+  return (
+    <th onClick={() => onSort(campo)} title="Clique pra ordenar"
+      className={`px-2 py-1.5 font-semibold ${align} cursor-pointer select-none hover:bg-gray-700 transition`}>
+      <span className={`inline-flex items-center gap-1 ${justify}`}>
+        {label}
+        <span className={`text-[10px] ${ativo ? 'text-amber-300' : 'text-gray-400/60'}`}>
+          {ativo ? (ord.dir === 'asc' ? '▲' : '▼') : '↕'}
+        </span>
+      </span>
+    </th>
   );
 }
 
