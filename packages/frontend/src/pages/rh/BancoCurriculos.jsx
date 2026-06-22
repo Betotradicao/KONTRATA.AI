@@ -97,6 +97,9 @@ export default function BancoCurriculos() {
   });
 
   const [selecionado, setSelecionado] = useState(null);
+  // Topo (cards de resumo + filtros) some ao rolar a tabela pra baixo,
+  // liberando espaço pra ver ~2x mais currículos. Volta ao subir ao topo.
+  const [topVisivel, setTopVisivel] = useState(true);
 
   const carregar = async () => {
     setLoading(true);
@@ -218,7 +221,7 @@ export default function BancoCurriculos() {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar user={user} onLogout={logout} isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
-      <div className="flex-1 min-w-0 overflow-auto overflow-x-hidden">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white p-4 shadow">
           <div className="flex items-center gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden bg-white/20 hover:bg-white/30 rounded-lg p-2 transition">
@@ -231,9 +234,11 @@ export default function BancoCurriculos() {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6">
+        <div className="p-4 sm:p-6 flex-1 flex flex-col min-h-0">
           {erro && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{erro}</div>}
 
+          {/* TOPO COLAPSÁVEL: some ao rolar a tabela pra baixo, volta ao topo */}
+          <div className={`shrink-0 overflow-hidden transition-all duration-300 ${topVisivel ? 'max-h-[640px] opacity-100' : 'max-h-0 opacity-0'}`}>
           {/* Resumo */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
             <Tile emoji="📇" titulo="Total" valor={resumo.total} grad="from-slate-500 to-gray-600" />
@@ -303,6 +308,7 @@ export default function BancoCurriculos() {
               </div>
             </div>
           </div>
+          </div>{/* fim topo colapsável */}
 
           {/* Lista */}
           {loading ? (
@@ -314,10 +320,18 @@ export default function BancoCurriculos() {
               <div className="text-xs text-gray-400 mt-1">Envie o link público pra candidatos em <strong>Modelo de Currículo</strong>.</div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-              <div className="overflow-x-auto">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 flex-1 min-h-0 flex flex-col">
+              {/* Tabela com altura limitada à tela: rola por dentro.
+                  → cabeçalho FIXO no topo (sticky) pra sempre ver o que é cada coluna
+                  → barra de rolagem horizontal SEMPRE visível no rodapé da tela */}
+              <div className="flex-1 min-h-0 overflow-auto"
+                onScroll={(e) => {
+                  const y = e.currentTarget.scrollTop;
+                  // histerese: some ao passar de 40px, volta perto do topo (<8px)
+                  setTopVisivel(prev => y > 40 ? false : (y < 8 ? true : prev));
+                }}>
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-600 text-white text-xs uppercase">
+                  <thead className="bg-gray-600 text-white text-xs uppercase sticky top-0 z-20">
                     <tr>
                       <th className="px-2 py-1.5 text-left font-semibold">Nº</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Candidato</th>
