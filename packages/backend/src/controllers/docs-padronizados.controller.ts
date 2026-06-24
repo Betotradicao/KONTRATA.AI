@@ -267,10 +267,46 @@ export class DocsPadronizadosController {
         } catch { clausulasTexto = ''; }
       }
 
+      // ── Aviso Prévio (demissional) ────────────────────────────────────────
+      // Detecta pela presença de $AVISO_PREVIO$ no conteúdo. Campos vêm da query:
+      //   data_aviso=YYYY-MM-DD (ou DD/MM/AAAA) = data de início do aviso
+      //   tipo_aviso=indenizado|trabalhado
+      //   reducao_aviso=2h|7d  (só quando trabalhado; art. 488 da CLT)
+      // Monta $DATA_AVISO$ (data do aviso por extenso) e $AVISO_PREVIO$ (frase
+      // dinâmica com a modalidade + data de cessação das atividades).
+      const formatExtenso = (dt: Date) => `${dt.getDate()} de ${meses[dt.getMonth()]} de ${dt.getFullYear()}`;
+      const avisoRaw = (req.query.data_aviso as string | undefined) || '';
+      let avisoDate: Date | null = null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(avisoRaw)) {
+        avisoDate = new Date(avisoRaw + 'T00:00:00');
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(avisoRaw)) {
+        const [d, m, y] = avisoRaw.split('/');
+        avisoDate = new Date(`${y}-${m}-${d}T00:00:00`);
+      }
+      const tipoAviso = String(req.query.tipo_aviso || '').toLowerCase();       // 'indenizado' | 'trabalhado'
+      const reducaoAviso = String(req.query.reducao_aviso || '').toLowerCase(); // '2h' | '7d'
+      const dataAvisoExtenso = avisoDate ? formatExtenso(avisoDate) : PLACEHOLDER_DATA;
+      const dataAvisoBr = avisoDate ? formatData(avisoDate) : PLACEHOLDER_DATA; // dd/mm/aaaa (espelho da Carta de Próprio Punho)
+      let avisoPrevio = '';
+      if (avisoDate) {
+        if (tipoAviso === 'trabalhado') {
+          const fimExt = formatExtenso(addDias(avisoDate, 30)); // aviso prévio de 30 dias
+          const reducaoTxt = reducaoAviso === '7d'
+            ? 'com a redução de 7 (sete) dias corridos, nos termos do parágrafo único do art. 488 da CLT'
+            : 'com a redução de 2 (duas) horas na jornada diária de trabalho, nos termos do art. 488 da CLT';
+          avisoPrevio = `O presente aviso prévio será TRABALHADO, ${reducaoTxt}, devendo V. Sa. cessar suas atividades em ${fimExt}.`;
+        } else {
+          avisoPrevio = `O presente aviso prévio será INDENIZADO, ficando V. Sa. desde já dispensado(a) do seu cumprimento, cessando suas atividades nesta data, em ${dataAvisoExtenso}.`;
+        }
+      }
+
       const vars: Record<string, string> = {
         // $CLAUSULAS$ vem PRIMEIRO: ao injetar, as variáveis dentro das cláusulas
         // (ex.: $DATA_INICIO$) são substituídas pelas entradas seguintes do loop.
         '$CLAUSULAS$':    clausulasTexto,
+        '$AVISO_PREVIO$': avisoPrevio,
+        '$DATA_AVISO$':   dataAvisoExtenso,
+        '$DATA_AVISO_BR$': dataAvisoBr,
         '$SALARIO$':      formatMoeda(colab.salario),
         '$DATA_INICIO$':  dataInicioStr,
         '$EXP_FIM_1$':    expFim1Str,

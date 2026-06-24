@@ -1967,6 +1967,9 @@ function DocsPadronizadosTab() {
   const [dataInputTmp, setDataInputTmp] = useState('');       // valor do input antes de adicionar
   const [passoDatasConfirmado, setPassoDatasConfirmado] = useState(false); // passou pelo passo de datas?
   const [dataInicioGerar, setDataInicioGerar] = useState(''); // Contrato: data de inicio (YYYY-MM-DD)
+  const [dataAvisoGerar, setDataAvisoGerar] = useState('');   // Aviso Prévio: data de início do aviso (YYYY-MM-DD)
+  const [tipoAviso, setTipoAviso] = useState('indenizado');   // 'indenizado' | 'trabalhado'
+  const [reducaoAviso, setReducaoAviso] = useState('2h');     // '2h' | '7d' (só quando trabalhado)
   const [contratoSubAba, setContratoSubAba] = useState('doc'); // Contrato: 'doc' | 'clausulas'
 
   const VARIAVEIS = [
@@ -1992,6 +1995,10 @@ function DocsPadronizadosTab() {
     { tag: '$COLAB_CEP$',    desc: 'CEP do colaborador' },
     { tag: '$MOTIVO_ADVERTENCIA$', desc: 'Motivo + embasamento (escolhido ao gerar)' },
     { tag: '$DATAS_OCORRENCIA$', desc: 'Data(s) das ocorrências (preenchidas ao gerar)' },
+    { tag: '$DATA_AVISO$',   desc: 'Aviso prévio: data do aviso por extenso (escolhida ao gerar)' },
+    { tag: '$DATA_AVISO_BR$', desc: 'Data do aviso em dd/mm/aaaa (escolhida ao gerar)' },
+    { tag: '$AVISO_PREVIO$', desc: 'Aviso prévio: frase indenizado/trabalhado + data de cessação (montada ao gerar)' },
+    { tag: '$QUEBRA_PAGINA$', desc: 'Quebra de página (nova folha na impressão) — use em linha própria' },
     { tag: '$DATA_HOJE$',    desc: 'dd/mm/yyyy' },
     { tag: '$DATA_EXTENSO$', desc: '"24 de julho de 2025"' },
     { tag: '$EMPRESA_NOME$',     desc: 'Nome da empresa' },
@@ -2050,6 +2057,7 @@ function DocsPadronizadosTab() {
     setDataInputTmp('');
     setPassoDatasConfirmado(false);
     setDataInicioGerar('');
+    setDataAvisoGerar(''); setTipoAviso('indenizado'); setReducaoAviso('2h');
     setColaboradores([]);
     (async () => {
       try {
@@ -2074,6 +2082,12 @@ function DocsPadronizadosTab() {
   const precisaDatas = () => !!docEditado?.conteudo?.includes('$DATAS_OCORRENCIA$');
   // Contrato: usa $DATA_INICIO$ ou $CLAUSULAS$ -> pede a data de início ao gerar
   const precisaDataInicio = () => !!(docEditado?.conteudo?.includes('$DATA_INICIO$') || docEditado?.conteudo?.includes('$CLAUSULAS$'));
+  // Aviso Prévio pede data + indenizado/trabalhado; a Carta de Próprio Punho (espelho)
+  // pede SÓ a data ($DATA_AVISO$/$DATA_AVISO_BR$). Por isso detecções separadas.
+  const precisaTipoAviso = () => !!docEditado?.conteudo?.includes('$AVISO_PREVIO$');
+  const precisaDataAviso = () => !!(docEditado?.conteudo?.includes('$AVISO_PREVIO$')
+    || docEditado?.conteudo?.includes('$DATA_AVISO$')
+    || docEditado?.conteudo?.includes('$DATA_AVISO_BR$'));
   // É o Contrato de Trabalho? (tem $CLAUSULAS$) -> mostra sub-abas Documento | Cláusulas
   const ehContrato = () => !!docEditado?.conteudo?.includes('$CLAUSULAS$');
 
@@ -2140,11 +2154,20 @@ function DocsPadronizadosTab() {
       toast.error('Informe a data de início do contrato antes de continuar');
       return;
     }
+    if (precisaDataAviso() && !dataAvisoGerar) {
+      toast.error('Informe a data de início do aviso antes de continuar');
+      return;
+    }
     try {
       const params = [];
       if (motivoSel) params.push(`motivo_id=${motivoSel}`);
       if (datasOcorrencia.length) params.push(`datas_ocorrencia=${encodeURIComponent(datasOcorrencia.join(','))}`);
       if (dataInicioGerar) params.push(`data_inicio=${dataInicioGerar}`);
+      if (precisaDataAviso() && dataAvisoGerar) params.push(`data_aviso=${dataAvisoGerar}`);
+      if (precisaTipoAviso()) {
+        params.push(`tipo_aviso=${tipoAviso}`);
+        if (tipoAviso === 'trabalhado') params.push(`reducao_aviso=${reducaoAviso}`);
+      }
       const qs = params.length ? `?${params.join('&')}` : '';
       const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${colaboradorId}${qs}`);
       setResultado(r.data);
@@ -2235,7 +2258,7 @@ function DocsPadronizadosTab() {
   // o resto vira <p>...</p> (com <br> pras quebras de linha simples).
   const buildConteudoHtml = (conteudo, episLista) => {
     const partes = (conteudo || '').split('$EPIS_TABELA$');
-    return partes.map((parte, idx) => {
+    let html = partes.map((parte, idx) => {
       // Filtra paragrafos vazios (multiplos \n\n no template) pra nao gerar
       // <p></p> vazios que ocupam altura inutil na impressao.
       const paragrafos = parte.split('\n\n')
@@ -2245,6 +2268,11 @@ function DocsPadronizadosTab() {
       const tabela = idx < partes.length - 1 ? buildEpisTabelaHtml(episLista) : '';
       return paragrafos + tabela;
     }).join('');
+    // $QUEBRA_PAGINA$ (em parágrafo próprio) -> força nova folha na impressão
+    // (e mostra um divisor tracejado na tela). Usado p/ docs de 2 folhas (ex.: Carta de Próprio Punho).
+    html = html.replace(/<p>\s*\$QUEBRA_PAGINA\$\s*<\/p>/g,
+      '<div style="page-break-before:always;border-top:2px dashed #cbd5e1;margin:28px 0 0;padding-top:10px"></div>');
+    return html;
   };
 
   const imprimirResultado = () => {
@@ -2266,7 +2294,7 @@ function DocsPadronizadosTab() {
       ? { pageMargin: '14mm', font: '10.5pt',  lh: '1.3',  logoMb: '8px',  h1Size: '13pt', h1Mb: '10px', pMb: '6px' }
       : { pageMargin: '25mm', font: '12pt',    lh: '1.5',  logoMb: '20px', h1Size: '16pt', h1Mb: '30px', pMb: '12px' };
     w.document.write('<!DOCTYPE html><html><head><title>' + resultado.titulo + '</title>' +
-      `<style>@page{size:A4;margin:${cfg.pageMargin}}body{font-family:Times New Roman,serif;font-size:${cfg.font};line-height:${cfg.lh};color:#000}` +
+      `<style>@page{size:A4;margin:${cfg.pageMargin}}body{font-family:Times New Roman,serif;font-size:${cfg.font};line-height:${cfg.lh};color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
       `.logo-wrap{text-align:center;margin:0 0 ${cfg.logoMb}}.logo-wrap img{max-height:${isContrato ? '42px' : isAdvert ? '55px' : '80px'};max-width:${isContrato ? '130px' : isAdvert ? '160px' : '200px'};object-fit:contain}` +
       `h1{font-size:${cfg.h1Size};text-align:center;margin:0 0 ${cfg.h1Mb};line-height:1.2}` +
       `p{margin:0 0 ${cfg.pMb};text-align:justify;white-space:pre-wrap}` +
@@ -2709,6 +2737,55 @@ function DocsPadronizadosTab() {
                         onChange={e => setDataInicioGerar(e.target.value)}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                       <p className="text-[11px] text-gray-500 mt-1">Calcula automático o 1º período (+45 dias) e a prorrogação (+90 dias). Depois clique no colaborador pra gerar.</p>
+                    </div>
+                  )}
+                  {precisaDataAviso() && (
+                    <div className="mb-3 bg-rose-50 border border-rose-200 rounded-lg p-3 space-y-3">
+                      <div>
+                        <label className="text-xs font-bold uppercase text-rose-900 block mb-1">📅 Data de início do aviso *</label>
+                        <input type="date" value={dataAvisoGerar}
+                          onChange={e => setDataAvisoGerar(e.target.value)}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                      </div>
+                      {precisaTipoAviso() && (
+                        <>
+                          <div>
+                            <label className="text-xs font-bold uppercase text-rose-900 block mb-1">Tipo do aviso *</label>
+                            <div className="flex gap-4 text-sm">
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="tipoAviso" checked={tipoAviso === 'indenizado'} onChange={() => setTipoAviso('indenizado')} />
+                                Indenizado
+                              </label>
+                              <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input type="radio" name="tipoAviso" checked={tipoAviso === 'trabalhado'} onChange={() => setTipoAviso('trabalhado')} />
+                                Trabalhado
+                              </label>
+                            </div>
+                          </div>
+                          {tipoAviso === 'trabalhado' && (
+                            <div>
+                              <label className="text-xs font-bold uppercase text-rose-900 block mb-1">Redução (art. 488 da CLT) *</label>
+                              <div className="flex flex-col gap-1.5 text-sm">
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input type="radio" name="reducaoAviso" checked={reducaoAviso === '2h'} onChange={() => setReducaoAviso('2h')} />
+                                  Redução de 2 horas por dia
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input type="radio" name="reducaoAviso" checked={reducaoAviso === '7d'} onChange={() => setReducaoAviso('7d')} />
+                                  Redução de 7 dias no mês
+                                </label>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      <p className="text-[11px] text-gray-500">
+                        {!precisaTipoAviso()
+                          ? 'A 2ª folha (espelho) usa essa data + os dados do colaborador como base pra ele copiar à mão.'
+                          : tipoAviso === 'indenizado'
+                          ? 'Indenizado: cessa as atividades na data do aviso.'
+                          : 'Trabalhado: cessa 30 dias após a data do aviso.'} Depois clique no colaborador pra gerar.
+                      </p>
                     </div>
                   )}
                   {loadingColabs ? (
