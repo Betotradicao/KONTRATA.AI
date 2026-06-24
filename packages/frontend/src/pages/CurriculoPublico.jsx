@@ -38,6 +38,21 @@ export default function CurriculoPublico() {
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const fotoInputRef = useRef(null);
+  const continuarVagasRef = useRef(null);          // card "Continuar cadastro" — rola até ele ao marcar vaga
+  const [destaqueContinuar, setDestaqueContinuar] = useState(false);
+
+  // Ao MARCAR uma vaga: rola suave até o card "Continuar cadastro" e dá um destaque
+  // pulsante por alguns segundos. Resolve o problema de candidatos que marcam a vaga
+  // e ficam parados achando que algo vai acontecer sozinho — guia direto pro próximo passo.
+  const marcarVagaComFoco = (vagaId, jaMarcado) => {
+    setVagasInteresse(prev => (jaMarcado ? prev.filter(x => x !== vagaId) : [...prev, vagaId]));
+    if (jaMarcado) return; // desmarcou: não rola nem destaca
+    setTimeout(() => {
+      continuarVagasRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setDestaqueContinuar(true);
+      setTimeout(() => setDestaqueContinuar(false), 2600);
+    }, 120);
+  };
 
   const [form, setForm] = useState({
     nome: '',
@@ -784,7 +799,7 @@ export default function CurriculoPublico() {
 
                       {/* Botão grande no rodapé — candidata direto */}
                       <button
-                        onClick={() => setVagasInteresse(prev => marcado ? prev.filter(x => x !== v.id) : [...prev, v.id])}
+                        onClick={() => marcarVagaComFoco(v.id, marcado)}
                         className={`w-full px-5 py-3 font-bold text-sm transition ${marcado ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-rose-500 hover:bg-rose-600 text-white'}`}
                       >
                         {marcado ? '✓ Vaga selecionada — clique pra desmarcar' : '❤️ Quero me candidatar'}
@@ -797,7 +812,12 @@ export default function CurriculoPublico() {
               {/* Cards de ação no rodapé — estilo igual aos cards de vaga */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* CARD 1: Continuar com vagas selecionadas (rosa) */}
-                <div className={`bg-white rounded-2xl shadow-sm border-2 transition-all overflow-hidden ${vagasInteresse.length > 0 ? 'border-rose-500 ring-2 ring-rose-200' : 'border-gray-200 opacity-60'}`}>
+                <div
+                  ref={continuarVagasRef}
+                  className={`bg-white rounded-2xl shadow-sm border-2 transition-all duration-300 overflow-hidden ${
+                    vagasInteresse.length > 0 ? 'border-rose-500 ring-2 ring-rose-200' : 'border-gray-200 opacity-60'
+                  } ${destaqueContinuar ? 'ring-4 ring-rose-400 shadow-2xl scale-[1.03]' : ''}`}
+                >
                   <div className="p-5">
                     <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 flex items-center gap-2">
                       <span className="text-rose-500">❤️</span>
