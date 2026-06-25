@@ -27,17 +27,20 @@ function buildFichaHtml(ficha, fotoOverride) {
     ? `<img src="${fotoSrc}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #6d28d9"/>`
     : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:24px">📷</div>';
 
-  const linha = (lbl, val) => `<div style="font-size:7pt;line-height:1.25"><span style="color:#888;font-size:6pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
+  const linha = (lbl, val) => `<div style="font-size:7pt;line-height:1.45;padding-bottom:2px;overflow-wrap:anywhere"><span style="color:#888;font-size:6pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
+  // Versão de largura total (linha inteira) — pra campos de texto longo (nomes)
+  // que ficariam apertados/encavalados numa célula estreita da grade.
+  const linhaW = (lbl, val) => `<div style="grid-column:1 / -1;font-size:7pt;line-height:1.45;padding-bottom:2px;overflow-wrap:anywhere"><span style="color:#888;font-size:6pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
 
   return `<style>
   @page { size: A4; margin: 8mm }
-  body { font-family: Arial, sans-serif; font-size: 7.5pt; color: #222; margin: 0; line-height: 1.2 }
+  body { font-family: Arial, sans-serif; font-size: 7.5pt; color: #222; margin: 0; line-height: 1.3 }
   h1 { font-size: 11pt; text-align: center; margin: 0 0 2px; color: #6d28d9 }
-  h2 { font-size: 8pt; margin: 5px 0 2px; padding: 2px 6px; background: #f3e8ff; color: #6d28d9; border-left: 3px solid #6d28d9 }
+  h2 { font-size: 8pt; margin: 7px 0 3px; padding: 2px 6px; background: #f3e8ff; color: #6d28d9; border-left: 3px solid #6d28d9 }
   .header { display: flex; gap: 10px; align-items: center; border-bottom: 1.5px solid #6d28d9; padding-bottom: 5px; margin-bottom: 4px }
-  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px 10px }
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px 10px }
-  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 10px }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px 16px; align-items: start }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px 16px; align-items: start }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px 16px; align-items: start }
   .dep { border: 1px solid #ddd; padding: 3px 5px; margin-top: 3px; border-radius: 3px }
   .sig { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px }
   .sig div { border-top: 1px solid #000; padding-top: 2px; text-align: center; font-size: 7pt }
@@ -68,7 +71,7 @@ function buildFichaHtml(ficha, fotoOverride) {
 
   <h2>Dados pessoais</h2>
   <div class="grid">
-    ${linha('Nome completo', pess.nome)}
+    ${linhaW('Nome completo', pess.nome)}
     ${linha('CPF', pess.cpf)}
     ${linha('RG', pess.rg)}
     ${linha('RG Órgão', pess.rg_orgao_emissor)}
@@ -80,8 +83,8 @@ function buildFichaHtml(ficha, fotoOverride) {
     ${linha('Nacionalidade', pess.nacionalidade)}
     ${linha('Naturalidade', pess.naturalidade)}
     ${linha('Naturalidade UF', pess.naturalidade_uf)}
-    ${linha('Nome do pai', pess.nome_pai)}
-    ${linha('Nome da mãe', pess.nome_mae)}
+    ${linhaW('Nome do pai', pess.nome_pai)}
+    ${linhaW('Nome da mãe', pess.nome_mae)}
     ${linha('Raça/Cor', pess.raca_cor)}
     ${linha('Tipo sanguíneo', pess.tipo_sanguineo)}
     ${linha('Altura', pess.altura)}
@@ -94,7 +97,7 @@ function buildFichaHtml(ficha, fotoOverride) {
   ${(pess.estado_civil === 'CASADO' || pess.estado_civil === 'UNIAO_ESTAVEL') ? `
   <h2>Cônjuge</h2>
   <div class="grid">
-    ${linha('Nome', conj.nome)}
+    ${linhaW('Nome', conj.nome)}
     ${linha('CPF', conj.cpf)}
     ${linha('Data nasc.', fmtDate(conj.data_nascimento))}
     ${linha('Data casamento', fmtDate(conj.data_casamento))}
@@ -142,7 +145,7 @@ function buildFichaHtml(ficha, fotoOverride) {
     ${linha('Zona', doc.titulo_zona)}
     ${linha('Seção', doc.titulo_secao)}
     ${linha('Tít. Emissão', fmtDate(doc.titulo_emissao))}
-    ${linha('Reservista', doc.reservista)}
+    ${linhaW('Reservista', doc.reservista)}
     ${linha('Reserv. UF', doc.reservista_uf)}
     ${linha('Reserv. Emissão', fmtDate(doc.reservista_emissao))}
     ${linha('CNH', doc.cnh)}
@@ -169,9 +172,9 @@ function buildFichaHtml(ficha, fotoOverride) {
         ${linha('Sexo', d.sexo)}
         ${linha('CPF', d.cpf)}
         ${linha('Data nasc.', fmtDate(d.data_nascimento))}
-        ${linha('Certidão Nº', d.certidao_numero)}
+        ${linhaW('Certidão Nº', d.certidao_numero)}
+        ${linhaW('Cartório', d.certidao_cartorio)}
         ${linha('Data certidão', fmtDate(d.certidao_data))}
-        ${linha('Cartório', d.certidao_cartorio)}
         ${linha('Folha', d.certidao_folha)}
         ${linha('Dep. IR', fmtBool(d.dependente_ir))}
         ${linha('Sal. família', fmtBool(d.dependente_sf))}
