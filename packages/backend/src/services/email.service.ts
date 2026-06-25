@@ -1,11 +1,21 @@
 import nodemailer from 'nodemailer';
 import { AppDataSource } from '../config/database';
 
+interface EmailAttachment {
+  filename: string;
+  /** Conteudo em base64 (sem o prefixo data:...;base64,) */
+  contentBase64?: string;
+  content?: Buffer;
+  contentType?: string;
+}
+
 interface SendEmailOptions {
   to: string;
+  cc?: string;
   subject: string;
   html: string;
   text?: string;
+  attachments?: EmailAttachment[];
 }
 
 class EmailService {
@@ -42,6 +52,31 @@ class EmailService {
     return { user, pass };
   }
 
+  /**
+   * Cria um transporter nodemailer a partir de credenciais. Detecta Gmail/Yahoo
+   * automaticamente e cai num SMTP customizado (via .env) caso contrário.
+   * Reutilizado tanto pelo remetente padrão quanto pelo "e-mail da empresa".
+   */
+  private makeTransporter(user: string, pass: string): nodemailer.Transporter {
+    const isGmail = user.includes('@gmail.com');
+    const isYahoo = user.includes('@yahoo.com');
+
+    if (isGmail) {
+      return nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
+    }
+    if (isYahoo) {
+      return nodemailer.createTransport({
+        host: 'smtp.mail.yahoo.com', port: 465, secure: true, auth: { user, pass },
+      });
+    }
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user, pass },
+    });
+  }
+
   /** Inicializa/reinicializa o transporter. Pode ser chamado em runtime apos salvar email. */
   async initializeTransporter(): Promise<void> {
     const creds = await this.loadCredentials();
@@ -56,41 +91,64 @@ class EmailService {
     this.fromEmail = creds.user;
 
     try {
-      const isGmail = creds.user.includes('@gmail.com');
-      const isYahoo = creds.user.includes('@yahoo.com');
-
-      if (isGmail) {
-        this.transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: { user: creds.user, pass: creds.pass }
-        });
-        console.log(`✅ Email service initialized (Gmail): ${creds.user}`);
-      } else if (isYahoo) {
-        this.transporter = nodemailer.createTransport({
-          host: 'smtp.mail.yahoo.com',
-          port: 465,
-          secure: true,
-          auth: { user: creds.user, pass: creds.pass }
-        });
-        console.log(`✅ Email service initialized (Yahoo): ${creds.user}`);
-      } else {
-        this.transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: { user: creds.user, pass: creds.pass }
-        });
-        console.log(`✅ Email service initialized (SMTP custom): ${creds.user}`);
-      }
+      this.transporter = this.makeTransporter(creds.user, creds.pass);
+      console.log(`✅ Email service initialized: ${creds.user}`);
     } catch (error) {
       console.error('❌ Erro ao inicializar serviço de email:', error);
       this.transporter = null;
     }
   }
 
+  /**
+   * Envia um e-mail usando credenciais ESPECÍFICAS (ex: o e-mail da empresa/cliente),
+   * sem mexer no transporter padrão. O remetente (from) é o próprio e-mail informado.
+   */
+  async sendEmailFrom(
+    creds: { user: string; pass: string; fromName?: string },
+    options: SendEmailOptions
+  ): Promise<boolean> {
+    if (!creds.user || !creds.pass) {
+      console.error('❌ sendEmailFrom: credenciais da empresa ausentes');
+      return false;
+    }
+    try {
+      const transporter = this.makeTransporter(creds.user, creds.pass);
+      const attachments = (options.attachments || []).map(a => ({
+        filename: a.filename,
+        content: a.content ? a.content : Buffer.from(a.contentBase64 || '', 'base64'),
+        contentType: a.contentType,
+      }));
+      const info = await transporter.sendMail({
+        from: `"${creds.fromName || creds.user}" <${creds.user}>`,
+        to: options.to,
+        cc: options.cc || undefined,
+        subject: options.subject,
+        text: options.text || '',
+        html: options.html,
+        attachments: attachments.length ? attachments : undefined,
+      });
+      console.log('✅ Email (empresa) enviado:', info.messageId);
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao enviar email (empresa):', error);
+      return false;
+    }
+  }
+
   /** Atalho publico pro controller chamar apos salvar email no banco */
   async reinitialize(): Promise<void> {
     await this.initializeTransporter();
+  }
+
+  /** Verifica se as credenciais conseguem autenticar no servidor SMTP. */
+  async verifyCredentials(user: string, pass: string): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const transporter = this.makeTransporter(user, pass);
+      await transporter.verify();
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'Falha na verificação' };
+    }
   }
 
   async sendEmail(options: SendEmailOptions): Promise<boolean> {
@@ -106,12 +164,23 @@ class EmailService {
     }
 
     try {
+      // Converte anexos (base64 -> Buffer) pro formato do nodemailer
+      const attachments = (options.attachments || []).map(a => ({
+        filename: a.filename,
+        content: a.content
+          ? a.content
+          : Buffer.from(a.contentBase64 || '', 'base64'),
+        contentType: a.contentType,
+      }));
+
       const info = await this.transporter.sendMail({
         from: `"Kontrata.ai" <${this.fromEmail || process.env.EMAIL_USER}>`,
         to: options.to,
+        cc: options.cc || undefined,
         subject: options.subject,
         text: options.text || '',
-        html: options.html
+        html: options.html,
+        attachments: attachments.length ? attachments : undefined,
       });
 
       console.log('✅ Email enviado:', info.messageId);

@@ -1,204 +1,35 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
-/**
- * Ficha de Admissão (1ª FASE CONTRATAÇÃO).
- * - RH cria uma ficha com dados de contratação usando dropdowns dos cadastros.
- * - Gera link público pro candidato preencher dados pessoais (FASE B).
- * - Depois vira colaborador com 1 clique (FASE B).
- */
-export default function FichasAdmissaoSection() {
-  const [fichas, setFichas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modalAberto, setModalAberto] = useState(false);
-  const [fichaEditando, setFichaEditando] = useState(null);
+// Monta o HTML (style + conteúdo) da Ficha de Admissão. Reutilizado tanto na
+// impressão (window.print) quanto na geração de PDF pra anexar em e-mail.
+// `fotoOverride` permite injetar a foto já como dataURL (evita CORS no html2canvas).
+function buildFichaHtml(ficha, fotoOverride) {
+  const cd = ficha.candidato_dados || {};
+  const pess = cd.dados_pessoais || {};
+  const end = cd.endereco || {};
+  const cont = cd.contato || {};
+  const doc = cd.documentos || {};
+  const bnc = cd.banco || {};
+  const opc = cd.opcoes_candidato || {};
+  const conj = cd.conjuge || {};
+  const estr = cd.estrangeiro || {};
+  const deps = Array.isArray(cd.dependentes) ? cd.dependentes : [];
 
-  // Cadastros (dropdowns)
-  const [linkGerado, setLinkGerado] = useState(null); // { url, nome } ou null — modal de copiar link
-  const [empresas, setEmpresas] = useState([]);
-  const [cargos, setCargos] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
-  const [jornadas, setJornadas] = useState([]);
-  const [escalas, setEscalas] = useState([]);
-  const [escalasDomingo, setEscalasDomingo] = useState([]);
-  const [regimes, setRegimes] = useState([]);
-  const [prazos, setPrazos] = useState([]);
-  const [formasPgto, setFormasPgto] = useState([]);
+  const fmt = (v) => (v ?? '') === '' ? '____' : String(v);
+  const fmtDate = (d) => { if (!d) return '____'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
+  const fmtBool = (b) => (b === true || b === 'SIM') ? '✓ Sim' : (b === false || b === 'NAO') ? '✗ Não' : '____';
+  const fotoSrc = fotoOverride || cd.foto_url;
+  const fotoHtml = fotoSrc
+    ? `<img src="${fotoSrc}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #6d28d9"/>`
+    : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:24px">📷</div>';
 
-  const carregarFichas = async () => {
-    try {
-      const r = await api.get('/rh/fichas-admissao');
-      setFichas(Array.isArray(r.data) ? r.data : []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
-  };
+  const linha = (lbl, val) => `<div style="font-size:7pt;line-height:1.25"><span style="color:#888;font-size:6pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
 
-  const carregarCadastros = async () => {
-    try {
-      const [emp, ca, dep, jo, es, ed, re, pr, fp] = await Promise.all([
-        api.get('/rh/empresas').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/cargos').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/departamentos').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/jornadas').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/escalas').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/escalas-domingo').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/regimes-trabalho').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/prazos-experiencia').catch(() => ({ data: [] })),
-        api.get('/rh/configuracoes/formas-pagamento').catch(() => ({ data: [] })),
-      ]);
-      const arr = d => Array.isArray(d?.data) ? d.data : [];
-      setEmpresas(arr(emp));
-      setCargos(arr(ca));
-      setDepartamentos(arr(dep));
-      setJornadas(arr(jo));
-      setEscalas(arr(es));
-      setEscalasDomingo(arr(ed));
-      setRegimes(arr(re));
-      setPrazos(arr(pr));
-      setFormasPgto(arr(fp));
-    } catch (e) { console.error(e); }
-  };
-
-  useEffect(() => {
-    carregarFichas();
-    carregarCadastros();
-  }, []);
-
-  const novaFicha = () => {
-    setFichaEditando({
-      candidato_nome: '', candidato_email: '', candidato_celular: '',
-      company_id: empresas.length === 1 ? empresas[0].id : '',
-      data_admissao: '', cargo_id: '', departamento_id: '', jornada_id: '',
-      escala_id: '', escala_domingo_id: '', regime_trabalho_id: '',
-      prazo_experiencia_id: '', forma_pagamento_id: '', salario: '',
-      horario_entrada: '', horario_intervalo_inicio: '', horario_intervalo_fim: '', horario_saida: '',
-      primeiro_emprego: false, contribuicao_sindical: false, vale_transporte: false,
-    });
-    setModalAberto(true);
-  };
-
-  const abrirFicha = (f) => { setFichaEditando({ ...f }); setModalAberto(true); };
-
-  const salvar = async () => {
-    const f = fichaEditando;
-    // Validação: TODOS os campos obrigatórios pra criar a ficha
-    const obrigatorios = [
-      [f.candidato_nome,          'Nome completo do candidato'],
-      [f.candidato_celular,       'Celular'],
-      [f.company_id,              'Empresa'],
-      [f.data_admissao,           'Data de Envio'],
-      [f.cargo_id,                'Cargo / Função'],
-      [f.departamento_id,         'Departamento'],
-      [f.salario,                 'Salário'],
-      [f.prazo_experiencia_id,    'Prazo de Experiência'],
-      [f.forma_pagamento_id,      'Forma de Pagamento'],
-      [f.regime_trabalho_id,      'Regime de Trabalho'],
-      [f.horario_entrada,            'Horário de Entrada'],
-      [f.horario_intervalo_inicio,   'Intervalo — Início'],
-      [f.horario_intervalo_fim,      'Intervalo — Fim'],
-      [f.horario_saida,              'Horário de Saída'],
-      [f.jornada_id,              'Jornada'],
-      [f.escala_id,               'Escala'],
-      [f.escala_domingo_id,       'Escala Domingo'],
-    ];
-    for (const [valor, label] of obrigatorios) {
-      if (!String(valor ?? '').trim()) { toast.error(`Preencha o campo: ${label}`); return; }
-    }
-    try {
-      // Limpa strings vazias pra null (FKs)
-      const payload = { ...f };
-      ['company_id','cargo_id','departamento_id','jornada_id','escala_id','escala_domingo_id',
-       'regime_trabalho_id','prazo_experiencia_id','forma_pagamento_id','data_admissao','salario',
-       'horario_intervalo_inicio','horario_intervalo_fim'
-      ].forEach(k => { if (payload[k] === '') payload[k] = null; });
-
-      if (f.id) {
-        await api.put(`/rh/fichas-admissao/${f.id}`, payload);
-        toast.success('Ficha atualizada');
-      } else {
-        await api.post('/rh/fichas-admissao', payload);
-        toast.success('Ficha criada');
-      }
-      setModalAberto(false);
-      setFichaEditando(null);
-      carregarFichas();
-    } catch (e) {
-      toast.error(e?.response?.data?.error || 'Erro ao salvar');
-    }
-  };
-
-  const excluir = async (id) => {
-    if (!window.confirm('Excluir esta ficha?')) return;
-    try {
-      await api.delete(`/rh/fichas-admissao/${id}`);
-      toast.success('Excluída');
-      carregarFichas();
-    } catch (e) { toast.error('Erro ao excluir'); }
-  };
-
-  const gerarLink = async (ficha) => {
-    try {
-      const r = await api.post(`/rh/fichas-admissao/${ficha.id}/gerar-link`);
-      const url = `${window.location.origin}/admissao/${r.data.public_token}`;
-      // Tenta copiar automaticamente já (best-effort)
-      await navigator.clipboard.writeText(url).catch(() => {});
-      setLinkGerado({
-        url,
-        nome: ficha.candidato_nome,
-        celular: ficha.candidato_celular,
-        email: ficha.candidato_email,
-      });
-      carregarFichas();
-    } catch (e) { toast.error('Erro ao gerar link'); }
-  };
-
-  // Monta link do WhatsApp direto pro chat do candidato (se tiver celular).
-  // Antes usava wa.me/ que redirecionava pra tela intermediaria
-  // "Compartilhar no WhatsApp" (api.whatsapp.com/send) com botoes
-  // "Abrir app"/"Continuar para Web" — irritante. Agora detecta mobile vs
-  // desktop e usa o endpoint que vai DIRETO pra conversa em cada caso.
-  const buildWhatsAppUrl = (celular, mensagem) => {
-    const digits = String(celular || '').replace(/\D/g, '');
-    const tel = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : '';
-    const txt = encodeURIComponent(mensagem);
-    if (!tel) return `https://wa.me/?text=${txt}`;
-    const isMobile = typeof navigator !== 'undefined'
-      && /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
-    return isMobile
-      ? `https://api.whatsapp.com/send?phone=${tel}&text=${txt}`
-      : `https://web.whatsapp.com/send?phone=${tel}&text=${txt}`;
-  };
-
-  // Imprime/Salva em PDF a ficha de admissão completa (RH + candidato).
-  // Abre uma nova janela com layout A4 — o dialogo de impressao do browser
-  // permite "Salvar como PDF" nativamente. Inclui foto, dados de contratação,
-  // dados pessoais, endereço, documentos, banco, dependentes, opções.
-  const imprimirFicha = (ficha) => {
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) return;
-    const cd = ficha.candidato_dados || {};
-    const pess = cd.dados_pessoais || {};
-    const end = cd.endereco || {};
-    const cont = cd.contato || {};
-    const doc = cd.documentos || {};
-    const bnc = cd.banco || {};
-    const opc = cd.opcoes_candidato || {};
-    const conj = cd.conjuge || {};
-    const estr = cd.estrangeiro || {};
-    const deps = Array.isArray(cd.dependentes) ? cd.dependentes : [];
-
-    const fmt = (v) => (v ?? '') === '' ? '____' : String(v);
-    const fmtDate = (d) => { if (!d) return '____'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
-    const fmtBool = (b) => (b === true || b === 'SIM') ? '✓ Sim' : (b === false || b === 'NAO') ? '✗ Não' : '____';
-    const fotoHtml = cd.foto_url
-      ? `<img src="${cd.foto_url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #6d28d9"/>`
-      : '<div style="width:80px;height:80px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-size:24px">📷</div>';
-
-    const linha = (lbl, val) => `<div style="font-size:7pt;line-height:1.25"><span style="color:#888;font-size:6pt;text-transform:uppercase">${lbl}: </span><strong>${fmt(val)}</strong></div>`;
-
-    w.document.write(`<!DOCTYPE html><html><head><title>Ficha de Admissão - ${fmt(ficha.candidato_nome)}</title>
-<style>
+  return `<style>
   @page { size: A4; margin: 8mm }
   body { font-family: Arial, sans-serif; font-size: 7.5pt; color: #222; margin: 0; line-height: 1.2 }
   h1 { font-size: 11pt; text-align: center; margin: 0 0 2px; color: #6d28d9 }
@@ -213,7 +44,7 @@ export default function FichasAdmissaoSection() {
   table { width: 100%; border-collapse: collapse; font-size: 7pt }
   td { padding: 1px 3px }
   .header img, .header div[style*="border-radius"] { width: 60px !important; height: 60px !important }
-</style></head><body>
+</style>
   <div class="header">
     ${fotoHtml}
     <div style="flex:1">
@@ -358,11 +189,313 @@ export default function FichasAdmissaoSection() {
   <div class="sig">
     <div>${fmt(pess.nome || ficha.candidato_nome)}<br/><span style="font-size:8pt;color:#666">Assinatura do candidato</span></div>
     <div>____________________________<br/><span style="font-size:8pt;color:#666">Responsável de RH</span></div>
-  </div>
+  </div>`;
+}
 
-  <script>window.onload=()=>{setTimeout(()=>window.print(),300)}</script>
-</body></html>`);
+// Busca a foto do candidato e converte pra dataURL (evita canvas "tainted" por
+// CORS ao gerar o PDF). Se falhar, retorna null e o PDF usa o placeholder 📷.
+async function fotoComoDataUrl(url) {
+  if (!url) return null;
+  try {
+    const resp = await fetch(url, { mode: 'cors' });
+    const blob = await resp.blob();
+    return await new Promise((resolve) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result);
+      r.onerror = () => resolve(null);
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Gera o PDF (A4, multipágina) da ficha e devolve em dataURL (data:application/pdf;base64,...)
+async function gerarPdfFicha(ficha) {
+  const fotoData = await fotoComoDataUrl((ficha.candidato_dados || {}).foto_url);
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;left:-99999px;top:0;width:794px;background:#fff;padding:30px;box-sizing:border-box;';
+  container.innerHTML = buildFichaHtml(ficha, fotoData);
+  document.body.appendChild(container);
+  try {
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgH = (canvas.height * pageW) / canvas.width;
+    let heightLeft = imgH;
+    let position = 0;
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    pdf.addImage(imgData, 'JPEG', 0, position, pageW, imgH);
+    heightLeft -= pageH;
+    while (heightLeft > 0) {
+      position -= pageH;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, pageW, imgH);
+      heightLeft -= pageH;
+    }
+    return pdf.output('datauristring');
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
+/**
+ * Ficha de Admissão (1ª FASE CONTRATAÇÃO).
+ * - RH cria uma ficha com dados de contratação usando dropdowns dos cadastros.
+ * - Gera link público pro candidato preencher dados pessoais (FASE B).
+ * - Depois vira colaborador com 1 clique (FASE B).
+ */
+export default function FichasAdmissaoSection() {
+  const [fichas, setFichas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalAberto, setModalAberto] = useState(false);
+  const [fichaEditando, setFichaEditando] = useState(null);
+  const [emailModal, setEmailModal] = useState(null); // { ficha, gerando, enviando, pdf, destinatarios, to, assunto, corpo }
+
+  // Cadastros (dropdowns)
+  const [linkGerado, setLinkGerado] = useState(null); // { url, nome } ou null — modal de copiar link
+  const [empresas, setEmpresas] = useState([]);
+  const [cargos, setCargos] = useState([]);
+  const [departamentos, setDepartamentos] = useState([]);
+  const [jornadas, setJornadas] = useState([]);
+  const [escalas, setEscalas] = useState([]);
+  const [escalasDomingo, setEscalasDomingo] = useState([]);
+  const [regimes, setRegimes] = useState([]);
+  const [prazos, setPrazos] = useState([]);
+  const [formasPgto, setFormasPgto] = useState([]);
+
+  const carregarFichas = async () => {
+    try {
+      const r = await api.get('/rh/fichas-admissao');
+      setFichas(Array.isArray(r.data) ? r.data : []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const carregarCadastros = async () => {
+    try {
+      const [emp, ca, dep, jo, es, ed, re, pr, fp] = await Promise.all([
+        api.get('/rh/empresas').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/cargos').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/departamentos').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/jornadas').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/escalas').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/escalas-domingo').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/regimes-trabalho').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/prazos-experiencia').catch(() => ({ data: [] })),
+        api.get('/rh/configuracoes/formas-pagamento').catch(() => ({ data: [] })),
+      ]);
+      const arr = d => Array.isArray(d?.data) ? d.data : [];
+      setEmpresas(arr(emp));
+      setCargos(arr(ca));
+      setDepartamentos(arr(dep));
+      setJornadas(arr(jo));
+      setEscalas(arr(es));
+      setEscalasDomingo(arr(ed));
+      setRegimes(arr(re));
+      setPrazos(arr(pr));
+      setFormasPgto(arr(fp));
+    } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => {
+    carregarFichas();
+    carregarCadastros();
+  }, []);
+
+  const novaFicha = () => {
+    setFichaEditando({
+      candidato_nome: '', candidato_email: '', candidato_celular: '',
+      company_id: empresas.length === 1 ? empresas[0].id : '',
+      data_admissao: '', cargo_id: '', departamento_id: '', jornada_id: '',
+      escala_id: '', escala_domingo_id: '', regime_trabalho_id: '',
+      prazo_experiencia_id: '', forma_pagamento_id: '', salario: '',
+      horario_entrada: '', horario_intervalo_inicio: '', horario_intervalo_fim: '', horario_saida: '',
+      primeiro_emprego: false, contribuicao_sindical: false, vale_transporte: false,
+    });
+    setModalAberto(true);
+  };
+
+  const abrirFicha = (f) => { setFichaEditando({ ...f }); setModalAberto(true); };
+
+  const salvar = async () => {
+    const f = fichaEditando;
+    // Validação: TODOS os campos obrigatórios pra criar a ficha
+    const obrigatorios = [
+      [f.candidato_nome,          'Nome completo do candidato'],
+      [f.candidato_celular,       'Celular'],
+      [f.company_id,              'Empresa'],
+      [f.data_admissao,           'Data de Envio'],
+      [f.cargo_id,                'Cargo / Função'],
+      [f.departamento_id,         'Departamento'],
+      [f.salario,                 'Salário'],
+      [f.prazo_experiencia_id,    'Prazo de Experiência'],
+      [f.forma_pagamento_id,      'Forma de Pagamento'],
+      [f.regime_trabalho_id,      'Regime de Trabalho'],
+      [f.horario_entrada,            'Horário de Entrada'],
+      [f.horario_intervalo_inicio,   'Intervalo — Início'],
+      [f.horario_intervalo_fim,      'Intervalo — Fim'],
+      [f.horario_saida,              'Horário de Saída'],
+      [f.jornada_id,              'Jornada'],
+      [f.escala_id,               'Escala'],
+      [f.escala_domingo_id,       'Escala Domingo'],
+    ];
+    for (const [valor, label] of obrigatorios) {
+      if (!String(valor ?? '').trim()) { toast.error(`Preencha o campo: ${label}`); return; }
+    }
+    try {
+      // Limpa strings vazias pra null (FKs)
+      const payload = { ...f };
+      ['company_id','cargo_id','departamento_id','jornada_id','escala_id','escala_domingo_id',
+       'regime_trabalho_id','prazo_experiencia_id','forma_pagamento_id','data_admissao','salario',
+       'horario_intervalo_inicio','horario_intervalo_fim'
+      ].forEach(k => { if (payload[k] === '') payload[k] = null; });
+
+      if (f.id) {
+        await api.put(`/rh/fichas-admissao/${f.id}`, payload);
+        toast.success('Ficha atualizada');
+      } else {
+        await api.post('/rh/fichas-admissao', payload);
+        toast.success('Ficha criada');
+      }
+      setModalAberto(false);
+      setFichaEditando(null);
+      carregarFichas();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao salvar');
+    }
+  };
+
+  const excluir = async (id) => {
+    if (!window.confirm('Excluir esta ficha?')) return;
+    try {
+      await api.delete(`/rh/fichas-admissao/${id}`);
+      toast.success('Excluída');
+      carregarFichas();
+    } catch { toast.error('Erro ao excluir'); }
+  };
+
+  const gerarLink = async (ficha) => {
+    try {
+      const r = await api.post(`/rh/fichas-admissao/${ficha.id}/gerar-link`);
+      const url = `${window.location.origin}/admissao/${r.data.public_token}`;
+      // Tenta copiar automaticamente já (best-effort)
+      await navigator.clipboard.writeText(url).catch(() => {});
+      setLinkGerado({
+        url,
+        nome: ficha.candidato_nome,
+        celular: ficha.candidato_celular,
+        email: ficha.candidato_email,
+      });
+      carregarFichas();
+    } catch { toast.error('Erro ao gerar link'); }
+  };
+
+  // Monta link do WhatsApp direto pro chat do candidato (se tiver celular).
+  // Antes usava wa.me/ que redirecionava pra tela intermediaria
+  // "Compartilhar no WhatsApp" (api.whatsapp.com/send) com botoes
+  // "Abrir app"/"Continuar para Web" — irritante. Agora detecta mobile vs
+  // desktop e usa o endpoint que vai DIRETO pra conversa em cada caso.
+  const buildWhatsAppUrl = (celular, mensagem) => {
+    const digits = String(celular || '').replace(/\D/g, '');
+    const tel = digits ? (digits.startsWith('55') ? digits : `55${digits}`) : '';
+    const txt = encodeURIComponent(mensagem);
+    if (!tel) return `https://wa.me/?text=${txt}`;
+    const isMobile = typeof navigator !== 'undefined'
+      && /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || '');
+    return isMobile
+      ? `https://api.whatsapp.com/send?phone=${tel}&text=${txt}`
+      : `https://web.whatsapp.com/send?phone=${tel}&text=${txt}`;
+  };
+
+  // Imprime/Salva em PDF a ficha de admissão completa (RH + candidato).
+  // Abre uma nova janela com layout A4 — o dialogo de impressao do browser
+  // permite "Salvar como PDF" nativamente. Inclui foto, dados de contratação,
+  // dados pessoais, endereço, documentos, banco, dependentes, opções.
+  const imprimirFicha = (ficha) => {
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>Ficha de Admissão - ${ficha.candidato_nome || ''}</title></head><body>${buildFichaHtml(ficha)}<script>window.onload=()=>{setTimeout(()=>window.print(),300)}</script></body></html>`);
     w.document.close();
+  };
+
+  // ===== Envio da Ficha Cadastral por e-mail =====
+  // Abre o modal, carrega destinatários + texto padrão (configurations) e gera o PDF.
+  const abrirEnviarEmail = async (ficha) => {
+    setEmailModal({ ficha, gerando: true, enviando: false, pdf: null, destinatarios: [], to: '', assunto: '', corpo: '', responsaveis: [], responsavel: '' });
+    try {
+      const { data } = await api.get('/configurations');
+      let dest = [];
+      try { dest = JSON.parse(data.email_destinatarios || '[]'); } catch { dest = []; }
+      dest = (Array.isArray(dest) ? dest : []).filter((d) => d.email);
+      let textos = {};
+      try { textos = JSON.parse(data.email_textos_padrao || '{}'); } catch { textos = {}; }
+      const t = textos.ficha_cadastral || {};
+
+      // Usuários administrativos (Liberação de Acesso) -> opções de {RESPONSAVEL}
+      let responsaveis = [];
+      try {
+        const emp = await api.get('/employees?limit=200');
+        responsaveis = (emp.data?.data || []).map((e) => e.name).filter(Boolean);
+      } catch { responsaveis = []; }
+      const responsavel = responsaveis[0] || '';
+
+      // Substitui NOME/CARGO/EMPRESA (fixos). {RESPONSAVEL} fica no "base" e é
+      // aplicado conforme o responsável escolhido no dropdown.
+      const subst = (s) => String(s || '')
+        .replace(/\{NOME\}/g, ficha.candidato_nome || '')
+        .replace(/\{CARGO\}/g, ficha.cargo_nome || '')
+        .replace(/\{EMPRESA\}/g, ficha.empresa_nome || '');
+      const aplicaResp = (s) => String(s || '').replace(/\{RESPONSAVEL\}/g, responsavel);
+
+      const assuntoBase = subst(t.assunto || `Ficha Cadastral - ${ficha.candidato_nome || ''}`);
+      const corpoBase = subst(t.corpo || `Olá,\n\nSegue em anexo a Ficha Cadastral do colaborador ${ficha.candidato_nome || ''}.\n\nAtenciosamente,\n{RESPONSAVEL}`);
+
+      const pdf = await gerarPdfFicha(ficha);
+      setEmailModal((m) => (m && m.ficha === ficha ? {
+        ...m,
+        gerando: false,
+        pdf,
+        destinatarios: dest,
+        to: dest[0]?.email || '',
+        responsaveis,
+        responsavel,
+        assuntoBase,
+        corpoBase,
+        assunto: aplicaResp(assuntoBase),
+        corpo: aplicaResp(corpoBase),
+      } : m));
+    } catch (e) {
+      console.error('Erro ao preparar envio de e-mail:', e);
+      toast.error('Erro ao gerar o PDF da ficha');
+      setEmailModal(null);
+    }
+  };
+
+  const enviarEmailFicha = async () => {
+    if (!emailModal) return;
+    const { to, assunto, corpo, pdf, ficha, responsavel } = emailModal;
+    if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { toast.error('Informe um e-mail de destino válido'); return; }
+    if (!String(assunto).trim()) { toast.error('Informe o assunto'); return; }
+    if (!pdf) { toast.error('PDF ainda não foi gerado'); return; }
+    setEmailModal((m) => ({ ...m, enviando: true }));
+    try {
+      // Limpa qualquer {RESPONSAVEL} remanescente (ex: editado à mão) com o nome escolhido
+      const aplicaResp = (s) => String(s || '').replace(/\{RESPONSAVEL\}/g, responsavel || '');
+      const nomeArq = `ficha-cadastral-${(ficha.candidato_nome || 'colaborador').replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      await api.post('/rh/enviar-documento-email', {
+        to,
+        subject: aplicaResp(assunto),
+        body: aplicaResp(corpo),
+        attachment: { filename: nomeArq, base64: pdf, contentType: 'application/pdf' },
+      });
+      toast.success('E-mail enviado com sucesso!');
+      setEmailModal(null);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao enviar e-mail');
+      setEmailModal((m) => (m ? { ...m, enviando: false } : m));
+    }
   };
 
   const copiarLink = async (url) => {
@@ -403,6 +536,7 @@ export default function FichasAdmissaoSection() {
 
   return (
     <div className="space-y-3">
+      <Toaster position="top-right" />
       {/* Header com botão Nova Ficha */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
@@ -517,6 +651,16 @@ export default function FichasAdmissaoSection() {
           regimes={regimes} prazos={prazos} formasPgto={formasPgto}
           onSalvar={salvar} onFechar={() => { setModalAberto(false); setFichaEditando(null); }}
           onImprimir={imprimirFicha}
+          onEnviarEmail={abrirEnviarEmail}
+        />
+      )}
+
+      {emailModal && (
+        <EnviarEmailModal
+          estado={emailModal}
+          setEstado={setEmailModal}
+          onEnviar={enviarEmailFicha}
+          onFechar={() => setEmailModal(null)}
         />
       )}
     </div>
@@ -524,9 +668,125 @@ export default function FichasAdmissaoSection() {
 }
 
 // ============================================================
+// Modal: Enviar Ficha Cadastral por e-mail
+// ============================================================
+function EnviarEmailModal({ estado, setEstado, onEnviar, onFechar }) {
+  const { ficha, gerando, enviando, pdf, destinatarios, to, assunto, corpo, responsaveis = [], responsavel = '' } = estado;
+  const set = (campo, val) => setEstado((m) => (m ? { ...m, [campo]: val } : m));
+
+  // Trocar o responsável re-aplica {RESPONSAVEL} no assunto/corpo a partir do template base.
+  const setResponsavel = (nome) => setEstado((m) => (m ? {
+    ...m,
+    responsavel: nome,
+    assunto: String(m.assuntoBase || m.assunto).replace(/\{RESPONSAVEL\}/g, nome),
+    corpo: String(m.corpoBase || m.corpo).replace(/\{RESPONSAVEL\}/g, nome),
+  } : m));
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="px-5 py-4 border-b flex items-center justify-between">
+          <h3 className="text-lg font-bold text-gray-800">📧 Enviar Ficha Cadastral</h3>
+          <button onClick={onFechar} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className={`text-sm flex items-center gap-2 rounded-lg px-3 py-2 ${gerando ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+            {gerando ? (
+              <>
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600" />
+                Gerando o PDF da ficha...
+              </>
+            ) : (
+              <>📎 PDF anexado: <strong>{ficha.candidato_nome}</strong></>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Destinatário</label>
+            {destinatarios.length > 0 && (
+              <select
+                value={destinatarios.some((d) => d.email === to) ? to : ''}
+                onChange={(e) => set('to', e.target.value)}
+                className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">— escolher contato cadastrado —</option>
+                {destinatarios.map((d, i) => (
+                  <option key={i} value={d.email}>{d.nome} ({d.email})</option>
+                ))}
+              </select>
+            )}
+            <input
+              type="email"
+              value={to}
+              onChange={(e) => set('to', e.target.value)}
+              placeholder="ou digite um e-mail"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+            />
+            {destinatarios.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">
+                Nenhum contato cadastrado. Cadastre em Configurações RH → Emails Padronizados → Destinatários.
+              </p>
+            )}
+          </div>
+
+          {responsaveis.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Responsável (assina o e-mail)</label>
+              <select
+                value={responsavel}
+                onChange={(e) => setResponsavel(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+              >
+                {responsaveis.map((n, i) => (
+                  <option key={i} value={n}>{n}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">Preenche a variável {'{RESPONSAVEL}'} no texto.</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Assunto</label>
+            <input
+              value={assunto}
+              onChange={(e) => set('assunto', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mensagem</label>
+            <textarea
+              rows={6}
+              value={corpo}
+              onChange={(e) => set('corpo', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t flex justify-end gap-2">
+          <button onClick={onFechar} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold">
+            Cancelar
+          </button>
+          <button
+            onClick={onEnviar}
+            disabled={gerando || enviando || !pdf}
+            className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold disabled:bg-gray-300"
+          >
+            {enviando ? 'Enviando...' : '📤 Enviar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Modal do formulário da ficha
 // ============================================================
-function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, jornadas, escalas, escalasDomingo, regimes, prazos, formasPgto, onSalvar, onFechar, onImprimir }) {
+function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, jornadas, escalas, escalasDomingo, regimes, prazos, formasPgto, onSalvar, onFechar, onImprimir, onEnviarEmail }) {
   const set = (k, v) => setFicha({ ...ficha, [k]: v });
 
   const labelCls = 'block text-xs font-semibold uppercase text-gray-600 mb-1';
@@ -691,6 +951,12 @@ function FichaAdmissaoModal({ ficha, setFicha, empresas, cargos, departamentos, 
               <button type="button" onClick={() => onImprimir(ficha)}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-bold">
                 🖨️ Imprimir / PDF
+              </button>
+            )}
+            {ficha.id && onEnviarEmail && (
+              <button type="button" onClick={() => onEnviarEmail(ficha)}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-bold">
+                📧 Enviar por e-mail
               </button>
             )}
           </div>

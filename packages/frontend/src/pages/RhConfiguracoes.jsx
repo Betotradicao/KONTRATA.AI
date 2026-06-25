@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 import EmployeesTab from '../components/configuracoes/EmployeesTab';
 import AniversariantesMesTab from '../components/configuracoes/AniversariantesMesTab';
+import EmailsPadronizadosTab from '../components/configuracoes/EmailsPadronizadosTab';
 import ContratoClausulasPanel from '../components/configuracoes/ContratoClausulasPanel';
 import FichasAdmissaoSection from './rh/FichasAdmissaoSection';
 import ContaSalarioSection from './rh/ContaSalarioSection';
@@ -37,6 +38,7 @@ const TABS = [
   { key: 'doc_padronizada', label: '📁 Documentação Padronizada', custom: true },
   { key: 'mensagens', label: '💬 Mensagens', custom: true },
   { key: 'aniversariantes', label: '🎂 Aniversariantes do Mês', custom: true },
+  { key: 'emails_padronizados', label: '✉️ Emails Padronizados', custom: true },
 ];
 
 const FIELD_LABELS = {
@@ -244,6 +246,8 @@ export default function RhConfiguracoes() {
             <MensagensTab />
           ) : currentTab?.custom && activeTab === 'aniversariantes' ? (
             <AniversariantesMesTab />
+          ) : currentTab?.custom && activeTab === 'emails_padronizados' ? (
+            <EmailsPadronizadosTab />
           ) : currentTab?.custom && activeTab === 'feriados' ? (
             <FeriadosTab />
           ) : currentTab?.custom && activeTab === 'empresas' ? (

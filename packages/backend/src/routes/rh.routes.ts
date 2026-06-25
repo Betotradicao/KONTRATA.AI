@@ -14,10 +14,15 @@ import { RhFolhaController } from '../controllers/rh-folha.controller';
 import { RhFichasAdmissaoController } from '../controllers/rh-fichas-admissao.controller';
 import { RhFeriasController } from '../controllers/rh-ferias.controller';
 import { RhDocTemplateController } from '../controllers/rh-doc-template.controller';
+import { RhEmailDocController } from '../controllers/rh-email-doc.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router: Router = Router();
 const uploadDoc = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
+
+// Envio de documentos do RH por e-mail (PDF gerado no front, anexado aqui)
+router.post('/enviar-documento-email', authenticateToken, RhEmailDocController.enviarDocumento);
+router.post('/email-empresa/testar', authenticateToken, RhEmailDocController.testarEmailEmpresa);
 
 router.get('/colaboradores', authenticateToken, RhController.listColaboradores);
 router.get('/colaboradores/stats', authenticateToken, RhController.getStats);
