@@ -4,6 +4,16 @@ import toast, { Toaster } from 'react-hot-toast';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+// Formata data-only (YYYY-MM-DD) como DD/MM/YYYY SEM passar pelo fuso do Date.
+// `new Date("1996-06-10")` = meia-noite UTC → no BR (UTC-3) volta 1 dia. Extraímos
+// os componentes literais da string; só caímos no Date pra formatos não-ISO.
+function fmtDateBR(d) {
+  if (!d) return '____';
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; }
+}
+
 // Monta o HTML (style + conteúdo) da Ficha de Admissão. Reutilizado tanto na
 // impressão (window.print) quanto na geração de PDF pra anexar em e-mail.
 // `fotoOverride` permite injetar a foto já como dataURL (evita CORS no html2canvas).
@@ -20,7 +30,7 @@ function buildFichaHtml(ficha, fotoOverride) {
   const deps = Array.isArray(cd.dependentes) ? cd.dependentes : [];
 
   const fmt = (v) => (v ?? '') === '' ? '____' : String(v);
-  const fmtDate = (d) => { if (!d) return '____'; try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return d; } };
+  const fmtDate = fmtDateBR;
   const fmtBool = (b) => (b === true || b === 'SIM') ? '✓ Sim' : (b === false || b === 'NAO') ? '✗ Não' : '____';
   const fotoSrc = fotoOverride || cd.foto_url;
   const fotoHtml = fotoSrc
@@ -578,7 +588,7 @@ export default function FichasAdmissaoSection() {
                         {statusBadge(f.status)}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {[f.cargo_nome, f.empresa_nome, f.data_admissao ? `Admissão: ${new Date(f.data_admissao).toLocaleDateString('pt-BR')}` : null]
+                        {[f.cargo_nome, f.empresa_nome, f.data_admissao ? `Admissão: ${fmtDateBR(f.data_admissao)}` : null]
                           .filter(Boolean).join(' · ')}
                       </div>
                     </div>
