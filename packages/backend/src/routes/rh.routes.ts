@@ -267,6 +267,8 @@ router.get('/apontamentos/excel', authenticateToken, RhApontamentosController.ex
 router.get('/apontamentos/campos', authenticateToken, RhApontamentosController.listarCampos);
 router.post('/apontamentos/campos', authenticateToken, RhApontamentosController.criarCampo);
 router.delete('/apontamentos/campos/:id', authenticateToken, RhApontamentosController.deletarCampo);
+router.get('/apontamentos/ordem', authenticateToken, RhApontamentosController.getOrdemColunas);
+router.post('/apontamentos/ordem', authenticateToken, RhApontamentosController.salvarOrdemColunas);
 
 // Departamento Pessoal (docs da empresa)
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);

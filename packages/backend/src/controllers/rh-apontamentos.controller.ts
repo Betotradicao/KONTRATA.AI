@@ -4,6 +4,13 @@ import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
+import { ConfigurationService } from '../services/configuration.service';
+
+// Personalização das colunas da grid (salva por cliente, na tabela configurations)
+const ORDEM_KEY_PROV = 'lancamentos_ordem_proventos';   // ordem (array de chaves)
+const ORDEM_KEY_DESC = 'lancamentos_ordem_descontos';
+const LABELS_KEY = 'lancamentos_labels';                // { chave: "Nome custom" }
+const OCULTAS_KEY = 'lancamentos_ocultas';              // [chave, ...] colunas fixas escondidas
 
 const CAMPOS_PROVENTOS = [
   { key: 'hora_extra_60', label: 'HE 60%' },
@@ -46,14 +53,17 @@ export class RhApontamentosController {
   /** Cria campo customizado */
   static async criarCampo(req: AuthRequest, res: Response) {
     try {
-      const { label, tipo, mostra_qtd, mostra_valor } = req.body;
+      const { label, tipo, mostra_qtd, mostra_valor, mostra_horas } = req.body;
       if (!label?.trim() || !['provento', 'desconto'].includes(tipo)) {
         return res.status(400).json({ error: 'label e tipo (provento|desconto) obrigatorios' });
       }
-      const showQtd = mostra_qtd !== false;
+      const showHoras = mostra_horas === true;
+      // QTD e Horas sao mutuamente exclusivos (ambos sao "quantidade").
+      // Se marcou Horas, ignora QTD. Senao, QTD segue o default (true).
+      const showQtd = !showHoras && mostra_qtd !== false;
       const showValor = mostra_valor !== false;
-      if (!showQtd && !showValor) {
-        return res.status(400).json({ error: 'Marque pelo menos QTD ou R$ pra coluna' });
+      if (!showQtd && !showValor && !showHoras) {
+        return res.status(400).json({ error: 'Marque pelo menos Horas, QTD ou R$ pra coluna' });
       }
       const chave = 'extra_' + label.toLowerCase()
         .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -61,12 +71,13 @@ export class RhApontamentosController {
         .replace(/^_|_$/g, '')
         .slice(0, 40);
       const [row] = await AppDataSource.query(
-        `INSERT INTO rh_apontamento_campos (chave, label, tipo, mostra_qtd, mostra_valor)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO rh_apontamento_campos (chave, label, tipo, mostra_qtd, mostra_valor, mostra_horas)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (chave) DO UPDATE SET label = EXCLUDED.label, tipo = EXCLUDED.tipo,
-           mostra_qtd = EXCLUDED.mostra_qtd, mostra_valor = EXCLUDED.mostra_valor, ativo = true
+           mostra_qtd = EXCLUDED.mostra_qtd, mostra_valor = EXCLUDED.mostra_valor,
+           mostra_horas = EXCLUDED.mostra_horas, ativo = true
          RETURNING *`,
-        [chave, label.trim().toUpperCase(), tipo, showQtd, showValor]
+        [chave, label.trim().toUpperCase(), tipo, showQtd, showValor, showHoras]
       );
       return res.status(201).json(row);
     } catch (err: any) {
@@ -83,6 +94,67 @@ export class RhApontamentosController {
       return res.json({ success: true });
     } catch (err: any) {
       console.error('[APONTAMENTOS] deletarCampo:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /** Retorna a personalização das colunas (ordem + nomes custom + ocultas) do cliente */
+  static async getOrdemColunas(_req: AuthRequest, res: Response) {
+    try {
+      const parseArr = (v: string | null): string[] => {
+        if (!v) return [];
+        try {
+          const a = JSON.parse(v);
+          return Array.isArray(a) ? a.filter((x) => typeof x === 'string') : [];
+        } catch { return []; }
+      };
+      const parseObj = (v: string | null): Record<string, string> => {
+        if (!v) return {};
+        try {
+          const o = JSON.parse(v);
+          if (!o || typeof o !== 'object' || Array.isArray(o)) return {};
+          const out: Record<string, string> = {};
+          for (const k of Object.keys(o)) if (typeof o[k] === 'string') out[k] = o[k];
+          return out;
+        } catch { return {}; }
+      };
+      const [prov, desc, labels, ocultas] = await Promise.all([
+        ConfigurationService.get(ORDEM_KEY_PROV),
+        ConfigurationService.get(ORDEM_KEY_DESC),
+        ConfigurationService.get(LABELS_KEY),
+        ConfigurationService.get(OCULTAS_KEY),
+      ]);
+      return res.json({
+        proventos: parseArr(prov),
+        descontos: parseArr(desc),
+        labels: parseObj(labels),
+        ocultas: parseArr(ocultas),
+      });
+    } catch (err: any) {
+      console.error('[APONTAMENTOS] getOrdemColunas:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  /** Salva personalização. Body: { proventos?, descontos?, labels?, ocultas? } */
+  static async salvarOrdemColunas(req: AuthRequest, res: Response) {
+    try {
+      const { proventos, descontos, labels, ocultas } = req.body || {};
+      const cleanArr = (arr: any): string[] =>
+        Array.isArray(arr) ? arr.filter((x) => typeof x === 'string') : [];
+      const cleanObj = (o: any): Record<string, string> => {
+        if (!o || typeof o !== 'object' || Array.isArray(o)) return {};
+        const out: Record<string, string> = {};
+        for (const k of Object.keys(o)) if (typeof o[k] === 'string') out[k] = String(o[k]).slice(0, 60);
+        return out;
+      };
+      if (proventos !== undefined) await ConfigurationService.set(ORDEM_KEY_PROV, JSON.stringify(cleanArr(proventos)), false);
+      if (descontos !== undefined) await ConfigurationService.set(ORDEM_KEY_DESC, JSON.stringify(cleanArr(descontos)), false);
+      if (labels !== undefined) await ConfigurationService.set(LABELS_KEY, JSON.stringify(cleanObj(labels)), false);
+      if (ocultas !== undefined) await ConfigurationService.set(OCULTAS_KEY, JSON.stringify(cleanArr(ocultas)), false);
+      return res.json({ success: true });
+    } catch (err: any) {
+      console.error('[APONTAMENTOS] salvarOrdemColunas:', err);
       return res.status(500).json({ error: err.message });
     }
   }
