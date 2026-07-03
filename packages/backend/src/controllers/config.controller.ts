@@ -134,7 +134,8 @@ export class ConfigController {
         'minio_access_key',
         'minio_secret_key',
         'openai_api_key',
-        'disparo_whats_token'
+        'disparo_whats_token',
+        'rhid_senha'
       ];
 
       const configsToSave: Record<string, { value: string; encrypted?: boolean }> = {};

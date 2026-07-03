@@ -387,8 +387,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           icon: (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>),
           expandable: true,
           subItems: [
-            { id: 'rh-jornadas', submenuId: 'rh-jornadas', title: 'JORNADAS DE TRABALHO', path: '/rh/jornadas' },
-            { id: 'rh-ausencias', submenuId: 'rh-ausencias', title: 'LANÇAR AUSÊNCIAS', path: '/rh/ausencias' },
+            { id: 'rh-espelho-ponto', submenuId: 'rh-ponto', title: 'ESPELHO DE PONTO', path: '/rh/espelho-ponto' },
             { id: 'rh-ferias', submenuId: 'rh-ferias', title: 'CONTROLE DE FÉRIAS', path: '/rh/ferias' },
             { id: 'rh-absenteismo', submenuId: 'rh-absenteismo', title: 'ANÁLISE ABSENTEÍSMO', path: '/rh/absenteismo' }
           ]

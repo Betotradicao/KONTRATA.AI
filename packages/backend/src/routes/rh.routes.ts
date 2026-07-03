@@ -15,6 +15,7 @@ import { RhFichasAdmissaoController } from '../controllers/rh-fichas-admissao.co
 import { RhFeriasController } from '../controllers/rh-ferias.controller';
 import { RhDocTemplateController } from '../controllers/rh-doc-template.controller';
 import { RhEmailDocController } from '../controllers/rh-email-doc.controller';
+import { RhPontoController } from '../controllers/rh-ponto.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router: Router = Router();
@@ -269,6 +270,12 @@ router.post('/apontamentos/campos', authenticateToken, RhApontamentosController.
 router.delete('/apontamentos/campos/:id', authenticateToken, RhApontamentosController.deletarCampo);
 router.get('/apontamentos/ordem', authenticateToken, RhApontamentosController.getOrdemColunas);
 router.post('/apontamentos/ordem', authenticateToken, RhApontamentosController.salvarOrdemColunas);
+
+// Ponto Eletrônico (nuvem RHiD)
+router.get('/ponto/relogio/status', authenticateToken, RhPontoController.statusRelogio);
+router.post('/ponto/relogio/testar', authenticateToken, RhPontoController.testarCredenciais);
+router.get('/ponto/rhid/empresas', authenticateToken, RhPontoController.empresasRhid);
+router.get('/ponto/espelho', authenticateToken, RhPontoController.espelho);
 
 // Departamento Pessoal (docs da empresa)
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);

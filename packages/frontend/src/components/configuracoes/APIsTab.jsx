@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import SimulatorTab from './SimulatorTab';
 import AITab from './AITab';
 import GarimpadorTab from './GarimpadorTab';
+import PontoRhidTab from './PontoRhidTab';
 import api from '../../utils/api';
 
 export default function APIsTab() {
@@ -62,7 +63,8 @@ export default function APIsTab() {
     { id: 'evolution', label: 'EVOLUTION API' },
     { id: 'database', label: 'BANCO DE DADOS' },
     { id: 'minio', label: 'MINIO (Armazenamento)' },
-    { id: 'ai', label: 'INTELIGENCIA ARTIFICIAL' }
+    { id: 'ai', label: 'INTELIGENCIA ARTIFICIAL' },
+    { id: 'ponto', label: 'CARTÃO DE PONTO (RHiD)' }
   ];
 
   // Busca configurações salvas do banco ao carregar
@@ -1496,9 +1498,10 @@ AND ROWNUM &lt;= 5</pre>
         {activeSubTab === 'simulator' && renderSimulatorForm()}
         {activeSubTab === 'ai' && <AITab />}
         {activeSubTab === 'garimpador' && <GarimpadorTab />}
+        {activeSubTab === 'ponto' && <PontoRhidTab />}
 
         {/* Save Button - Apenas para abas de configuração */}
-        {activeSubTab !== 'simulator' && activeSubTab !== 'ai' && activeSubTab !== 'garimpador' && (
+        {activeSubTab !== 'simulator' && activeSubTab !== 'ai' && activeSubTab !== 'garimpador' && activeSubTab !== 'ponto' && (
           <div className="mt-6 flex justify-end border-t pt-4">
             <button
               onClick={handleSave}
