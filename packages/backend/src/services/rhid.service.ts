@@ -92,6 +92,14 @@ export const RhidService = {
     return all;
   },
 
+  /** Lista os relógios (devices) com hora do último sync/conexão com a nuvem. */
+  async listarDispositivos(): Promise<{ name: string; serial: string; status: string; lastSyncMs: number | null; lastConnectionMs: number | null }[]> {
+    const j = await authGet(`/device?start=0&length=50`);
+    const recs: any[] = j?.records || (Array.isArray(j) ? j : []);
+    const ms = (s: any) => { const m = /\/Date\((\d+)/.exec(String(s || '')); return m ? +m[1] : null; };
+    return recs.map(d => ({ name: d.name, serial: d.serial, status: d.status, lastSyncMs: ms(d.lastSyncDate), lastConnectionMs: ms(d.lastConnectionDate) }));
+  },
+
   /** Lista as empresas (companies) da conta RHiD. */
   async listarEmpresas(): Promise<{ id: number; nome: string }[]> {
     const j = await authGet(`/company?start=0&length=100`);

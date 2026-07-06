@@ -74,6 +74,13 @@ const COLS_DEF = {
 const COLS_ORDEM_PADRAO = ['data', 'diasemana', 'jornada', 'marcacoes', 'normais', 'trabalhado', 'faltaatraso', 'abono', 'extradiurna', 'extranoturna', 'interjornada', 'bancodia', 'saldo', 'alerta', 'situacao'];
 const LS_ORDEM = 'espelhoPonto_colOrder';
 const fmtMin = (m) => (m == null) ? '—' : `${m < 0 ? '-' : ''}${Math.floor(Math.abs(m) / 60)}h${String(Math.abs(m) % 60).padStart(2, '0')}`;
+// Formata o último sync do relógio com a nuvem (hora + "há Nmin")
+const fmtSync = (ms) => {
+  if (!ms) return null;
+  const hora = new Date(ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const min = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  return { hora, rel: min <= 0 ? 'agora' : `há ${min} min` };
+};
 const hoje = () => new Date().toISOString().split('T')[0];
 const primeiroDiaMes = () => { const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0]; };
 const diaSemana = (ymd) => {
@@ -94,8 +101,9 @@ export default function RhEspelhoPonto() {
 
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState(null);
-  const [relogio, setRelogio] = useState(null); // status conexão
+  const [relogio, setRelogio] = useState(null); // status conexão + último sync do relógio
   const [sincronizando, setSincronizando] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   // Ordem das colunas (arrastáveis), salva no navegador
   const [colOrder, setColOrder] = useState(() => {
@@ -126,6 +134,9 @@ export default function RhEspelhoPonto() {
     setDragKey(null); setDragOverKey(null);
   };
 
+  const carregarStatus = () =>
+    api.get('/rh/ponto/relogio/status').then(r => setRelogio(r.data)).catch(e => setRelogio({ ok: false, error: e?.response?.data?.error || 'offline' }));
+
   useEffect(() => {
     (async () => {
       try {
@@ -133,8 +144,7 @@ export default function RhEspelhoPonto() {
         setEmpresas(Array.isArray(r.data) ? r.data : (r.data?.companies || []));
       } catch { /* ignore */ }
     })();
-    // testa conexão com o relógio (não bloqueia)
-    api.get('/rh/ponto/relogio/status').then(r => setRelogio(r.data)).catch(e => setRelogio({ ok: false, error: e?.response?.data?.error || 'offline' }));
+    carregarStatus(); // testa conexão + pega último sync do relógio (não bloqueia)
   }, []);
 
   // Carrega colaboradores ao trocar de loja
@@ -180,8 +190,19 @@ export default function RhEspelhoPonto() {
     } finally { setSincronizando(false); }
   };
 
+  // Auto-atualizar: a cada 60s re-consulta o relógio e recarrega o espelho do colaborador aberto
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => {
+      carregarStatus();
+      if (colaboradorId && dataInicio && dataFim) carregar();
+    }, 60000);
+    return () => clearInterval(id);
+  }, [autoRefresh, colaboradorId, dataInicio, dataFim]);
+
   const col = resultado?.colaborador;
   const tot = resultado?.totais;
+  const sync = relogio?.ok ? fmtSync(relogio.ultimo_sync_ms) : null;
 
   const brDate = (s) => (s ? String(s).split('-').reverse().join('/') : '');
   // HH:MM (horas podem passar de 24 nos totais). Vazio quando 0/null.
@@ -329,6 +350,17 @@ export default function RhEspelhoPonto() {
                   {relogio.ok ? `🟢 RHiD conectada (${relogio.ms}ms)` : '🔴 RHiD offline'}
                 </span>
               )}
+              {sync && (
+                <span title="Hora em que o relógio enviou as batidas pra nuvem RHiD. As batidas feitas depois desse horário só aparecem no próximo envio do relógio."
+                  className="text-xs px-2 py-1 rounded-full font-semibold bg-white/15 text-white">
+                  🕐 Relógio sinc. {sync.hora} <span className="opacity-75">({sync.rel})</span>
+                </span>
+              )}
+              <button onClick={() => setAutoRefresh(v => !v)}
+                title="Recarrega o espelho automaticamente a cada 60s"
+                className={`text-xs px-3 py-1.5 rounded-lg font-semibold ${autoRefresh ? 'bg-emerald-400/30 text-emerald-50 ring-1 ring-emerald-300' : 'bg-white/20 hover:bg-white/30 text-white'}`}>
+                {autoRefresh ? '🔄 Auto ON' : '🔄 Auto'}
+              </button>
               <button onClick={sincronizarPis} disabled={sincronizando}
                 title="Casa os colaboradores com a RHiD por CPF/nome e preenche o PIS"
                 className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-white/20 hover:bg-white/30 text-white disabled:opacity-60">

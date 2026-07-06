@@ -11,7 +11,12 @@ export class RhPontoController {
   static async statusRelogio(_req: AuthRequest, res: Response) {
     try {
       const info = await RhidService.testarConexao();
-      return res.json({ fonte: 'RHiD', ...info });
+      // Último sync do(s) relógio(s) com a nuvem — indica a "validade" do dado.
+      const dispositivos = await RhidService.listarDispositivos().catch(() => [] as any[]);
+      const syncs = dispositivos.map(d => d.lastSyncMs || 0).filter(Boolean);
+      const ultimoSyncMs = syncs.length ? Math.max(...syncs) : null;
+      const ativos = dispositivos.filter(d => d.status === 'OK');
+      return res.json({ fonte: 'RHiD', ...info, dispositivos, ultimo_sync_ms: ultimoSyncMs, relogios_ok: ativos.length });
     } catch (err: any) {
       return res.status(502).json({ ok: false, error: err?.message || 'Falha ao conectar na RHiD' });
     }
