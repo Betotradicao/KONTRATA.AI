@@ -275,7 +275,9 @@ router.post('/apontamentos/ordem', authenticateToken, RhApontamentosController.s
 router.get('/ponto/relogio/status', authenticateToken, RhPontoController.statusRelogio);
 router.post('/ponto/relogio/testar', authenticateToken, RhPontoController.testarCredenciais);
 router.get('/ponto/rhid/empresas', authenticateToken, RhPontoController.empresasRhid);
+router.post('/ponto/sincronizar-pis', authenticateToken, RhPontoController.sincronizarPis);
 router.get('/ponto/espelho', authenticateToken, RhPontoController.espelho);
+router.get('/ponto/indicadores', authenticateToken, RhPontoController.indicadores);
 
 // Departamento Pessoal (docs da empresa)
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);

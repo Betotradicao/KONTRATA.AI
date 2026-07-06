@@ -225,7 +225,7 @@ export class RhController {
         nome_mae, nome_pai,
         observacoes, filtro1, filtro2, filtro3, foto_url,
         tipo_desligamento_id, motivo_desligamento_id, observacoes_desligamento,
-        beneficios_ids,
+        beneficios_ids, nao_bate_ponto,
       } = req.body;
 
       if (!nome || !cpf) {
@@ -253,7 +253,7 @@ export class RhController {
           nome_mae, nome_pai,
           observacoes, filtro1, filtro2, filtro3, foto_url,
           tipo_desligamento_id, motivo_desligamento_id, observacoes_desligamento,
-          company_id, escala_id, escala_domingo_id, beneficios_ids, sector_id, departamento_id
+          company_id, escala_id, escala_domingo_id, beneficios_ids, sector_id, departamento_id, nao_bate_ponto
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, $12,
@@ -266,7 +266,7 @@ export class RhController {
           $44, $45,
           $46, $47, $48, $49, $50,
           $51, $52, $53,
-          $54, $55, $56, $57, $58, $59
+          $54, $55, $56, $57, $58, $59, $60
         ) RETURNING *`,
         [
           nome, cpf, rg, nn(data_nascimento), sexo, estado_civil, nacionalidade, naturalidade,
@@ -281,6 +281,7 @@ export class RhController {
           observacoes, filtro1, filtro2, filtro3, foto_url,
           nnum(tipo_desligamento_id), nnum(motivo_desligamento_id), observacoes_desligamento,
           nn(company_id), nnum(escala_id), nnum(escala_domingo_id), Array.isArray(beneficios_ids) ? beneficios_ids : [], nnum(sector_id), nnum(departamento_id),
+          nao_bate_ponto === true,
         ]
       );
 
@@ -366,7 +367,7 @@ export class RhController {
         nome_mae, nome_pai,
         observacoes, filtro1, filtro2, filtro3, foto_url,
         tipo_desligamento_id, motivo_desligamento_id, observacoes_desligamento,
-        beneficios_ids,
+        beneficios_ids, nao_bate_ponto,
       } = req.body;
 
       // Helpers para converter strings vazias em null (para campos numericos / date)
@@ -410,8 +411,9 @@ export class RhController {
           company_id = $54, escala_id = $55, escala_domingo_id = $56, beneficios_ids = $57,
           sector_id = $58,
           departamento_id = $59,
+          nao_bate_ponto = $60,
           updated_at = NOW()
-        WHERE id = $60
+        WHERE id = $61
         RETURNING *`,
         [
           nome, cpf, rg, nn(data_nascimento), sexo, estado_civil, nacionalidade, naturalidade,
@@ -427,6 +429,7 @@ export class RhController {
           nnum(tipo_desligamento_id), nnum(motivo_desligamento_id), observacoes_desligamento,
           nn(company_id), nnum(escala_id), nnum(escala_domingo_id), Array.isArray(beneficios_ids) ? beneficios_ids : [],
           nnum(sector_id), nnum(departamento_id),
+          nao_bate_ponto === true,
           id,
         ]
       );

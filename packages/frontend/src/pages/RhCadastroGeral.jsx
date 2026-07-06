@@ -193,6 +193,8 @@ export default function RhCadastroGeral() {
     motivo_desligamento_id: '',
     salario: '',
     status: 'ativo',
+    // Cartão de Ponto
+    nao_bate_ponto: false,
     // Documentos
     ctps: '',
     serie_ctps: '',
@@ -470,6 +472,7 @@ export default function RhCadastroGeral() {
         motivo_desligamento_id: colaborador.motivo_desligamento_id || '',
         salario: colaborador.salario || '',
         status: colaborador.status || 'ativo',
+        nao_bate_ponto: colaborador.nao_bate_ponto || false,
         ctps: colaborador.ctps || '',
         serie_ctps: colaborador.serie_ctps || '',
         ctps_uf: colaborador.ctps_uf || '',
@@ -695,7 +698,8 @@ export default function RhCadastroGeral() {
     { id: 'documentos', label: 'Documentos', icon: '📄' },
     { id: 'familia', label: 'Família', icon: '👨‍👩‍👧' },
     { id: 'banco', label: 'Banco', icon: '🏦' },
-    { id: 'beneficios', label: 'Beneficios', icon: '🎁' }
+    { id: 'beneficios', label: 'Beneficios', icon: '🎁' },
+    { id: 'ponto', label: 'Cartão de Ponto', icon: '⏰' }
   ];
 
   return (
@@ -1821,6 +1825,30 @@ export default function RhCadastroGeral() {
                     })}
                   </div>
                 )}
+
+                {abaAtiva === 'ponto' && (
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                      ⏰ Configurações de <strong>Cartão de Ponto</strong> deste colaborador.
+                    </div>
+                    <label className={`flex items-start gap-3 rounded-lg p-4 border cursor-pointer transition ${formData.nao_bate_ponto ? 'bg-amber-50 border-amber-300' : 'bg-gray-50 border-gray-200 hover:border-amber-200'}`}>
+                      <input
+                        type="checkbox"
+                        className="w-5 h-5 mt-0.5 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                        checked={!!formData.nao_bate_ponto}
+                        onChange={(e) => handleChange('nao_bate_ponto', e.target.checked)}
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-semibold text-gray-900">Colaborador não bate ponto</span>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Marque para cargos de confiança / colaboradores que não registram marcações no relógio.
+                          Quando marcado, este colaborador é <strong>excluído dos indicadores de ponto</strong>
+                          (absenteísmo, faltas, atrasos, ranking) — senão apareceria como 100% ausente.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Modal Footer */}
@@ -1840,7 +1868,7 @@ export default function RhCadastroGeral() {
                   )}
                 </div>
                 <div className="flex gap-3">
-                  {abaAtiva !== 'beneficios' && (
+                  {abaAtiva !== abas[abas.length - 1].id && (
                     <button
                       type="button"
                       onClick={() => {

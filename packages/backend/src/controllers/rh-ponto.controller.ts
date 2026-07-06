@@ -6,6 +6,58 @@ import { RhidService } from '../services/rhid.service';
 const fmtHora = (h: any) => { const s = String(h ?? '').padStart(4, '0'); return `${s.slice(0, 2)}:${s.slice(2, 4)}`; };
 const fmtDia = (ymd: string) => `${ymd.slice(6, 8)}/${ymd.slice(4, 6)}/${ymd.slice(0, 4)}`;
 
+// ---------- Indicadores de Ponto/Ausências (agregação da apuração RHiD) ----------
+const _indCache = new Map<string, { at: number; data: any }>();
+const IND_TTL = 20 * 60 * 1000;   // 20 min
+const MES_LABEL = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const _pisNorm = (s: any) => String(s || '').replace(/\D/g, '').replace(/^0+/, '');
+
+/** Executa fn nos itens com no máximo n em paralelo. */
+async function _mapPool<T>(items: T[], n: number, fn: (t: T) => Promise<void>): Promise<void> {
+  let idx = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (idx < items.length) { const i = idx++; await fn(items[i]); }
+  }));
+}
+
+/** Classifica um dia da apuração e extrai os minutos por categoria. */
+function _classificaDia(d: any) {
+  const jorStr = String(d.strHorarioContratualSimples || '').trim();
+  const bat = d.listAfdtManutencao || [];
+  const ehPunch = (b: any) => b._typeEntradaSaida === 'E' || b._typeEntradaSaida === 'S' || (b._typeEntradaSaida === 'D' && b.idAfd != null && !b.abreviationJustification);
+  const temReal = bat.some(ehPunch);
+  const soJust = bat.length > 0 && bat.every((b: any) => b._typeEntradaSaida === 'D' && !ehPunch(b));
+  const isFeriado = d.isHoliday === 1;
+  const isFalta = !!d.faltaDiaInteiro || (d.faltasDiasInteiro || 0) > 0;
+  let status: string;
+  if (isFeriado) status = 'feriado'; else if (isFalta) status = 'falta';
+  else if (soJust && !temReal) status = 'atestado';
+  else if (!jorStr && !temReal) status = 'folga'; else status = 'trabalhou';
+  const uteis = d.horasUteis || 0;   // jornada prevista do dia (min)
+  return {
+    status, ymd: String(d.dateTimeStr || '').slice(0, 8), mes: +String(d.dateTimeStr || '').slice(4, 6),
+    jornada: (status === 'folga' || status === 'feriado') ? 0 : uteis,
+    trabalhado: d.totalHorasTrabalhadas || 0,
+    // atraso/saída-antecipada só conta em dia trabalhado (senão duplica com a falta do dia)
+    atraso: status === 'trabalhou' ? (d.horasFaltaAtraso || 0) : 0,
+    abono: d.minutosAbono || 0, he: d.horasExtrasCalculadas || 0,
+    falta: status === 'falta' ? uteis : 0, atestado: status === 'atestado' ? uteis : 0,
+  };
+}
+
+/** Bradford Factor = episódios² × dias de ausência (penaliza faltas curtas e frequentes). */
+function _bradford(dias: string[] | undefined): number {
+  if (!dias?.length) return 0;
+  const ord = [...new Set(dias)].sort();
+  let ep = 1;
+  for (let i = 1; i < ord.length; i++) {
+    const a = new Date(+ord[i - 1].slice(0, 4), +ord[i - 1].slice(4, 6) - 1, +ord[i - 1].slice(6, 8));
+    const b = new Date(+ord[i].slice(0, 4), +ord[i].slice(4, 6) - 1, +ord[i].slice(6, 8));
+    if ((b.getTime() - a.getTime()) / 86400000 > 1) ep++;
+  }
+  return ep * ep * ord.length;
+}
+
 export class RhPontoController {
   /** Testa conexão com a nuvem RHiD (usa a config salva). */
   static async statusRelogio(_req: AuthRequest, res: Response) {
@@ -289,6 +341,129 @@ export class RhPontoController {
     } catch (err: any) {
       console.error('[PONTO] espelho RHiD:', err?.message);
       return res.status(502).json({ error: err?.message || 'Erro ao buscar a apuração na RHiD' });
+    }
+  }
+
+  /**
+   * Indicadores de Ponto e Ausências (dashboard) — agrega a apuração RHiD de
+   * TODOS os colaboradores ativos (com PIS) do ano, por colaborador / setor / mês.
+   * Query: ano, company_id (opcional), refresh (1 = ignora cache).
+   * Métricas: absenteísmo, gravidade, frequência, TEA, Bradford. Cacheado 20min.
+   */
+  static async indicadores(req: AuthRequest, res: Response) {
+    try {
+      const ano = +(req.query.ano || new Date().getFullYear());
+      const empresaId = (req.query.company_id as string) || '';
+      const refresh = req.query.refresh === '1';
+      const cacheKey = `${empresaId || 'all'}:${ano}`;
+      if (!refresh) {
+        const c = _indCache.get(cacheKey);
+        if (c && Date.now() - c.at < IND_TTL) return res.json({ ...c.data, cache: true });
+      }
+
+      // Colaboradores ativos com PIS + setor
+      const params: any[] = [];
+      let where = `c.status='ativo' AND c.pis_pasep IS NOT NULL AND c.pis_pasep <> '' AND c.nao_bate_ponto IS NOT TRUE`;
+      if (empresaId) { params.push(empresaId); where += ` AND c.company_id = $${params.length}`; }
+      const colabs = await AppDataSource.query(
+        `SELECT c.id, c.nome, c.pis_pasep, c.foto_url, COALESCE(dep.nome,'Sem setor') AS setor
+         FROM rh_colaboradores c LEFT JOIN rh_departamentos dep ON dep.id = c.departamento_id
+         WHERE ${where}`, params);
+
+      const pessoas = await RhidService.listarPessoas();
+      const porPis = new Map(pessoas.map((p: any) => [_pisNorm(p.pis), p]));
+      const alvos = colabs.map((c: any) => ({ ...c, rhid: porPis.get(_pisNorm(c.pis_pasep)) })).filter((c: any) => c.rhid);
+
+      const anoAtual = new Date().getFullYear();
+      const ateMes = ano < anoAtual ? 12 : ano > anoAtual ? 0 : (new Date().getMonth() + 1);
+      const ultDia = (m: number) => new Date(ano, m, 0).getDate();
+      const tarefas: { c: any; m: number }[] = [];
+      for (const c of alvos) for (let m = 1; m <= ateMes; m++) tarefas.push({ c, m });
+
+      const byColab: Record<number, any> = {};
+      const diasAus: Record<number, string[]> = {};
+      await _mapPool(tarefas, 8, async ({ c, m }) => {
+        const ini = `${ano}-${String(m).padStart(2, '0')}-01`;
+        const fim = `${ano}-${String(m).padStart(2, '0')}-${String(ultDia(m)).padStart(2, '0')}`;
+        const apur = await RhidService.apuracao(c.rhid.id, ini, fim).catch(() => []);
+        const acc = (byColab[c.id] ||= { id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, jornada: 0, trabalhado: 0, falta: 0, atraso: 0, atestado: 0, abono: 0, he: 0, diasFalta: 0, diasAtestado: 0, porMes: {} });
+        for (const d of apur) {
+          const x = _classificaDia(d);
+          acc.jornada += x.jornada; acc.trabalhado += x.trabalhado; acc.atraso += x.atraso; acc.abono += x.abono; acc.he += x.he;
+          acc.falta += x.falta; acc.atestado += x.atestado;
+          if (x.status === 'falta') { acc.diasFalta++; (diasAus[c.id] ||= []).push(x.ymd); }
+          if (x.status === 'atestado') { acc.diasAtestado++; (diasAus[c.id] ||= []).push(x.ymd); }
+          const pm = (acc.porMes[x.mes] ||= { jornada: 0, falta: 0, atraso: 0, atestado: 0, he: 0 });
+          pm.jornada += x.jornada; pm.falta += x.falta; pm.atraso += x.atraso; pm.atestado += x.atestado; pm.he += x.he;
+        }
+      });
+
+      const colabArr: any[] = Object.values(byColab).map((c: any) => ({
+        ...c, nao_planejada: c.falta + c.atraso, bradford: _bradford(diasAus[c.id]),
+        absenteismo: c.jornada ? +((c.falta + c.atraso) / c.jornada * 100).toFixed(1) : 0,
+      }));
+
+      const sum = (k: string) => colabArr.reduce((a: number, c: any) => a + (c[k] || 0), 0);
+      const nFunc = colabArr.length;
+      const jornadaTot = sum('jornada'), naoPlanTot = sum('nao_planejada');
+      const comAus = colabArr.filter((c: any) => c.nao_planejada > 0 || c.atestado > 0).length;
+      const eventos = colabArr.reduce((a: number, c: any) => a + c.diasFalta + c.diasAtestado, 0);
+
+      // Por mês (global) — Jan..Dez
+      const porMes = Array.from({ length: 12 }, (_, i) => {
+        const m = i + 1;
+        let jornada = 0, falta = 0, atraso = 0, atestado = 0, he = 0;
+        for (const c of colabArr) { const pm = c.porMes[m]; if (pm) { jornada += pm.jornada; falta += pm.falta; atraso += pm.atraso; atestado += pm.atestado; he += pm.he; } }
+        const naoPlan = falta + atraso;
+        return { mes: m, label: MES_LABEL[m], jornada_min: jornada, falta_min: falta, atraso_min: atraso, atestado_min: atestado, he_min: he,
+          nao_planejada_min: naoPlan, absenteismo_pct: jornada ? +(naoPlan / jornada * 100).toFixed(1) : 0,
+          gravidade_min: nFunc ? Math.round(naoPlan / nFunc) : 0, sem_dados: m > ateMes };
+      });
+
+      // Por setor (com quebra mensal)
+      const setorMap: Record<string, any> = {};
+      for (const c of colabArr) {
+        const s = (setorMap[c.setor] ||= { setor: c.setor, funcionarios: 0, jornada: 0, falta: 0, atraso: 0, atestado: 0, he: 0, porMes: {} });
+        s.funcionarios++; s.jornada += c.jornada; s.falta += c.falta; s.atraso += c.atraso; s.atestado += c.atestado; s.he += c.he;
+        for (let m = 1; m <= 12; m++) { const pm = c.porMes[m]; if (pm) { const spm = (s.porMes[m] ||= { jornada: 0, nao_planejada: 0 }); spm.jornada += pm.jornada; spm.nao_planejada += pm.falta + pm.atraso; } }
+      }
+      const porSetor = Object.values(setorMap).map((s: any) => {
+        const naoPlan = s.falta + s.atraso;
+        const por_mes = Array.from({ length: 12 }, (_, i) => { const pm = s.porMes[i + 1] || { jornada: 0, nao_planejada: 0 }; return { mes: i + 1, absenteismo_pct: pm.jornada ? +(pm.nao_planejada / pm.jornada * 100).toFixed(1) : 0, nao_planejada_min: pm.nao_planejada }; });
+        return { setor: s.setor, funcionarios: s.funcionarios, jornada_min: s.jornada, falta_min: s.falta, atraso_min: s.atraso, atestado_min: s.atestado, he_min: s.he,
+          nao_planejada_min: naoPlan, absenteismo_pct: s.jornada ? +(naoPlan / s.jornada * 100).toFixed(1) : 0, por_mes };
+      }).sort((a, b) => b.absenteismo_pct - a.absenteismo_pct);
+
+      // Ranking colaboradores (top 100 por Bradford)
+      const ranking = colabArr.map((c: any) => ({
+        id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, falta_min: c.falta, atraso_min: c.atraso, atestado_min: c.atestado, abono_min: c.abono, he_min: c.he,
+        dias_falta: c.diasFalta, dias_atestado: c.diasAtestado, nao_planejada_min: c.nao_planejada, absenteismo_pct: c.absenteismo, bradford: c.bradford,
+      })).sort((a, b) => b.bradford - a.bradford).slice(0, 100);
+
+      const data = {
+        periodo: { ano, ate_mes: ateMes }, empresa_id: empresaId || null,
+        gerado_em: new Date().toISOString(), cache: false, funcionarios: nFunc,
+        kpis: {
+          absenteismo_pct: jornadaTot ? +(naoPlanTot / jornadaTot * 100).toFixed(1) : 0,
+          gravidade_min: nFunc ? Math.round(naoPlanTot / nFunc) : 0,
+          nao_planejada_min: naoPlanTot, jornada_min: jornadaTot, trabalhado_min: sum('trabalhado'),
+          falta_min: sum('falta'), atraso_min: sum('atraso'), atestado_min: sum('atestado'), abono_min: sum('abono'), he_min: sum('he'),
+          frequencia: nFunc ? +(eventos / nFunc).toFixed(1) : 0, tea_pct: nFunc ? Math.round(comAus / nFunc * 100) : 0,
+          eventos, funcionarios_ausentes: comAus,
+        },
+        por_tipo: [
+          { tipo: 'Falta', min: sum('falta'), cor: '#ef4444' },
+          { tipo: 'Atraso', min: sum('atraso'), cor: '#f59e0b' },
+          { tipo: 'Atestado', min: sum('atestado'), cor: '#8b5cf6' },
+          { tipo: 'Abono', min: sum('abono'), cor: '#6366f1' },
+        ],
+        por_mes: porMes, por_setor: porSetor, ranking_colaboradores: ranking,
+      };
+      _indCache.set(cacheKey, { at: Date.now(), data });
+      return res.json(data);
+    } catch (err: any) {
+      console.error('[PONTO] indicadores:', err?.message);
+      return res.status(502).json({ error: err?.message || 'Erro ao gerar indicadores de ponto' });
     }
   }
 }

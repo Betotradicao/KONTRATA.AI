@@ -6,6 +6,12 @@ import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Bar, Line, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement,
+  ArcElement, Tooltip, Legend, Title, Filler,
+} from 'chart.js';
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, Title, Filler);
 
 // Abas espelhando os modulos do menu RH (cada uma vai consumir dados da sua tela origem)
 // "Geral" foi movida pra dentro de Colaboradores como sub-aba
@@ -169,8 +175,11 @@ export default function RhIndicadores() {
           {/* Aba Colaboradores — funcional (Geral virou sub-aba interna) */}
           {aba === 'colaboradores' && <AbaColaboradores loading={loading} stats={stats} colaboradores={colaboradores} ano={ano} />}
 
+          {/* Aba Ponto e Ausências — funcional (apuração RHiD agregada) */}
+          {aba === 'ponto-ausencias' && <AbaPontoAusencias ano={ano} empresaId={empresaId} />}
+
           {/* Outras abas — esqueleto que vai ser conectado conforme cada tela origem fica pronta */}
-          {aba !== 'colaboradores' && <Esqueleto aba={aba} ano={ano} />}
+          {aba !== 'colaboradores' && aba !== 'ponto-ausencias' && <Esqueleto aba={aba} ano={ano} />}
         </div>
       </div>
     </div>
@@ -1619,6 +1628,206 @@ function Tabela({ titulo, cor, linhas }) {
 }
 
 // Esqueleto das abas que ainda nao tem dados conectados.
+// ====== Aba Ponto e Ausências — dashboards reais (apuração RHiD agregada) ======
+const PALETA = ['#6366f1', '#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#eab308', '#64748b'];
+const hmMin = (min) => { if (!min || min <= 0) return '0h'; const h = Math.floor(min / 60), m = Math.round(min % 60); return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`; };
+
+function KpiCard({ titulo, valor, sub, cor = 'gray', destaque }) {
+  const bordas = { rose: 'border-rose-400', amber: 'border-amber-400', blue: 'border-blue-400', emerald: 'border-emerald-400', violet: 'border-violet-400', gray: 'border-gray-300' };
+  const textos = { rose: 'text-rose-600', amber: 'text-amber-600', blue: 'text-blue-600', emerald: 'text-emerald-600', violet: 'text-violet-600', gray: 'text-gray-700' };
+  return (
+    <div className={`bg-white rounded-lg border-l-4 ${bordas[cor]} shadow-sm p-4`}>
+      <p className="text-xs uppercase font-semibold text-gray-500">{titulo}</p>
+      <p className={`${destaque ? 'text-3xl' : 'text-2xl'} font-bold ${textos[cor]} mt-1`}>{valor}</p>
+      {sub && <p className="text-[11px] text-gray-400 mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+function Avatar({ nome, foto }) {
+  const [erro, setErro] = useState(false);
+  const ini = (nome || '?').trim().charAt(0).toUpperCase();
+  if (foto && !erro) return <img src={foto} alt="" onError={() => setErro(true)} className="w-7 h-7 rounded-full object-cover border border-gray-200 flex-shrink-0" />;
+  return <span className="w-7 h-7 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-bold flex-shrink-0">{ini}</span>;
+}
+
+function Painel({ titulo, hint, children, className = '' }) {
+  return (
+    <div className={`bg-white rounded-lg border shadow-sm p-4 ${className}`}>
+      <h3 className="font-bold text-gray-700">{titulo}</h3>
+      {hint && <p className="text-[11px] text-gray-400 mb-2">{hint}</p>}
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function AbaPontoAusencias({ ano, empresaId }) {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [erro, setErro] = useState(null);
+
+  const carregar = async (refresh = false) => {
+    setLoading(true); setErro(null);
+    try {
+      const p = new URLSearchParams({ ano: String(ano) });
+      if (empresaId) p.set('company_id', empresaId);
+      if (refresh) p.set('refresh', '1');
+      const r = await api.get(`/rh/ponto/indicadores?${p.toString()}`);
+      setData(r.data);
+    } catch (e) {
+      setErro(e?.response?.data?.error || 'Erro ao carregar indicadores de ponto');
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [ano, empresaId]);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-24 text-gray-500">
+      <RadarLoading size="sm" message="" />
+      <p className="mt-3 font-semibold">Agregando a apuração RHiD de todos os colaboradores…</p>
+      <p className="text-xs text-gray-400">Pode levar alguns segundos na primeira carga (depois fica em cache).</p>
+    </div>
+  );
+  if (erro) return <div className="text-center py-16 text-rose-600 bg-rose-50 rounded-lg border border-rose-200"><div className="text-3xl mb-2">⚠️</div><p className="font-bold">{erro}</p></div>;
+  if (!data || !data.funcionarios) return <div className="text-center py-16 text-amber-600 bg-amber-50 rounded-lg border border-amber-200"><div className="text-3xl mb-2">🔎</div><p className="font-bold">Nenhum colaborador com PIS vinculado à RHiD nesse filtro.</p><p className="text-sm mt-1">Vincule o PIS em RH &gt; Espelho de Ponto (Sincronizar PIS).</p></div>;
+
+  const k = data.kpis;
+  const ateMes = data.periodo.ate_mes;
+  const MESES = data.por_mes.map(m => m.label);
+
+  // Gráfico 1: Absenteísmo mês a mês (verde = melhorou vs mês anterior, vermelho = piorou)
+  let prev = null;
+  const corMes = data.por_mes.map(m => {
+    if (m.mes > ateMes) return '#e5e7eb';                 // sem dados (futuro)
+    let cor = '#3b82f6';
+    if (prev != null) cor = m.absenteismo_pct < prev ? '#10b981' : m.absenteismo_pct > prev ? '#ef4444' : '#3b82f6';
+    prev = m.absenteismo_pct; return cor;
+  });
+  const chartMes = {
+    labels: MESES,
+    datasets: [{ label: 'Absenteísmo %', data: data.por_mes.map(m => m.mes > ateMes ? null : m.absenteismo_pct), backgroundColor: corMes, borderRadius: 4, maxBarThickness: 34 }],
+  };
+
+  // Gráfico 2: Absenteísmo por setor (barras horizontais)
+  const setores = data.por_setor;
+  const chartSetor = {
+    labels: setores.map(s => s.setor),
+    datasets: [{ label: 'Absenteísmo %', data: setores.map(s => s.absenteismo_pct), backgroundColor: setores.map((_, i) => PALETA[i % PALETA.length]), borderRadius: 4 }],
+  };
+
+  // Gráfico 3: por tipo (rosca)
+  const chartTipo = {
+    labels: data.por_tipo.map(t => t.tipo),
+    datasets: [{ data: data.por_tipo.map(t => Math.round(t.min / 60)), backgroundColor: data.por_tipo.map(t => t.cor), borderWidth: 0 }],
+  };
+
+  // Gráfico 4: por setor mês a mês (linha, top 6 setores)
+  const top6 = setores.slice(0, 6);
+  const chartSetorMes = {
+    labels: MESES,
+    datasets: top6.map((s, i) => ({
+      label: s.setor, data: s.por_mes.map(pm => pm.mes > ateMes ? null : pm.absenteismo_pct),
+      borderColor: PALETA[i % PALETA.length], backgroundColor: PALETA[i % PALETA.length], tension: 0.3, spanGaps: true, pointRadius: 2,
+    })),
+  };
+
+  const optBar = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } };
+  const optBarH = { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } };
+  const optLine = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } };
+  const optTipo = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed}h` } } } };
+
+  const ranking = data.ranking_colaboradores;
+
+  return (
+    <>
+      {/* Barra de contexto + recalcular */}
+      <div className="flex items-center justify-between mb-3 text-xs text-gray-500">
+        <span>📊 {data.funcionarios} colaboradores · ano {data.periodo.ano} (jan–{MESES[ateMes - 1] || '—'}) · fonte: apuração oficial RHiD {data.cache && '· (cache)'}</span>
+        <button onClick={() => carregar(true)} className="px-2 py-1 rounded bg-purple-100 text-purple-700 font-semibold hover:bg-purple-200">🔄 Recalcular</button>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+        <KpiCard titulo="Taxa de Absenteísmo" valor={`${k.absenteismo_pct}%`} sub="ausência não planejada ÷ jornada" cor="rose" destaque />
+        <KpiCard titulo="Gravidade (h/func)" valor={hmMin(k.gravidade_min)} sub="horas de ausência por funcionário" cor="amber" />
+        <KpiCard titulo="Ausência Não Planejada" valor={hmMin(k.nao_planejada_min)} sub={`falta ${hmMin(k.falta_min)} + atraso ${hmMin(k.atraso_min)}`} cor="rose" />
+        <KpiCard titulo="Jornada de Trabalho" valor={hmMin(k.jornada_min)} sub={`trabalhado ${hmMin(k.trabalhado_min)}`} cor="blue" />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <KpiCard titulo="Emp. c/ Ausência (TEA)" valor={`${k.tea_pct}%`} sub={`${k.funcionarios_ausentes} de ${data.funcionarios}`} cor="violet" />
+        <KpiCard titulo="Frequência" valor={k.frequencia} sub={`${k.eventos} eventos ÷ ${data.funcionarios} func`} cor="gray" />
+        <KpiCard titulo="Atestados" valor={hmMin(k.atestado_min)} sub="ausência justificada (médica)" cor="violet" />
+        <KpiCard titulo="Horas Extras" valor={hmMin(k.he_min)} sub="no período" cor="emerald" />
+      </div>
+
+      {/* Ranking colaboradores — no topo, com foto */}
+      <Painel titulo="🏆 Ranking de Ausências por Colaborador" hint="ordenado pelo Bradford Factor (episódios² × dias) — destaca quem falta muito e frequentemente" className="mb-4">
+        <div className="overflow-auto max-h-[420px]">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-600 text-white sticky top-0">
+              <tr>
+                <th className="px-2 py-2 text-left">#</th>
+                <th className="px-2 py-2 text-left">Colaborador</th>
+                <th className="px-2 py-2 text-left">Setor</th>
+                <th className="px-2 py-2 text-right">Faltas</th>
+                <th className="px-2 py-2 text-right">Atestados</th>
+                <th className="px-2 py-2 text-right">Atraso</th>
+                <th className="px-2 py-2 text-right">Absent.</th>
+                <th className="px-2 py-2 text-right" title="Bradford Factor = episódios² × dias">Bradford ⓘ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {ranking.map((c, i) => (
+                <tr key={c.id} className={i < 3 ? 'bg-rose-50' : i % 2 ? 'bg-gray-50' : 'bg-white'}>
+                  <td className="px-2 py-1 text-gray-400 font-bold">{i + 1}</td>
+                  <td className="px-2 py-1">
+                    <div className="flex items-center gap-2">
+                      <Avatar nome={c.nome} foto={c.foto_url} />
+                      <span className="font-semibold text-gray-800 whitespace-nowrap">{c.nome}</span>
+                    </div>
+                  </td>
+                  <td className="px-2 py-1 text-xs text-gray-500 whitespace-nowrap">{c.setor}</td>
+                  <td className="px-2 py-1 text-right">{c.dias_falta ? `${c.dias_falta}d` : '—'}</td>
+                  <td className="px-2 py-1 text-right text-violet-600">{c.dias_atestado ? `${c.dias_atestado}d` : '—'}</td>
+                  <td className="px-2 py-1 text-right text-amber-600 whitespace-nowrap">{c.atraso_min ? hmMin(c.atraso_min) : '—'}</td>
+                  <td className="px-2 py-1 text-right font-semibold text-rose-600">{c.absenteismo_pct}%</td>
+                  <td className="px-2 py-1 text-right font-bold text-gray-700">{c.bradford.toLocaleString('pt-BR')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Painel>
+
+      {/* Gráficos compactos */}
+      <div className="mb-4">
+        <Painel titulo="📈 Absenteísmo mês a mês (Jan–Dez)" hint="🟢 melhorou vs. mês anterior · 🔴 piorou · cinza = sem dados">
+          <div style={{ height: 180 }}><Bar data={chartMes} options={optBar} /></div>
+        </Painel>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <Painel titulo="🏭 Absenteísmo por Setor" hint="quais setores mais faltam (ano)">
+          <div style={{ height: Math.min(300, Math.max(140, setores.length * 20)) }}><Bar data={chartSetor} options={optBarH} /></div>
+        </Painel>
+        <Painel titulo="🥧 Ausências por Tipo" hint="horas por categoria no ano">
+          <div style={{ height: 190 }}><Doughnut data={chartTipo} options={optTipo} /></div>
+        </Painel>
+      </div>
+
+      <div className="mb-4">
+        <Painel titulo="🏭 Evolução por Setor (mês a mês) — top 6" hint="comparativo mensal do absenteísmo por setor">
+          <div style={{ height: 190 }}><Line data={chartSetorMes} options={optLine} /></div>
+        </Painel>
+      </div>
+
+      <div className="text-[11px] text-gray-400 mt-3">
+        ✅ Dados oficiais da RHiD. <strong>Absenteísmo</strong> = ausência não planejada (falta + atraso) ÷ jornada prevista. <strong>Gravidade</strong> = horas de ausência por funcionário. <strong>Bradford</strong> = episódios² × dias (penaliza faltas curtas e frequentes). Atestado = ausência justificada (não entra no absenteísmo não planejado).
+      </div>
+    </>
+  );
+}
+
 // Mostra a estrutura planejada (KPIs e graficos) com placeholders.
 function Esqueleto({ aba, ano }) {
   const blocos = {
