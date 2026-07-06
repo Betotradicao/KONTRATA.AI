@@ -10,21 +10,43 @@ const STATUS = {
   folga: { label: '🌙 Folga', cls: 'bg-blue-100 text-blue-700' },
   falta: { label: '🔴 Falta', cls: 'bg-rose-200 text-rose-800' },
   feriado: { label: '🎉 Feriado', cls: 'bg-purple-100 text-purple-700' },
+  atestado: { label: '🩺 Atestado', cls: 'bg-orange-100 text-orange-700' },
 };
+// célula de minutos: '—' quando 0/null, com cor opcional
+const minCell = (m, cls = 'text-gray-700') => (m == null || m === 0) ? <span className="text-gray-300">—</span> : <span className={cls}>{fmtMin(m)}</span>;
 
 // Colunas da tabela (arrastáveis). cell(d) devolve o CONTEÚDO da célula.
 const COLS_DEF = {
   data: { label: 'Data', th: 'text-left', td: 'px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap', cell: d => d.dia },
-  diasemana: { label: 'Dia da Semana', th: 'text-center', td: 'px-3 py-2 text-center whitespace-nowrap', cell: d => <span className="text-xs font-bold px-2 py-0.5 rounded bg-yellow-200 text-amber-900">{diaSemana(d.ymd)}</span> },
-  jornada: { label: 'Jornada', th: 'text-left', td: 'px-3 py-2 text-xs text-gray-500 whitespace-nowrap', cell: d => d.jornada || '—' },
-  marcacoes: { label: 'Marcações', th: 'text-left', td: 'px-3 py-2', cell: d => (
-    <div className="flex flex-wrap gap-1">
-      {d.batidas.length === 0 ? <span className="text-xs text-gray-400">—</span> : d.batidas.map((b, j) => (
-        <span key={j} title={b.justificativa || (b.tipo === 'E' ? 'Entrada' : b.tipo === 'S' ? 'Saída' : b.tipo)}
-          className={`px-2 py-0.5 rounded text-xs font-mono ${b.tipo === 'E' ? 'bg-emerald-100 text-emerald-800' : b.tipo === 'S' ? 'bg-rose-100 text-rose-800' : 'bg-gray-200 text-gray-600'}`}>{b.hora}</span>
-      ))}
-    </div>) },
-  trabalhado: { label: 'Trabalhado', th: 'text-right', td: 'px-3 py-2 text-right font-semibold text-blue-700', cell: d => fmtMin(d.trabalhado_min) },
+  diasemana: { label: 'Dia da Semana', th: 'text-center', td: 'px-3 py-2 text-center whitespace-nowrap', cell: d => <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-700">{diaSemana(d.ymd)}</span> },
+  jornada: { label: 'Previsto', th: 'text-left', td: 'px-3 py-2 text-xs whitespace-nowrap', cell: d => {
+    if (d.status === 'feriado') return <span className="text-purple-700 font-bold">FERIADO{d.feriado_nome ? `: ${d.feriado_nome}` : ''}</span>;
+    if (d.status === 'folga') return <span className="text-blue-600 font-bold">Folga</span>;
+    return <span className="text-gray-500">{d.jornada || '—'}</span>;
+  } },
+  marcacoes: { label: 'Marcações', th: 'text-left', td: 'px-3 py-2', cell: d => {
+    if (d.status === 'atestado') return <span className="text-orange-700 font-semibold text-xs">{d.justificativa_dia || 'Justificado'}</span>;
+    if (!d.batidas || d.batidas.length === 0) return <span className="text-xs text-gray-400">—</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {d.batidas.map((b, j) => b.tipo === 'D' ? (
+          <span key={j} title={b.detalhe || b.justificativa || 'Justificativa'}
+            className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-800">{b.justificativa || 'Just.'}</span>
+        ) : (
+          <span key={j} title={b.justificativa || (b.tipo === 'E' ? 'Entrada' : b.tipo === 'S' ? 'Saída' : b.tipo)}
+            className={`px-2 py-0.5 rounded text-xs font-mono ${b.tipo === 'E' ? 'bg-emerald-100 text-emerald-800' : b.tipo === 'S' ? 'bg-rose-100 text-rose-800' : 'bg-gray-200 text-gray-600'}`}>{b.hora}</span>
+        ))}
+      </div>);
+  } },
+  normais: { label: 'Normais', th: 'text-right', td: 'px-3 py-2 text-right text-gray-700', cell: d => minCell(d.normais_min, 'text-gray-700 font-medium') },
+  trabalhado: { label: 'Trabalhado', th: 'text-right', td: 'px-3 py-2 text-right font-semibold text-blue-700', cell: d => d.trabalhado_min == null ? <span className="text-gray-300">—</span> : fmtMin(d.trabalhado_min) },
+  faltaatraso: { label: 'Falta/Atraso', th: 'text-right', td: 'px-3 py-2 text-right', cell: d => minCell(d.falta_atraso_min, 'text-rose-600 font-medium') },
+  abono: { label: 'Abono', th: 'text-right', td: 'px-3 py-2 text-right', cell: d => minCell(d.abono_min, 'text-indigo-600 font-medium') },
+  extradiurna: { label: 'Extra D.', th: 'text-right', td: 'px-3 py-2 text-right', cell: d => minCell(d.extra_diurna_min, 'text-amber-700 font-medium') },
+  extranoturna: { label: 'Extra N.', th: 'text-right', td: 'px-3 py-2 text-right', cell: d => minCell(d.extra_noturna_min, 'text-amber-800 font-medium') },
+  interjornada: { label: 'Interj.', th: 'text-right', td: 'px-3 py-2 text-right', cell: d => minCell(d.interjornada_min, 'text-gray-600') },
+  bancodia: { label: 'Banco (dia)', th: 'text-right', td: 'px-3 py-2 text-right', cell: d => (!d.banco_dia_min) ? <span className="text-gray-300">—</span> : (
+    <span className={d.banco_dia_min >= 0 ? 'text-emerald-700 font-medium' : 'text-rose-700 font-medium'}>{(d.banco_dia_min >= 0 ? '+' : '') + fmtMin(d.banco_dia_min)}</span>) },
   he: { label: 'HE', th: 'text-right', td: 'px-3 py-2 text-right text-amber-700 font-semibold', cell: d => d.he_min > 0 ? fmtMin(d.he_min) : '—' },
   saldo: { label: 'Saldo Banco', th: 'text-right', td: 'px-3 py-2 text-right font-bold', cell: d => (
     <span className={d.saldo_banco_min == null ? 'text-gray-400' : d.saldo_banco_min >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
@@ -40,7 +62,7 @@ const COLS_DEF = {
     return <span className={`text-xs font-semibold px-2 py-0.5 rounded ${st.cls}`}>{st.label}</span>;
   } },
 };
-const COLS_ORDEM_PADRAO = ['data', 'diasemana', 'jornada', 'marcacoes', 'trabalhado', 'he', 'saldo', 'alerta', 'situacao'];
+const COLS_ORDEM_PADRAO = ['data', 'diasemana', 'jornada', 'marcacoes', 'normais', 'trabalhado', 'faltaatraso', 'abono', 'extradiurna', 'extranoturna', 'interjornada', 'bancodia', 'saldo', 'alerta', 'situacao'];
 const LS_ORDEM = 'espelhoPonto_colOrder';
 const fmtMin = (m) => (m == null) ? '—' : `${m < 0 ? '-' : ''}${Math.floor(Math.abs(m) / 60)}h${String(Math.abs(m) % 60).padStart(2, '0')}`;
 const hoje = () => new Date().toISOString().split('T')[0];
@@ -64,6 +86,7 @@ export default function RhEspelhoPonto() {
   const [loading, setLoading] = useState(false);
   const [resultado, setResultado] = useState(null);
   const [relogio, setRelogio] = useState(null); // status conexão
+  const [sincronizando, setSincronizando] = useState(false);
 
   // Ordem das colunas (arrastáveis), salva no navegador
   const [colOrder, setColOrder] = useState(() => {
@@ -131,45 +154,148 @@ export default function RhEspelhoPonto() {
     } finally { setLoading(false); }
   };
 
+  const sincronizarPis = async () => {
+    setSincronizando(true);
+    try {
+      const r = await api.post('/rh/ponto/sincronizar-pis');
+      const d = r.data || {};
+      toast.success(`${d.vinculados || 0} colaborador(es) vinculado(s) à RHiD` + (d.nao_encontrados?.length ? ` · ${d.nao_encontrados.length} sem correspondência` : ''), { duration: 6000 });
+      // recarrega colaboradores (pega os PIS novos) e reexecuta se houver um selecionado
+      const params = new URLSearchParams({ status: 'ativo', limit: '1000' });
+      if (companyId) params.append('company_id', companyId);
+      const rc = await api.get(`/rh/colaboradores?${params.toString()}`);
+      setColaboradores(Array.isArray(rc.data?.data) ? rc.data.data : []);
+      if (colaboradorId) carregar();
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Erro ao sincronizar PIS com a RHiD');
+    } finally { setSincronizando(false); }
+  };
+
   const col = resultado?.colaborador;
   const tot = resultado?.totais;
 
   const brDate = (s) => (s ? String(s).split('-').reverse().join('/') : '');
-  const gerarPdf = () => {
+  // HH:MM (horas podem passar de 24 nos totais). Vazio quando 0/null.
+  const hm = (m, { zero = '' } = {}) => (m == null || m === 0) ? zero : `${Math.floor(Math.abs(m) / 60)}:${String(Math.abs(m) % 60).padStart(2, '0')}`;
+  const hmSigned = (m) => (m == null || m === 0) ? '' : `${m < 0 ? '-' : ''}${hm(Math.abs(m))}`;
+
+  /** PDF fiel ao "Cartão de Ponto" do Control iD (dados oficiais RHiD). */
+  const gerarCartao = () => {
     if (!resultado || !col || !resultado.dias?.length) return;
-    const alignOf = (k) => COLS_DEF[k].th.includes('right') ? 'right' : COLS_DEF[k].th.includes('center') ? 'center' : 'left';
-    const ths = colOrder.map(k => `<th style="padding:6px 8px;background:#4b5563;color:#fff;text-align:${alignOf(k)};font-size:12px">${COLS_DEF[k].label}</th>`).join('');
-    const linhas = resultado.dias.map(d => {
-      const tds = colOrder.map(k => {
-        let inner = '—';
-        if (k === 'data') inner = d.dia;
-        else if (k === 'diasemana') inner = `<span style="background:#fde68a;color:#78350f;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:bold">${diaSemana(d.ymd)}</span>`;
-        else if (k === 'jornada') inner = `<span style="color:#6b7280;font-size:11px">${d.jornada || '—'}</span>`;
-        else if (k === 'marcacoes') inner = d.batidas.length ? d.batidas.map(b => `<span style="font-family:monospace;font-size:11px;padding:1px 5px;border-radius:4px;margin:0 2px 0 0;background:${b.tipo === 'E' ? '#d1fae5' : b.tipo === 'S' ? '#ffe4e6' : '#e5e7eb'};color:${b.tipo === 'E' ? '#065f46' : b.tipo === 'S' ? '#9f1239' : '#374151'}">${b.hora}</span>`).join('') : '—';
-        else if (k === 'trabalhado') inner = `<b style="color:#1d4ed8">${fmtMin(d.trabalhado_min)}</b>`;
-        else if (k === 'he') inner = d.he_min > 0 ? `<b style="color:#b45309">${fmtMin(d.he_min)}</b>` : '—';
-        else if (k === 'saldo') { const v = d.saldo_banco_min; inner = v == null ? '—' : `<b style="color:${v >= 0 ? '#047857' : '#be123c'}">${(v >= 0 ? '+' : '') + fmtMin(v)}</b>`; }
-        else if (k === 'alerta') inner = d.alerta ? `<span style="color:${d.alerta_cor === 'danger' ? '#be123c' : '#b45309'}">⚠️ ${d.alerta}</span>` : '—';
-        else if (k === 'situacao') inner = (STATUS[d.status] || STATUS.trabalhou).label;
-        return `<td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:${alignOf(k)};white-space:nowrap">${inner}</td>`;
-      }).join('');
-      const bg = d.status === 'falta' ? 'background:#fff1f2' : d.status === 'folga' ? 'background:#eff6ff' : '';
-      return `<tr style="${bg}">${tds}</tr>`;
+    const emp = resultado.empresa || {};
+    const esc = (s) => String(s ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+
+    // Grade semanal (HORÁRIO DE TRABALHO)
+    const parseRanges = (previsto) => {
+      const out = ['', '', '', ''];   // ENT.1, SAÍ.1, ENT.2, SAÍ.2
+      const ranges = String(previsto || '').split('/').map(s => s.trim()).filter(Boolean);
+      ranges.slice(0, 2).forEach((r, i) => { const [a, b] = r.split('-').map(s => s.trim()); out[i * 2] = a || ''; out[i * 2 + 1] = b || ''; });
+      return out;
+    };
+    const gradeRows = (resultado.horario_semanal || []).map(h => {
+      const [e1, s1, e2, s2] = parseRanges(h.previsto);
+      return `<tr><td style="font-weight:bold;background:#f3f4f6">${h.label}</td><td>${e1}</td><td>${s1}</td><td>${e2}</td><td>${s2}</td></tr>`;
     }).join('');
-    const sa = tot.saldo_banco_atual_min;
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Espelho de Ponto - ${col.nome}</title></head>
-<body style="font-family:Arial,sans-serif;color:#111;margin:22px">
-  <h2 style="margin:0 0 2px">🕐 Espelho de Ponto</h2>
-  <div style="font-size:13px;color:#374151"><b>${col.nome}</b> · ${col.cargo_nome || '—'} · Mat. ${col.matricula || '—'} · PIS ${col.pis_pasep}<br>
-  Jornada ${col.jornada || '—'} · Período ${brDate(resultado.periodo.data_inicio)} a ${brDate(resultado.periodo.data_fim)}</div>
-  <div style="margin:10px 0;display:flex;gap:8px;font-size:13px;flex-wrap:wrap">
-    <div style="border:1px solid #ddd;border-radius:6px;padding:6px 10px">Trabalhado: <b>${fmtMin(tot.trabalhado_min)}</b></div>
-    <div style="border:1px solid #ddd;border-radius:6px;padding:6px 10px">HE: <b>${tot.he_min > 0 ? fmtMin(tot.he_min) : '—'}</b></div>
-    <div style="border:1px solid #ddd;border-radius:6px;padding:6px 10px">Trab/Folga/Falta: <b>${tot.dias_trabalhados}/${tot.dias_folga}/${tot.dias_falta}</b></div>
-    <div style="border:2px solid ${(sa ?? 0) >= 0 ? '#10b981' : '#f43f5e'};border-radius:6px;padding:6px 10px">⭐ Saldo Banco atual${tot.saldo_banco_atual_data ? ` (${tot.saldo_banco_atual_data})` : ''}: <b style="color:${(sa ?? 0) >= 0 ? '#047857' : '#be123c'}">${sa == null ? '—' : (sa >= 0 ? '+' : '') + fmtMin(sa)}</b></div>
+
+    // Linhas da tabela principal
+    const linhas = resultado.dias.map(d => {
+      const dow = diaSemana(d.ymd).slice(0, 3).toUpperCase();
+      // ENT.1..SAÍ.3 = batidas reais (E/S) em ordem
+      const reais = (d.batidas || []).filter(b => b.tipo === 'E' || b.tipo === 'S').map(b => b.hora);
+      const slots = [0, 1, 2, 3, 4, 5].map(i => reais[i] || '');
+      let previstoCel = esc(d.jornada || '');
+      let ent2Extra = '';
+      if (d.status === 'feriado') { previstoCel = 'FERIADO'; ent2Extra = `<span style="color:#7c3aed">Feriado: ${esc(d.feriado_nome || '')}</span>`; }
+      else if (d.status === 'folga') { previstoCel = 'Folga'; }
+      else if (d.status === 'atestado') { slots[0] = ''; ent2Extra = `<span style="color:#c2410c;font-weight:bold">${esc(d.justificativa_dia || 'Atestado')}</span>`; }
+      const cell2 = ent2Extra || slots[2];
+      const bg = d.status === 'falta' ? '#fef2f2' : d.status === 'folga' ? '#eff6ff' : d.status === 'feriado' ? '#faf5ff' : d.status === 'atestado' ? '#fff7ed' : '#fff';
+      const c = (v, opts = {}) => `<td style="text-align:${opts.a || 'center'};white-space:nowrap;${opts.s || ''}">${v ?? ''}</td>`;
+      return `<tr style="background:${bg}">
+        ${c(`${d.dia.slice(0, 5)} ${dow}`, { a: 'left', s: 'font-weight:bold' })}
+        ${c(previstoCel, { a: 'left', s: 'font-size:9px;color:#374151' })}
+        ${c(slots[0])}${c(slots[1])}${c(cell2)}${c(slots[3])}${c(slots[4])}${c(slots[5])}
+        ${c(d.normais_min == null ? '' : hm(d.normais_min), { a: 'right' })}
+        ${c(d.trabalhado_min == null ? '' : hm(d.trabalhado_min), { a: 'right', s: 'font-weight:bold' })}
+        ${c(d.falta_dia ? '1' : '')}
+        ${c(hm(d.falta_atraso_min), { a: 'right', s: 'color:#be123c' })}
+        ${c(hm(d.abono_min), { a: 'right', s: 'color:#4338ca' })}
+        ${c(hm(d.extra_diurna_min), { a: 'right', s: 'color:#b45309' })}
+        ${c(hm(d.extra_noturna_min), { a: 'right', s: 'color:#92400e' })}
+        ${c(hm(d.interjornada_min), { a: 'right' })}
+        ${c(d.banco_dia_min >= 0 ? hm(d.banco_dia_min) : '', { a: 'right', s: 'color:#047857' })}
+        ${c(d.banco_dia_min < 0 ? hm(d.banco_dia_min) : '', { a: 'right', s: 'color:#be123c' })}
+      </tr>`;
+    }).join('');
+
+    const totCredito = (resultado.dias || []).reduce((a, d) => a + Math.max(0, d.banco_dia_min || 0), 0);
+    const totDebito = (resultado.dias || []).reduce((a, d) => a + Math.min(0, d.banco_dia_min || 0), 0);
+    const totaisRow = `<tr style="background:#e5e7eb;font-weight:bold">
+      <td colspan="8" style="text-align:right;padding-right:8px">TOTAIS</td>
+      <td style="text-align:right">${hm(tot.normais_min)}</td>
+      <td style="text-align:right">${hm(tot.trabalhado_min)}</td>
+      <td style="text-align:center">${tot.dias_falta || ''}</td>
+      <td style="text-align:right">${hm(tot.falta_atraso_min)}</td>
+      <td style="text-align:right">${hm(tot.abono_min)}</td>
+      <td style="text-align:right">${hm(tot.extra_diurna_min)}</td>
+      <td style="text-align:right">${hm(tot.extra_noturna_min)}</td>
+      <td style="text-align:right">${hm(tot.interjornada_min)}</td>
+      <td style="text-align:right">${hm(totCredito)}</td>
+      <td style="text-align:right">${hm(Math.abs(totDebito))}</td>
+    </tr>`;
+
+    const alteracoes = (resultado.alteracoes || []).map(a => `<li>${esc(a)}</li>`).join('');
+    const th = (t, extra = '') => `<th style="border:1px solid #999;padding:3px 4px;background:#f3f4f6;font-size:8.5px;${extra}">${t}</th>`;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Cartão de Ponto - ${esc(col.nome)}</title>
+<style>
+  @page { size: A4 landscape; margin: 8mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; color: #111; margin: 0; font-size: 10px; }
+  table.main { border-collapse: collapse; width: 100%; }
+  table.main td { border: 1px solid #ccc; padding: 2px 4px; font-size: 9px; }
+  table.grade { border-collapse: collapse; font-size: 8.5px; }
+  table.grade td { border: 1px solid #bbb; padding: 1px 5px; text-align: center; }
+  .hdr td { padding: 1px 4px; font-size: 9.5px; border: none; }
+  .hdr b { color: #000; }
+</style></head>
+<body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div><div style="font-size:22px;font-weight:bold">Cartão</div><div style="font-size:15px;color:#444;margin-top:-4px">de Ponto</div></div>
+    <div style="text-align:right;font-size:10px">
+      <div style="font-weight:bold;color:#c0392b">Control iD</div>
+      <div>Emitido em ${new Date().toLocaleDateString('pt-BR')}</div>
+      <div style="color:#c0392b;font-weight:bold;margin-top:6px">DE ${brDate(resultado.periodo.data_inicio)} ATÉ ${brDate(resultado.periodo.data_fim)}</div>
+    </div>
   </div>
-  <table style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr>${ths}</tr></thead><tbody>${linhas}</tbody></table>
-  <p style="font-size:11px;color:#9ca3af;margin-top:10px">Dados oficiais da RHiD — saldo do banco reflete queima/pagamento de horas. Gerado pelo Kontrata.ai.</p>
+
+  <div style="display:flex;justify-content:space-between;gap:12px;margin:8px 0;border:1px solid #ddd;padding:6px">
+    <table class="hdr"><tbody>
+      <tr><td>NOME DA EMPRESA:</td><td><b>${esc(emp.nome || '—')}</b></td></tr>
+      <tr><td>CNPJ DA EMPRESA:</td><td><b>${esc(emp.cnpj || '—')}</b></td><td style="padding-left:14px">INSCRIÇÃO ESTADUAL:</td><td><b>${esc(emp.inscricao_estadual || '—')}</b></td></tr>
+      <tr><td>NOME DO FUNCIONÁRIO:</td><td><b>${esc(col.nome)}</b></td><td style="padding-left:14px">CPF:</td><td><b>${esc(col.cpf || '—')}</b></td></tr>
+      <tr><td>PIS DO FUNCIONÁRIO:</td><td><b>${esc(col.pis_pasep)}</b></td><td style="padding-left:14px">DATA DE ADMISSÃO:</td><td><b>${col.data_admissao ? brDate(String(col.data_admissao).slice(0, 10)) : '—'}</b></td></tr>
+      <tr><td>NOME DO CARGO:</td><td><b>${esc(col.cargo_nome || '—')}</b></td><td style="padding-left:14px">Nº MATRÍCULA:</td><td><b>${esc(col.matricula || '—')}</b></td></tr>
+      <tr><td>NOME DO DEPARTAMENTO:</td><td><b>${esc(col.departamento_nome || '—')}</b></td></tr>
+    </tbody></table>
+    <div>
+      <div style="font-size:8.5px;font-weight:bold;text-align:center;margin-bottom:2px">HORÁRIO DE TRABALHO</div>
+      <table class="grade"><thead><tr><td></td><td>ENT.1</td><td>SAÍ.1</td><td>ENT.2</td><td>SAÍ.2</td></tr></thead><tbody>${gradeRows}</tbody></table>
+    </div>
+  </div>
+
+  <table class="main">
+    <thead><tr>
+      ${th('DIA', 'text-align:left')}${th('PREVISTO', 'text-align:left')}
+      ${th('ENT.1')}${th('SAÍ.1')}${th('ENT.2')}${th('SAÍ.2')}${th('ENT.3')}${th('SAÍ.3')}
+      ${th('TOTAL<br>NORMAIS')}${th('TOTAL<br>TRABALHADO')}${th('DIA<br>FALTA')}${th('FALTA E<br>ATRASO')}${th('ABONO')}
+      ${th('EXTRA<br>DIURNA')}${th('EXTRA<br>NOTURNA')}${th('INTER<br>JORNADA')}${th('BANCO<br>CRÉDITO')}${th('BANCO<br>DÉBITO')}
+    </tr></thead>
+    <tbody>${linhas}${totaisRow}</tbody>
+  </table>
+
+  ${alteracoes ? `<div style="margin-top:8px"><b style="font-size:10px">Alterações</b><ul style="margin:4px 0;font-size:9px;columns:2">${alteracoes}</ul></div>` : ''}
+  <p style="font-size:8px;color:#9ca3af;margin-top:8px">Dados oficiais da RHiD (Control iD) — saldo do banco reflete queima/pagamento de horas. Reproduzido pelo Kontrata.ai.</p>
 </body></html>`;
     const w = window.open('', '_blank');
     if (!w) { toast.error('Permita pop-ups pra gerar o PDF'); return; }
@@ -194,6 +320,11 @@ export default function RhEspelhoPonto() {
                   {relogio.ok ? `🟢 RHiD conectada (${relogio.ms}ms)` : '🔴 RHiD offline'}
                 </span>
               )}
+              <button onClick={sincronizarPis} disabled={sincronizando}
+                title="Casa os colaboradores com a RHiD por CPF/nome e preenche o PIS"
+                className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-white/20 hover:bg-white/30 text-white disabled:opacity-60">
+                {sincronizando ? 'Sincronizando…' : '🔗 Sincronizar PIS'}
+              </button>
               <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-purple-700">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
               </button>
@@ -252,7 +383,11 @@ export default function RhEspelhoPonto() {
             <div className="text-center py-16 text-amber-600 bg-amber-50 rounded-lg border border-amber-200">
               <div className="text-4xl mb-2">⚠️</div>
               <p className="font-bold">{col?.nome} está sem PIS vinculado no cadastro</p>
-              <p className="text-sm mt-1 text-amber-700">Preencha o PIS/PASEP na ficha do colaborador pra casar com a apuração da RHiD.</p>
+              <p className="text-sm mt-1 text-amber-700">Clique abaixo pra casar automaticamente com a RHiD (por CPF/nome) e preencher o PIS.</p>
+              <button onClick={sincronizarPis} disabled={sincronizando}
+                className="mt-3 px-4 py-2 rounded-lg text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60">
+                {sincronizando ? 'Sincronizando…' : '🔗 Sincronizar PIS com a RHiD agora'}
+              </button>
             </div>
           ) : resultado.nao_encontrado_rhid ? (
             <div className="text-center py-16 text-amber-600 bg-amber-50 rounded-lg border border-amber-200">
@@ -299,9 +434,9 @@ export default function RhEspelhoPonto() {
               {/* Toolbar */}
               {resultado.dias.length > 0 && (
                 <div className="flex justify-end mb-2">
-                  <button onClick={gerarPdf}
+                  <button onClick={gerarCartao}
                     className="px-3 py-1.5 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700">
-                    📄 PDF
+                    📄 Cartão de Ponto (PDF)
                   </button>
                 </div>
               )}
@@ -335,7 +470,12 @@ export default function RhEspelhoPonto() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {resultado.dias.map((d, i) => (
-                        <tr key={d.ymd} className={d.status === 'falta' ? 'bg-rose-50' : d.status === 'folga' ? 'bg-blue-50/40' : (i % 2 ? 'bg-gray-50' : 'bg-white')}>
+                        <tr key={d.ymd} className={
+                          d.status === 'falta' ? 'bg-rose-50' :
+                          d.status === 'folga' ? 'bg-blue-50/40' :
+                          d.status === 'feriado' ? 'bg-purple-50/50' :
+                          d.status === 'atestado' ? 'bg-orange-50/50' :
+                          (i % 2 ? 'bg-gray-50' : 'bg-white')}>
                           {colOrder.map(k => <td key={k} className={COLS_DEF[k].td}>{COLS_DEF[k].cell(d)}</td>)}
                         </tr>
                       ))}
