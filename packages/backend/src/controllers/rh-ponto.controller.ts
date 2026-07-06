@@ -139,6 +139,21 @@ export class RhPontoController {
     }
   }
 
+  /** Conjuntos de PIS e CPF (normalizados) que o relógio/RHiD conhece — pra marcar no
+   * cadastro quais colaboradores o relógio identifica (verde) ou não (vermelho).
+   * Casa por CPF OU PIS (CPF é mais confiável / mais preenchido). */
+  static async pisVinculados(_req: AuthRequest, res: Response) {
+    try {
+      const pessoas = await RhidService.listarPessoas();
+      const cpfN = (s: any) => { const d = String(s || '').replace(/\D/g, ''); return d && d !== '00000000000' ? d.padStart(11, '0') : ''; };
+      const pis = [...new Set(pessoas.map((p: any) => _pisNorm(p.pis)).filter((x: string) => x && x !== '0'))];
+      const cpf = [...new Set(pessoas.map((p: any) => cpfN(p.cpf)).filter(Boolean))];
+      return res.json({ ok: true, pis, cpf, total_pis: pis.length, total_cpf: cpf.length });
+    } catch (err: any) {
+      return res.status(502).json({ ok: false, error: err?.message || 'Falha ao consultar a RHiD', pis: [], cpf: [] });
+    }
+  }
+
   /**
    * Espelho de ponto OFICIAL (apuração RHiD) de um colaborador num período.
    * Reproduz o "Cartão de Ponto" do Control iD 100% fiel: todas as colunas
@@ -364,21 +379,46 @@ export class RhPontoController {
         if (c && Date.now() - c.at < IND_TTL) return res.json({ ...c.data, cache: true });
       }
 
-      // Colaboradores ativos com PIS + setor
+      // Todos os colaboradores ativos (o filtro de PIS/não-bate é feito no JS pra montar o diagnóstico)
       const params: any[] = [];
-      let where = `c.status='ativo' AND c.pis_pasep IS NOT NULL AND c.pis_pasep <> '' AND c.nao_bate_ponto IS NOT TRUE`;
+      let where = `c.status='ativo'`;
       if (empresaId) { params.push(empresaId); where += ` AND c.company_id = $${params.length}`; }
       const colabs = await AppDataSource.query(
-        `SELECT c.id, c.nome, c.pis_pasep, c.foto_url, COALESCE(dep.nome,'Sem setor') AS setor
+        `SELECT c.id, c.nome, c.pis_pasep, c.foto_url, c.nao_bate_ponto, COALESCE(dep.nome,'Sem setor') AS setor
          FROM rh_colaboradores c LEFT JOIN rh_departamentos dep ON dep.id = c.departamento_id
          WHERE ${where}`, params);
 
+      const temPis = (c: any) => c.pis_pasep && String(c.pis_pasep).replace(/\D/g, '');
+      const naoBate = colabs.filter((c: any) => c.nao_bate_ponto === true);
+      const considerados = colabs.filter((c: any) => c.nao_bate_ponto !== true);
+      const semPis = considerados.filter((c: any) => !temPis(c));
+      const comPis = considerados.filter((c: any) => temPis(c));
+
       const pessoas = await RhidService.listarPessoas();
       const porPis = new Map(pessoas.map((p: any) => [_pisNorm(p.pis), p]));
-      const alvos = colabs.map((c: any) => ({ ...c, rhid: porPis.get(_pisNorm(c.pis_pasep)) })).filter((c: any) => c.rhid);
+      const alvos = comPis.map((c: any) => ({ ...c, rhid: porPis.get(_pisNorm(c.pis_pasep)) })).filter((c: any) => c.rhid);
+      const semMatch = comPis.filter((c: any) => !porPis.get(_pisNorm(c.pis_pasep)));
+
+      // Diagnóstico: por que alguém ficou de fora do ranking
+      const diagnostico = {
+        total_ativos: colabs.length,
+        incluidos: alvos.length,
+        nao_bate_ponto: naoBate.length,
+        sem_pis: semPis.length,
+        sem_match_rhid: semMatch.length,
+        nao_incluidos: [
+          ...semPis.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'sem PIS no cadastro' })),
+          ...semMatch.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'PIS não encontrado na RHiD' })),
+          ...naoBate.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'não bate ponto (cargo de confiança)' })),
+        ],
+      };
 
       const anoAtual = new Date().getFullYear();
-      const ateMes = ano < anoAtual ? 12 : ano > anoAtual ? 0 : (new Date().getMonth() + 1);
+      const mesAtual = new Date().getMonth() + 1;
+      // ⚠️ O MÊS VIGENTE NÃO ENTRA: o RH só ajusta/justifica as marcações depois que o
+      // mês fecha (antes disso o dia aberto conta como falta e infla tudo). Só contamos
+      // meses ENCERRADOS — até o mês anterior no ano corrente.
+      const ateMes = ano < anoAtual ? 12 : ano > anoAtual ? 0 : (mesAtual - 1);
       const ultDia = (m: number) => new Date(ano, m, 0).getDate();
       const tarefas: { c: any; m: number }[] = [];
       for (const c of alvos) for (let m = 1; m <= ateMes; m++) tarefas.push({ c, m });
@@ -452,6 +492,7 @@ export class RhPontoController {
       const data = {
         periodo: { ano, ate_mes: ateMes }, empresa_id: empresaId || null,
         gerado_em: new Date().toISOString(), cache: false, funcionarios: nFunc,
+        diagnostico,
         kpis: {
           absenteismo_pct: jornadaTot ? +(naoPlanTot / jornadaTot * 100).toFixed(1) : 0,
           gravidade_min: nFunc ? Math.round(naoPlanTot / nFunc) : 0,

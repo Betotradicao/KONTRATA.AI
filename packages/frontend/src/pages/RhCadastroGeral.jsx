@@ -92,6 +92,28 @@ export default function RhCadastroGeral() {
   const [motivosDesligamento, setMotivosDesligamento] = useState([]);
   const [beneficiosDisponiveis, setBeneficiosDisponiveis] = useState([]);
   const [uploadingFoto, setUploadingFoto] = useState(false);
+  // Vínculos do relógio de ponto (RHiD): PIS/CPF que o relógio conhece
+  const [pontoVinculos, setPontoVinculos] = useState(null);
+
+  // Busca (não bloqueante) quais PIS/CPF o relógio identifica — pra coluna "Relógio de Ponto"
+  useEffect(() => {
+    api.get('/rh/ponto/rhid/vinculos')
+      .then(r => setPontoVinculos({ pis: new Set(r.data?.pis || []), cpf: new Set(r.data?.cpf || []) }))
+      .catch(() => setPontoVinculos({ pis: new Set(), cpf: new Set(), erro: true }));
+  }, []);
+
+  // Status do relógio de ponto pra um colaborador (verde=identificado, vermelho=não, laranja=não bate ponto)
+  const statusPonto = (colab) => {
+    if (colab.nao_bate_ponto) return { label: 'Não bate ponto', cls: 'bg-amber-100 text-amber-700', dot: '🟠' };
+    if (!pontoVinculos || pontoVinculos.erro) return null;
+    const pis = String(colab.pis_pasep || '').replace(/\D/g, '').replace(/^0+/, '');
+    const cpfDigits = String(colab.cpf || '').replace(/\D/g, '');
+    const cpf = cpfDigits ? cpfDigits.padStart(11, '0') : '';
+    const ident = (cpf && pontoVinculos.cpf.has(cpf)) || (pis && pontoVinculos.pis.has(pis));
+    return ident
+      ? { label: 'OK', cls: 'bg-emerald-100 text-emerald-700', dot: '🟢' }
+      : { label: 'Não identificado', cls: 'bg-rose-100 text-rose-700', dot: '🔴' };
+  };
 
   // Calcula tempo na empresa em anos e meses
   const tempoNaEmpresa = (dataAdmissao) => {
@@ -923,6 +945,7 @@ export default function RhCadastroGeral() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Foto</th>
                       <th onClick={() => toggleSort('matricula')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Matricula{sortIcon('matricula')}</th>
                       <th onClick={() => toggleSort('nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Nome{sortIcon('nome')}</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap">Relógio de Ponto</th>
                       <th onClick={() => toggleSort('data_nascimento')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Idade{sortIcon('data_nascimento')}</th>
                       <th onClick={() => toggleSort('cpf')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">CPF{sortIcon('cpf')}</th>
                       <th onClick={() => toggleSort('cargo_nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Cargo{sortIcon('cargo_nome')}</th>
@@ -943,7 +966,7 @@ export default function RhCadastroGeral() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {colaboradores.length === 0 ? (
                       <tr>
-                        <td colSpan="17" className="px-6 py-12 text-center text-gray-500">
+                        <td colSpan="18" className="px-6 py-12 text-center text-gray-500">
                           <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
@@ -969,6 +992,13 @@ export default function RhCadastroGeral() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {colab.nome}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {(() => {
+                              const st = statusPonto(colab);
+                              if (!st) return <span className="text-gray-300">…</span>;
+                              return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${st.cls}`}>{st.dot} {st.label}</span>;
+                            })()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
                             {(() => {

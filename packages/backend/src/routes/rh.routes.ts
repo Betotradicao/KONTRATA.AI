@@ -278,6 +278,7 @@ router.get('/ponto/rhid/empresas', authenticateToken, RhPontoController.empresas
 router.post('/ponto/sincronizar-pis', authenticateToken, RhPontoController.sincronizarPis);
 router.get('/ponto/espelho', authenticateToken, RhPontoController.espelho);
 router.get('/ponto/indicadores', authenticateToken, RhPontoController.indicadores);
+router.get('/ponto/rhid/vinculos', authenticateToken, RhPontoController.pisVinculados);
 
 // Departamento Pessoal (docs da empresa)
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);

@@ -1632,12 +1632,21 @@ function Tabela({ titulo, cor, linhas }) {
 const PALETA = ['#6366f1', '#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#eab308', '#64748b'];
 const hmMin = (min) => { if (!min || min <= 0) return '0h'; const h = Math.floor(min / 60), m = Math.round(min % 60); return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`; };
 
-function KpiCard({ titulo, valor, sub, cor = 'gray', destaque }) {
+function KpiCard({ titulo, valor, sub, cor = 'gray', destaque, info }) {
   const bordas = { rose: 'border-rose-400', amber: 'border-amber-400', blue: 'border-blue-400', emerald: 'border-emerald-400', violet: 'border-violet-400', gray: 'border-gray-300' };
   const textos = { rose: 'text-rose-600', amber: 'text-amber-600', blue: 'text-blue-600', emerald: 'text-emerald-600', violet: 'text-violet-600', gray: 'text-gray-700' };
   return (
-    <div className={`bg-white rounded-lg border-l-4 ${bordas[cor]} shadow-sm p-4`}>
-      <p className="text-xs uppercase font-semibold text-gray-500">{titulo}</p>
+    <div className={`relative bg-white rounded-lg border-l-4 ${bordas[cor]} shadow-sm p-4`}>
+      {info && (
+        <div className="absolute top-2 right-2 group z-20">
+          <span className="w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold cursor-help select-none">i</span>
+          <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 top-6 z-50 w-60 p-2.5 rounded-lg bg-gray-800 text-white text-[11px] leading-snug shadow-xl">
+            {info}
+            <span className="absolute -top-1 right-1.5 w-2 h-2 bg-gray-800 rotate-45"></span>
+          </div>
+        </div>
+      )}
+      <p className="text-xs uppercase font-semibold text-gray-500 pr-5">{titulo}</p>
       <p className={`${destaque ? 'text-3xl' : 'text-2xl'} font-bold ${textos[cor]} mt-1`}>{valor}</p>
       {sub && <p className="text-[11px] text-gray-400 mt-1">{sub}</p>}
     </div>
@@ -1665,6 +1674,7 @@ function AbaPontoAusencias({ ano, empresaId }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [erro, setErro] = useState(null);
+  const [verFora, setVerFora] = useState(false);
 
   const carregar = async (refresh = false) => {
     setLoading(true); setErro(null);
@@ -1740,24 +1750,57 @@ function AbaPontoAusencias({ ano, empresaId }) {
 
   return (
     <>
-      {/* Barra de contexto + recalcular */}
-      <div className="flex items-center justify-between mb-3 text-xs text-gray-500">
-        <span>📊 {data.funcionarios} colaboradores · ano {data.periodo.ano} (jan–{MESES[ateMes - 1] || '—'}) · fonte: apuração oficial RHiD {data.cache && '· (cache)'}</span>
-        <button onClick={() => carregar(true)} className="px-2 py-1 rounded bg-purple-100 text-purple-700 font-semibold hover:bg-purple-200">🔄 Recalcular</button>
-      </div>
+      {/* Barra de contexto + diagnóstico + recalcular */}
+      {(() => {
+        const dg = data.diagnostico || {};
+        const fora = dg.nao_incluidos || [];
+        return (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>📊 <b className="text-gray-700">{dg.incluidos ?? data.funcionarios} de {dg.total_ativos ?? '—'}</b> colaboradores ativos · ano {data.periodo.ano} {ateMes >= 1 ? `(jan–${MESES[ateMes - 1]})` : '(nenhum mês fechado ainda)'} · <span title="O mês vigente não entra — o RH só ajusta as marcações depois que o mês fecha.">mês vigente não considerado ⓘ</span> · fonte RHiD {data.cache && '· cache'}</span>
+              <button onClick={() => carregar(true)} className="px-2 py-1 rounded bg-purple-100 text-purple-700 font-semibold hover:bg-purple-200 whitespace-nowrap">🔄 Recalcular</button>
+            </div>
+            {fora.length > 0 && (
+              <div className="mt-1 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-center justify-between">
+                <span>⚠️ <b>{fora.length}</b> fora do dashboard — {dg.sem_pis} sem PIS · {dg.sem_match_rhid} não vinculados à RHiD · {dg.nao_bate_ponto} não batem ponto</span>
+                <button onClick={() => setVerFora(v => !v)} className="underline font-semibold whitespace-nowrap ml-2">{verFora ? 'ocultar' : 'ver quem'}</button>
+              </div>
+            )}
+            {verFora && fora.length > 0 && (
+              <div className="mt-1 max-h-44 overflow-auto bg-white border rounded p-2 text-[11px]">
+                {fora.map((c, i) => (
+                  <div key={i} className="flex justify-between gap-2 py-0.5 border-b border-gray-50">
+                    <span className="font-medium text-gray-700 whitespace-nowrap">{c.nome} <span className="text-gray-400 font-normal">· {c.setor}</span></span>
+                    <span className={c.motivo.includes('sem PIS') ? 'text-amber-600' : c.motivo.includes('não bate') ? 'text-gray-500' : 'text-rose-600'}>{c.motivo}</span>
+                  </div>
+                ))}
+                <p className="text-gray-400 mt-1">💡 Sem PIS? Vá em <b>RH → Espelho de Ponto → 🔗 Sincronizar PIS</b> pra preencher automaticamente pela RHiD.</p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-        <KpiCard titulo="Taxa de Absenteísmo" valor={`${k.absenteismo_pct}%`} sub="ausência não planejada ÷ jornada" cor="rose" destaque />
-        <KpiCard titulo="Gravidade (h/func)" valor={hmMin(k.gravidade_min)} sub="horas de ausência por funcionário" cor="amber" />
-        <KpiCard titulo="Ausência Não Planejada" valor={hmMin(k.nao_planejada_min)} sub={`falta ${hmMin(k.falta_min)} + atraso ${hmMin(k.atraso_min)}`} cor="rose" />
-        <KpiCard titulo="Jornada de Trabalho" valor={hmMin(k.jornada_min)} sub={`trabalhado ${hmMin(k.trabalhado_min)}`} cor="blue" />
+        <KpiCard titulo="Taxa de Absenteísmo" valor={`${k.absenteismo_pct}%`} sub="ausência não planejada ÷ jornada" cor="rose" destaque
+          info="Das horas que deviam ser trabalhadas, quantas % foram perdidas em ausência NÃO planejada (falta + atraso). Fórmula: ausência não planejada ÷ jornada prevista. Referência saudável: abaixo de 5%." />
+        <KpiCard titulo="Gravidade (h/func)" valor={hmMin(k.gravidade_min)} sub="horas de ausência por funcionário" cor="amber"
+          info="Quão pesada é a ausência POR PESSOA: total de horas de ausência não planejada ÷ nº de funcionários. Mostra o tamanho médio do buraco por colaborador." />
+        <KpiCard titulo="Ausência Não Planejada" valor={hmMin(k.nao_planejada_min)} sub={`falta ${hmMin(k.falta_min)} + atraso ${hmMin(k.atraso_min)}`} cor="rose"
+          info="O total de horas perdidas sem justificativa = falta + atraso/saída antecipada. É o numerador do absenteísmo. NÃO inclui atestado (que é justificado)." />
+        <KpiCard titulo="Jornada de Trabalho" valor={hmMin(k.jornada_min)} sub={`trabalhado ${hmMin(k.trabalhado_min)}`} cor="blue"
+          info="Total de horas que DEVERIAM ser trabalhadas (carga contratual dos dias úteis). O 'trabalhado' embaixo é o que de fato foi cumprido no relógio." />
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <KpiCard titulo="Emp. c/ Ausência (TEA)" valor={`${k.tea_pct}%`} sub={`${k.funcionarios_ausentes} de ${data.funcionarios}`} cor="violet" />
-        <KpiCard titulo="Frequência" valor={k.frequencia} sub={`${k.eventos} eventos ÷ ${data.funcionarios} func`} cor="gray" />
-        <KpiCard titulo="Atestados" valor={hmMin(k.atestado_min)} sub="ausência justificada (médica)" cor="violet" />
-        <KpiCard titulo="Horas Extras" valor={hmMin(k.he_min)} sub="no período" cor="emerald" />
+        <KpiCard titulo="Emp. c/ Ausência (TEA)" valor={`${k.tea_pct}%`} sub={`${k.funcionarios_ausentes} de ${data.funcionarios}`} cor="violet"
+          info="Taxa de Empregados Ausentes: % dos funcionários que tiveram PELO MENOS UMA ausência (falta ou atestado) no período. Mede o alcance do problema." />
+        <KpiCard titulo="Frequência" valor={k.frequencia} sub={`${k.eventos} eventos ÷ ${data.funcionarios} func`} cor="gray"
+          info="Nº de eventos de ausência ÷ funcionários. Cada dia de falta ou atestado conta como um evento. Mede quantas vezes, em média, cada pessoa se ausentou." />
+        <KpiCard titulo="Atestados" valor={hmMin(k.atestado_min)} sub="ausência justificada (médica)" cor="violet"
+          info="Horas de ausência JUSTIFICADA (atestado médico). Ficam separadas — NÃO entram no absenteísmo não planejado, mas ajudam a entender o total de afastamentos." />
+        <KpiCard titulo="Horas Extras" valor={hmMin(k.he_min)} sub="no período" cor="emerald"
+          info="Total de horas extras trabalhadas no período (além da jornada contratual), conforme a apuração oficial da RHiD." />
       </div>
 
       {/* Ranking colaboradores — no topo, com foto + colunas mês a mês */}
