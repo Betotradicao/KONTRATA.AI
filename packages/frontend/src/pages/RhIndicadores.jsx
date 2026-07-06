@@ -1760,40 +1760,48 @@ function AbaPontoAusencias({ ano, empresaId }) {
         <KpiCard titulo="Horas Extras" valor={hmMin(k.he_min)} sub="no período" cor="emerald" />
       </div>
 
-      {/* Ranking colaboradores — no topo, com foto */}
-      <Painel titulo="🏆 Ranking de Ausências por Colaborador" hint="ordenado pelo Bradford Factor (episódios² × dias) — destaca quem falta muito e frequentemente" className="mb-4">
-        <div className="overflow-auto max-h-[420px]">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-600 text-white sticky top-0">
+      {/* Ranking colaboradores — no topo, com foto + colunas mês a mês */}
+      <Painel titulo="🏆 Ranking de Ausências por Colaborador" hint="ordenado pelo Bradford Factor · colunas mês a mês = horas de ausência não planejada (falta+atraso); 🟥 mais forte = pior" className="mb-4">
+        <div className="overflow-auto max-h-[460px]">
+          <table className="min-w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
+            <thead className="bg-gray-600 text-white sticky top-0 z-20">
               <tr>
-                <th className="px-2 py-2 text-left">#</th>
-                <th className="px-2 py-2 text-left">Colaborador</th>
+                <th className="px-2 py-2 text-left sticky left-0 bg-gray-600 z-30 whitespace-nowrap">#&nbsp;Colaborador</th>
                 <th className="px-2 py-2 text-left">Setor</th>
+                {MESES.map((m, idx) => <th key={idx} className="px-1 py-2 text-center text-[10px] font-semibold">{m}</th>)}
                 <th className="px-2 py-2 text-right">Faltas</th>
-                <th className="px-2 py-2 text-right">Atestados</th>
+                <th className="px-2 py-2 text-right">Atest.</th>
                 <th className="px-2 py-2 text-right">Atraso</th>
                 <th className="px-2 py-2 text-right">Absent.</th>
                 <th className="px-2 py-2 text-right" title="Bradford Factor = episódios² × dias">Bradford ⓘ</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {ranking.map((c, i) => (
-                <tr key={c.id} className={i < 3 ? 'bg-rose-50' : i % 2 ? 'bg-gray-50' : 'bg-white'}>
-                  <td className="px-2 py-1 text-gray-400 font-bold">{i + 1}</td>
-                  <td className="px-2 py-1">
-                    <div className="flex items-center gap-2">
-                      <Avatar nome={c.nome} foto={c.foto_url} />
-                      <span className="font-semibold text-gray-800 whitespace-nowrap">{c.nome}</span>
-                    </div>
-                  </td>
-                  <td className="px-2 py-1 text-xs text-gray-500 whitespace-nowrap">{c.setor}</td>
-                  <td className="px-2 py-1 text-right">{c.dias_falta ? `${c.dias_falta}d` : '—'}</td>
-                  <td className="px-2 py-1 text-right text-violet-600">{c.dias_atestado ? `${c.dias_atestado}d` : '—'}</td>
-                  <td className="px-2 py-1 text-right text-amber-600 whitespace-nowrap">{c.atraso_min ? hmMin(c.atraso_min) : '—'}</td>
-                  <td className="px-2 py-1 text-right font-semibold text-rose-600">{c.absenteismo_pct}%</td>
-                  <td className="px-2 py-1 text-right font-bold text-gray-700">{c.bradford.toLocaleString('pt-BR')}</td>
-                </tr>
-              ))}
+            <tbody>
+              {ranking.map((c, i) => {
+                const rowBg = i < 3 ? 'bg-rose-50' : i % 2 ? 'bg-gray-50' : 'bg-white';
+                return (
+                  <tr key={c.id} className={`${rowBg} border-b border-gray-100`}>
+                    <td className={`px-2 py-1 sticky left-0 z-10 ${rowBg}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400 font-bold text-xs w-4 text-right">{i + 1}</span>
+                        <Avatar nome={c.nome} foto={c.foto_url} />
+                        <span className="font-semibold text-gray-800 whitespace-nowrap">{c.nome}</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-1 text-xs text-gray-500 whitespace-nowrap">{c.setor}</td>
+                    {c.por_mes.map(pm => {
+                      const v = pm.nao_planejada_min;
+                      const tint = v > 0 ? `rgba(239,68,68,${Math.min(0.10 + pm.abs_pct / 45, 0.55)})` : undefined;
+                      return <td key={pm.mes} style={{ backgroundColor: tint }} className="px-1 py-1 text-center text-[10px] text-gray-700 whitespace-nowrap" title={pm.abs_pct ? `${pm.abs_pct}%` : ''}>{v > 0 ? hmMin(v) : ''}</td>;
+                    })}
+                    <td className="px-2 py-1 text-right whitespace-nowrap">{c.dias_falta ? `${c.dias_falta}d` : '—'}</td>
+                    <td className="px-2 py-1 text-right text-violet-600 whitespace-nowrap">{c.dias_atestado ? `${c.dias_atestado}d` : '—'}</td>
+                    <td className="px-2 py-1 text-right text-amber-600 whitespace-nowrap">{c.atraso_min ? hmMin(c.atraso_min) : '—'}</td>
+                    <td className="px-2 py-1 text-right font-semibold text-rose-600">{c.absenteismo_pct}%</td>
+                    <td className="px-2 py-1 text-right font-bold text-gray-700">{c.bradford.toLocaleString('pt-BR')}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

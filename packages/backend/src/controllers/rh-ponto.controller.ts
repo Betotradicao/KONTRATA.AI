@@ -9,6 +9,9 @@ const fmtDia = (ymd: string) => `${ymd.slice(6, 8)}/${ymd.slice(4, 6)}/${ymd.sli
 // ---------- Indicadores de Ponto/Ausências (agregação da apuração RHiD) ----------
 const _indCache = new Map<string, { at: number; data: any }>();
 const IND_TTL = 20 * 60 * 1000;   // 20 min
+/** Invalida o cache dos indicadores — chamado quando um colaborador é criado/editado/excluído
+ * (ex: marcar "não bate ponto" tem que refletir na hora, sem precisar clicar em Recalcular). */
+export function limparCacheIndicadores() { _indCache.clear(); }
 const MES_LABEL = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const _pisNorm = (s: any) => String(s || '').replace(/\D/g, '').replace(/^0+/, '');
 
@@ -438,6 +441,12 @@ export class RhPontoController {
       const ranking = colabArr.map((c: any) => ({
         id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, falta_min: c.falta, atraso_min: c.atraso, atestado_min: c.atestado, abono_min: c.abono, he_min: c.he,
         dias_falta: c.diasFalta, dias_atestado: c.diasAtestado, nao_planejada_min: c.nao_planejada, absenteismo_pct: c.absenteismo, bradford: c.bradford,
+        // quebra mês a mês (Jan..Dez) pra colunas mensais no ranking
+        por_mes: Array.from({ length: 12 }, (_, i) => {
+          const pm = c.porMes[i + 1] || { jornada: 0, falta: 0, atraso: 0, atestado: 0 };
+          const np = pm.falta + pm.atraso;
+          return { mes: i + 1, nao_planejada_min: np, atestado_min: pm.atestado, abs_pct: pm.jornada ? +(np / pm.jornada * 100).toFixed(1) : 0 };
+        }),
       })).sort((a, b) => b.bradford - a.bradford).slice(0, 100);
 
       const data = {

@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { AppDataSource } from '../config/database';
 import { minioService } from '../services/minio.service';
 import { GeocodeService } from '../services/geocode.service';
+import { limparCacheIndicadores } from './rh-ponto.controller';
 
 // ============================================================
 // Helpers pra gravar os campos "extras" do colaborador (alinhados à Ficha
@@ -291,6 +292,7 @@ export class RhController {
       // "Configuracoes RH -> Documentacao Padronizada".
       // Pastas protegidas no template ficam protegidas no colaborador.
       const novoColabId = result[0]?.id;
+      limparCacheIndicadores();   // novo colaborador afeta os indicadores de ponto
       if (novoColabId) {
         const pastasTemplate = await AppDataSource.query(
           `SELECT id, nome, ordem, protegida FROM rh_documento_pastas_template
@@ -437,6 +439,7 @@ export class RhController {
       if (result.length === 0) {
         return res.status(404).json({ error: 'Colaborador not found' });
       }
+      limparCacheIndicadores();   // edição (ex: "não bate ponto", PIS, setor, status) reflete na hora
 
       // Grava campos extras + dependentes (idempotente)
       try {
@@ -470,6 +473,7 @@ export class RhController {
       if (result.length === 0) {
         return res.status(404).json({ error: 'Colaborador not found' });
       }
+      limparCacheIndicadores();   // exclusão reflete nos indicadores na hora
 
       res.json({ message: 'Colaborador deleted successfully' });
     } catch (error) {
