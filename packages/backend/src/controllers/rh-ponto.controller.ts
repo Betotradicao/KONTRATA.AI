@@ -384,7 +384,7 @@ export class RhPontoController {
       let where = `c.status='ativo'`;
       if (empresaId) { params.push(empresaId); where += ` AND c.company_id = $${params.length}`; }
       const colabs = await AppDataSource.query(
-        `SELECT c.id, c.nome, c.pis_pasep, c.foto_url, c.nao_bate_ponto, COALESCE(dep.nome,'Sem setor') AS setor
+        `SELECT c.id, c.nome, c.pis_pasep, c.cpf, c.foto_url, c.nao_bate_ponto, COALESCE(dep.nome,'Sem setor') AS setor
          FROM rh_colaboradores c LEFT JOIN rh_departamentos dep ON dep.id = c.departamento_id
          WHERE ${where}`, params);
 
