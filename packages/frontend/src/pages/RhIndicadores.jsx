@@ -1762,7 +1762,7 @@ function AbaPontoAusencias({ ano, empresaId }) {
             </div>
             {fora.length > 0 && (
               <div className="mt-1 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1 flex items-center justify-between">
-                <span>⚠️ <b>{fora.length}</b> fora do dashboard — {dg.sem_pis} sem PIS · {dg.sem_match_rhid} não vinculados à RHiD · {dg.nao_bate_ponto} não batem ponto</span>
+                <span>⚠️ <b>{fora.length}</b> fora do dashboard — {dg.nao_encontrado} não encontrados no relógio · {dg.sem_documento} sem CPF/PIS · {dg.nao_bate_ponto} não batem ponto</span>
                 <button onClick={() => setVerFora(v => !v)} className="underline font-semibold whitespace-nowrap ml-2">{verFora ? 'ocultar' : 'ver quem'}</button>
               </div>
             )}
@@ -1771,7 +1771,7 @@ function AbaPontoAusencias({ ano, empresaId }) {
                 {fora.map((c, i) => (
                   <div key={i} className="flex justify-between gap-2 py-0.5 border-b border-gray-50">
                     <span className="font-medium text-gray-700 whitespace-nowrap">{c.nome} <span className="text-gray-400 font-normal">· {c.setor}</span></span>
-                    <span className={c.motivo.includes('sem PIS') ? 'text-amber-600' : c.motivo.includes('não bate') ? 'text-gray-500' : 'text-rose-600'}>{c.motivo}</span>
+                    <span className={c.motivo.includes('sem CPF') ? 'text-amber-600' : c.motivo.includes('não bate') ? 'text-gray-500' : 'text-rose-600'}>{c.motivo}</span>
                   </div>
                 ))}
                 <p className="text-gray-400 mt-1">💡 Sem PIS? Vá em <b>RH → Espelho de Ponto → 🔗 Sincronizar PIS</b> pra preencher automaticamente pela RHiD.</p>

@@ -388,27 +388,36 @@ export class RhPontoController {
          FROM rh_colaboradores c LEFT JOIN rh_departamentos dep ON dep.id = c.departamento_id
          WHERE ${where}`, params);
 
-      const temPis = (c: any) => c.pis_pasep && String(c.pis_pasep).replace(/\D/g, '');
+      // Casa o colaborador com a RHiD por CPF OU PIS (mesma regra da coluna "Relógio de
+      // Ponto" do cadastro — evita divergência entre as telas).
+      const pessoas = await RhidService.listarPessoas();
+      const cpfN = (s: any) => { const d = String(s || '').replace(/\D/g, ''); return d && d !== '00000000000' ? d.padStart(11, '0') : ''; };
+      const porPis = new Map<string, any>();
+      const porCpf = new Map<string, any>();
+      for (const p of pessoas) {
+        const pk = _pisNorm(p.pis); if (pk && pk !== '0') porPis.set(pk, p);
+        const ck = cpfN(p.cpf); if (ck) porCpf.set(ck, p);
+      }
+      const matchRhid = (c: any) => porCpf.get(cpfN(c.cpf)) || porPis.get(_pisNorm(c.pis_pasep)) || null;
+      const temDoc = (c: any) => !!(cpfN(c.cpf) || _pisNorm(c.pis_pasep) !== '0' && _pisNorm(c.pis_pasep));
+
       const naoBate = colabs.filter((c: any) => c.nao_bate_ponto === true);
       const considerados = colabs.filter((c: any) => c.nao_bate_ponto !== true);
-      const semPis = considerados.filter((c: any) => !temPis(c));
-      const comPis = considerados.filter((c: any) => temPis(c));
+      const alvos = considerados.map((c: any) => ({ ...c, rhid: matchRhid(c) })).filter((c: any) => c.rhid);
+      const semMatch = considerados.filter((c: any) => !matchRhid(c));
+      const semDoc = semMatch.filter((c: any) => !temDoc(c));
+      const naoEncontrado = semMatch.filter((c: any) => temDoc(c));
 
-      const pessoas = await RhidService.listarPessoas();
-      const porPis = new Map(pessoas.map((p: any) => [_pisNorm(p.pis), p]));
-      const alvos = comPis.map((c: any) => ({ ...c, rhid: porPis.get(_pisNorm(c.pis_pasep)) })).filter((c: any) => c.rhid);
-      const semMatch = comPis.filter((c: any) => !porPis.get(_pisNorm(c.pis_pasep)));
-
-      // Diagnóstico: por que alguém ficou de fora do ranking
+      // Diagnóstico: por que alguém ficou de fora do dashboard
       const diagnostico = {
         total_ativos: colabs.length,
         incluidos: alvos.length,
         nao_bate_ponto: naoBate.length,
-        sem_pis: semPis.length,
-        sem_match_rhid: semMatch.length,
+        sem_documento: semDoc.length,
+        nao_encontrado: naoEncontrado.length,
         nao_incluidos: [
-          ...semPis.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'sem PIS no cadastro' })),
-          ...semMatch.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'PIS não encontrado na RHiD' })),
+          ...naoEncontrado.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'não encontrado no relógio (RHiD)' })),
+          ...semDoc.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'sem CPF/PIS no cadastro' })),
           ...naoBate.map((c: any) => ({ nome: c.nome, setor: c.setor, motivo: 'não bate ponto (cargo de confiança)' })),
         ],
       };
