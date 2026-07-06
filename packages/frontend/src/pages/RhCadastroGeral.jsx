@@ -34,6 +34,7 @@ export default function RhCadastroGeral() {
 
   // Filtros avancados (Todos por padrao)
   const [filtroCargo, setFiltroCargo] = useState('');
+  const [filtroSetor, setFiltroSetor] = useState('');
   const [filtroEmpresa, setFiltroEmpresa] = useState('');
   const [filtroJornada, setFiltroJornada] = useState('');
 
@@ -41,6 +42,7 @@ export default function RhCadastroGeral() {
     let list = colaboradores;
     // Filtros
     if (filtroCargo) list = list.filter(c => String(c.cargo_id) === String(filtroCargo));
+    if (filtroSetor) list = list.filter(c => String(c.departamento_id) === String(filtroSetor));
     if (filtroEmpresa) list = list.filter(c => String(c.company_id || c.empresa_id) === String(filtroEmpresa));
     if (filtroJornada) list = list.filter(c => String(c.jornada_id) === String(filtroJornada));
     // Ordenacao
@@ -846,6 +848,18 @@ export default function RhCadastroGeral() {
                   <option value="">Todos os cargos</option>
                   {cargos.map(c => (
                     <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+
+                {/* Filtro por Setor */}
+                <select
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                  value={filtroSetor}
+                  onChange={(e) => setFiltroSetor(e.target.value)}
+                >
+                  <option value="">Todos os setores</option>
+                  {setores.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
 
