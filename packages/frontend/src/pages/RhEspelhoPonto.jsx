@@ -26,16 +26,25 @@ const COLS_DEF = {
   } },
   marcacoes: { label: 'Marcações', th: 'text-left', td: 'px-3 py-2', cell: d => {
     if (d.status === 'atestado') return <span className="text-orange-700 font-semibold text-xs">{d.justificativa_dia || 'Justificado'}</span>;
-    if (!d.batidas || d.batidas.length === 0) return <span className="text-xs text-gray-400">—</span>;
+    // esconde placeholder (saída esperada ainda não batida: tipo D, sem justificativa e sem idAfd)
+    const vis = (d.batidas || []).filter(b => b.tipo === 'E' || b.tipo === 'S' || (b.tipo === 'D' && (b.justificativa || b.real)));
+    if (vis.length === 0) return <span className="text-xs text-gray-400">—</span>;
     return (
       <div className="flex flex-wrap gap-1">
-        {d.batidas.map((b, j) => b.tipo === 'D' ? (
-          <span key={j} title={b.detalhe || b.justificativa || 'Justificativa'}
-            className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-800">{b.justificativa || 'Just.'}</span>
-        ) : (
-          <span key={j} title={b.justificativa || (b.tipo === 'E' ? 'Entrada' : b.tipo === 'S' ? 'Saída' : b.tipo)}
-            className={`px-2 py-0.5 rounded text-xs font-mono ${b.tipo === 'E' ? 'bg-emerald-100 text-emerald-800' : b.tipo === 'S' ? 'bg-rose-100 text-rose-800' : 'bg-gray-200 text-gray-600'}`}>{b.hora}</span>
-        ))}
+        {vis.map((b, j) => {
+          // justificativa real (Médico/Abono) → badge laranja
+          if (b.tipo === 'D' && b.justificativa) return (
+            <span key={j} title={b.detalhe || b.justificativa || 'Justificativa'}
+              className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-800">{b.justificativa}</span>);
+          // batida "D" real = volta registrada aguardando fechamento do dia → mostra o horário (âmbar)
+          if (b.tipo === 'D') return (
+            <span key={j} title="Batida registrada — aguardando fechamento do dia"
+              className="px-2 py-0.5 rounded text-xs font-mono bg-amber-100 text-amber-800 ring-1 ring-amber-300">{b.hora}</span>);
+          // entrada/saída pareadas
+          return (
+            <span key={j} title={b.tipo === 'E' ? 'Entrada' : 'Saída'}
+              className={`px-2 py-0.5 rounded text-xs font-mono ${b.tipo === 'E' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{b.hora}</span>);
+        })}
       </div>);
   } },
   normais: { label: 'Normais', th: 'text-right', td: 'px-3 py-2 text-right text-gray-700', cell: d => minCell(d.normais_min, 'text-gray-700 font-medium') },
@@ -200,8 +209,8 @@ export default function RhEspelhoPonto() {
     // Linhas da tabela principal
     const linhas = resultado.dias.map(d => {
       const dow = diaSemana(d.ymd).slice(0, 3).toUpperCase();
-      // ENT.1..SAÍ.3 = batidas reais (E/S) em ordem
-      const reais = (d.batidas || []).filter(b => b.tipo === 'E' || b.tipo === 'S').map(b => b.hora);
+      // ENT.1..SAÍ.3 = batidas registradas no relógio (E/S + "D" real pendente), em ordem
+      const reais = (d.batidas || []).filter(b => b.tipo === 'E' || b.tipo === 'S' || (b.tipo === 'D' && b.real && !b.justificativa)).map(b => b.hora);
       const slots = [0, 1, 2, 3, 4, 5].map(i => reais[i] || '');
       let previstoCel = esc(d.jornada || '');
       let ent2Extra = '';

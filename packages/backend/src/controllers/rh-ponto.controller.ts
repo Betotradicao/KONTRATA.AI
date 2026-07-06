@@ -135,15 +135,21 @@ export class RhPontoController {
         const batidasRaw = d.listAfdtManutencao || [];
         const batidas = batidasRaw.map((b: any) => {
           const detalhe = (b.afdtLogs || []).map((l: any) => l.detalheDiferencaConsiderada).filter(Boolean)[0] || null;
+          // "real" = batida efetivamente registrada no relógio (tem idAfd). Distingue de
+          // placeholder (saída esperada ainda não batida = idAfd null) e de justificativa.
+          const real = b.idAfd != null;
           return {
-            hora: fmtHora(b.hora), tipo: b._typeEntradaSaida,          // E=entrada, S=saída, D=justificativa
+            hora: fmtHora(b.hora), tipo: b._typeEntradaSaida,          // E=entrada, S=saída, D=não-pareada/justif.
+            real,
             prevista: b.horaPrevista != null ? fmtHora(b.horaPrevista) : null,
             justificativa: b.abreviationJustification || null,          // "Medico", "Abono"...
             detalhe,                                                     // "Atestado Médico"...
           };
         });
-        const temBatidaReal = batidas.some((b: any) => b.tipo === 'E' || b.tipo === 'S');
-        const soJustificativa = batidas.length > 0 && batidas.every((b: any) => b.tipo === 'D');
+        // batida "de verdade" no relógio = E/S OU um "D" real (volta pendente de fechamento), sem justificativa
+        const ehPunch = (b: any) => b.tipo === 'E' || b.tipo === 'S' || (b.tipo === 'D' && b.real && !b.justificativa);
+        const temBatidaReal = batidas.some(ehPunch);
+        const soJustificativa = batidas.length > 0 && batidas.every((b: any) => b.tipo === 'D' && !ehPunch(b));
 
         // ⭐ CLASSIFICAÇÃO do dia — a RHiD NÃO manda folga:true; derivamos.
         const isFeriado = d.isHoliday === 1 || d.isHoliday === true;
