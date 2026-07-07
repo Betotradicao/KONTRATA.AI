@@ -37,9 +37,10 @@ automático liga sozinho e pode corromper texto. Pra sites com texto sensível, 
 `translate="no"` + `<meta name="google" content="notranslate">`.
 
 ## Alcance
-- Deployado em **Tradição** (validado, sem mudança visual) e **Puma** (07/07).
-- ⏳ **Falta subir nos demais kontrata** (guibox, mameva, novacentral, cidade, damata,
-  fratelli) — o `index.html` é o mesmo, o risco é o mesmo pra todos.
+- ✅ Deployado em **TODOS os clientes kontrata** (07/07): tradicao, puma, guibox,
+  mameva, novacentral, cidade, damata, fratelli. Cada um verificado (HTML servido
+  com `lang="pt-BR" translate="no"` + notranslate meta). Sem mudança visual.
+- Deploy foi **um cliente por vez** (só frontend: `build --no-cache frontend` + `up -d --no-deps frontend`) — ver [[feedback_deploy_um_cliente_por_vez]].
 
 ## Limite honesto
 Trava Chrome/Google Tradutor/Edge/Samsung/extensões que respeitam o padrão (quase todas).
