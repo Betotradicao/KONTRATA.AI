@@ -481,10 +481,25 @@ export class RhPontoController {
       const byColab: Record<number, any> = {};
       const diasAus: Record<number, string[]> = {};
       const ocorr: Record<number, any[]> = {};   // ocorrências com data (pro expandir)
+      // Observabilidade: em vez de engolir o erro do RHiD (que deixava o dashboard
+      // todo zerado sem explicação), contamos sucessos/falhas e guardamos a mensagem.
+      let apurOk = 0, apurFail = 0;
+      const apurErros: Record<string, number> = {};
+      const apurFalhouPessoa: Record<string, number> = {};
       await _mapPool(tarefas, 8, async ({ c, m }) => {
         const ini = `${ano}-${String(m).padStart(2, '0')}-01`;
         const fim = `${ano}-${String(m).padStart(2, '0')}-${String(ultDia(m)).padStart(2, '0')}`;
-        const apur = await RhidService.apuracao(c.rhid.id, ini, fim).catch(() => []);
+        let apur: any[] = [];
+        try {
+          apur = await RhidService.apuracao(c.rhid.id, ini, fim);
+          apurOk++;
+        } catch (e: any) {
+          apurFail++;
+          const msg = e?.response?.status ? `HTTP ${e.response.status}` : (e?.code || e?.message || 'erro');
+          apurErros[msg] = (apurErros[msg] || 0) + 1;
+          apurFalhouPessoa[c.nome] = (apurFalhouPessoa[c.nome] || 0) + 1;
+          apur = [];
+        }
         const acc = (byColab[c.id] ||= { id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, status: c.status, jornada: 0, trabalhado: 0, falta: 0, atraso: 0, atestado: 0, ferias: 0, maternidade: 0, paternidade: 0, casamento: 0, obito: 0, banco: 0, abono: 0, he: 0, diasFalta: 0, diasAtestado: 0, diasFerias: 0, diasMaternidade: 0, porMes: {} });
         for (const d of apur) {
           const x = _classificaDia(d);
@@ -500,6 +515,14 @@ export class RhPontoController {
           if (x.status === 'maternidade') { acc.diasMaternidade++; pm.maternidade_dias++; (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'maternidade', min: x.jornada }); }
           if (x.status === 'trabalhou' && x.atraso > 0) { (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'atraso', min: x.atraso }); }
         }
+      });
+
+      // Anexa a saúde da integração ao diagnóstico (aparece no banner do dashboard)
+      Object.assign(diagnostico as any, {
+        apuracao_ok: apurOk,
+        apuracao_falhas: apurFail,
+        apuracao_erros: Object.entries(apurErros).sort((a, b) => b[1] - a[1]).map(([msg, n]) => `${msg} ×${n}`),
+        apuracao_pessoas_falha: Object.entries(apurFalhouPessoa).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([nome]) => nome),
       });
 
       const colabArr: any[] = Object.values(byColab).map((c: any) => ({

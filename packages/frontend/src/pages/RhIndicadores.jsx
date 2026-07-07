@@ -2152,6 +2152,20 @@ function AbaPontoAusencias({ ano, empresaId }) {
                 <button onClick={() => setVerFora(v => !v)} className="underline font-semibold whitespace-nowrap ml-2">{verFora ? 'ocultar' : 'ver quem'}</button>
               </div>
             )}
+            {dg.apuracao_falhas > 0 && (
+              <div className="mt-1 text-[11px] text-rose-800 bg-rose-50 border border-rose-300 rounded px-2 py-1">
+                <div className="flex items-start gap-1">
+                  <span>🚨</span>
+                  <span>
+                    <b>{dg.apuracao_falhas}</b> apuraç{dg.apuracao_falhas === 1 ? 'ão falhou' : 'ões falharam'} no RHiD
+                    {dg.apuracao_ok != null && <span className="text-rose-500"> (de {dg.apuracao_ok + dg.apuracao_falhas} tentativas · {dg.apuracao_ok} ok)</span>}
+                    {dg.apuracao_erros?.length > 0 && <> — erro: <b>{dg.apuracao_erros.join(' · ')}</b></>}
+                    {dg.apuracao_pessoas_falha?.length > 0 && <div className="text-rose-600 mt-0.5">Afetados: {dg.apuracao_pessoas_falha.join(', ')}</div>}
+                    <div className="text-rose-500 mt-0.5">💡 Costuma ser dado inválido no relógio (ex.: data de admissão/início de escala). Corrija no RHiD e clique em Recalcular.</div>
+                  </span>
+                </div>
+              </div>
+            )}
             {verFora && fora.length > 0 && (
               <div className="mt-1 max-h-44 overflow-auto bg-white border rounded p-2 text-[11px]">
                 {fora.map((c, i) => (
