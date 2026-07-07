@@ -49,9 +49,20 @@ docker logs prevencao-<CLIENTE>-backend --tail 50
 cat /root/clientes/clientes.json | python3 -m json.tool
 ```
 
+## 🩺 Monitoramento de saúde (cron) — desde 25/06/2026
+Script `/root/monitor-saude.sh` roda **a cada 15min** (cron do root) e anexa em **`/root/saude.log`**. Vigia os 3 sinais que derrubaram o SuperVital:
+1. **zumbis** acumulando (`ps -eo stat | grep -c Z`) — alerta se >80 + aponta o container culpado
+2. **backend unhealthy** (frontends ignorados = falso-positivo do `wget` BusyBox)
+3. **steal** alto (re-throttle Hostinger) — alerta se ≥65%
+
+**Só DETECTA e registra — NÃO remedia sozinho** (lição do autoheal/meltdown: auto-restart pode causar a própria sobrecarga). Pra revisar: `tail -50 /root/saude.log` ou `grep ALERTA /root/saude.log`.
+
+Antigo `/root/watchdog.sh` = one-shot (vigia steal por ~1h, não está no cron).
+
 ## 🔗 Relacionados
 - [[deploy|Procedimento de Deploy]]
 - [[../padroes/regras-ssh-windows|SSH no Windows]]
+- [[../clientes/supervital|SuperVital — init+teto no compose]]
 
 ## 🏷️ Tags
 #arquitetura #vps #infraestrutura

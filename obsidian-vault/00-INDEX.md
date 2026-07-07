@@ -11,11 +11,15 @@ Atalho: **Ctrl + G** ou clica no ícone de 3 bolinhas ligadas na barra lateral e
 - [[clientes/maxvalle|MaxValle]] — Oracle Intersolid
 - [[clientes/nunes|Nunes]] — ⚠️ ERP diferente (RP INFO PostgreSQL)
 
+## ⚖️ Legalidade Jurídica
+- [[LEGALIDADE JURIDICA/00-INDICE|Legalidade Jurídica — Índice]] — assinatura eletrônica, eSocial, fundamentos legais
+
 ## 🏗️ Arquitetura
 - [[arquitetura/deploy|Deploy Multi-Tenant]]
 - [[arquitetura/oracle-intersolid|Oracle Intersolid]]
 - [[arquitetura/mapeamento-tabelas|Mapeamento de Tabelas (v1/v2)]]
-- [[arquitetura/estrutura-vps|Estrutura da VPS 46]]
+- [[arquitetura/estrutura-vps|Estrutura da VPS 46]] (kontrata + prevenção)
+- [[arquitetura/estrutura-vps3-producao|Estrutura da VPS 3 — 31.97.82.235 / TradicaoSJC]] (Evolution/n8n/chatwoot + nunes/prod)
 - [[arquitetura/whitelabel|Whitelabel — Estado Atual + Plano de Mudança]] ← antes de mexer, ler
 
 ## ⚙️ Módulos do Sistema

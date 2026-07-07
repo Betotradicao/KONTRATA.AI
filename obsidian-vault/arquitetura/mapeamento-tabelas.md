@@ -69,5 +69,19 @@ const query = `SELECT p.COD_PRODUTO FROM INTERSOLID.TAB_PRODUTO p`;
 - [ ] Campos existem no `TABLE_CATALOG` (ConfiguracoesTabelas.jsx)?
 - [ ] Template INTERSOLID atualizado no banco?
 
+## 📋 Copiar mapeamento pra cliente NOVO (mesmo ERP) — receita
+Cliente novo Intersolid nasce com `database_connections.mappings` **vazio** (maplen=0) → queries dão `ORA-00904 invalid identifier`. Como o mapeamento é **por ERP** (Intersolid = igual pra todos), copia de um cliente que funciona:
+```bash
+# 1. dump do cliente OK (ex Tradição 46, id do database_connections):
+docker exec <pg-ok> psql -U postgres -d <db-ok> -t -A -c "SELECT mappings FROM database_connections WHERE id=<ID>" > /root/map.json
+# 2. transferir o arquivo pro VPS/cliente novo
+# 3. carregar no cliente novo (docker cp + pg_read_file):
+docker cp map.json <pg-novo>:/tmp/m.json
+docker exec <pg-novo> sh -c 'printf "%s" "$(cat /tmp/m.json)" > /tmp/m2.json'   # tira newline final
+docker exec <pg-novo> psql -U postgres -d <db-novo> -c "UPDATE database_connections SET mappings=pg_read_file('/tmp/m2.json'), updated_at=now() WHERE id=<ID-NOVO>;"
+# 4. restart backend do cliente novo -> "[MappingService] Mapeamentos carregados do banco"
+```
+⚠️ PowerShell embola SQL com aspas/parênteses → sempre por **script .sh** scp'd (SQL dentro do arquivo). **Caso real 01/07:** Tradição(46,id14)→supertradicao(31,id1), 21438 chars, resultou em `✅ 4950 vendas encontradas`.
+
 ## 🏷️ Tags
 #arquitetura #mapeamento #oracle

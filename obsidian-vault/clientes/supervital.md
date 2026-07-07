@@ -32,8 +32,31 @@ Cada cliente é configurado diferente: Tradição usa 5, SuperVital e Nunes usam
 - [[../bugs-resolvidos/2026-04-15-dif-anual-itens|Dif Anual em branco nos itens da Compra x Venda]]
 - [[../bugs-resolvidos/2026-06-17-supervital-backend-unhealthy-autoheal|Backend trava (unhealthy) → "Verificando configuração" infinito + autoheal]]
 
-## 🛡️ Auto-recuperação (autoheal)
-Backend tem label `autoheal=true` e há um container `willfarrell/autoheal` na VPS que **reinicia automaticamente** o backend se ficar `unhealthy` (~30s). É o único container marcado (modo label — não toca nos Kontrata). Resolve o "cai sozinho vira e mexe". Ver [[../bugs-resolvidos/2026-06-17-supervital-backend-unhealthy-autoheal|nota do incidente]].
+## 🛡️ Auto-recuperação / blindagem do backend
+
+### ✅ ESTADO ATUAL (25/06/2026) — `init: true` + teto de CPU/RAM no compose
+O `docker-compose.yml` do backend agora tem (persistido, sobrevive a recreate):
+```yaml
+  backend:
+    init: true        # tini como PID 1 → colhe zumbis (acabou o acúmulo de 1311 zumbis)
+    cpus: 1.0         # teto: nunca passa de 1 núcleo (não melta a VPS)
+    mem_limit: 1500m  # teto de RAM
+```
+- **Por quê:** em 25/06 o backend ficou 25h `unhealthy` e tinha gerado **1311 zumbis** na VPS inteira (Node PID 1 sem init não colhe filhos). `docker restart` falhou ("PID is zombie"), só `force-recreate` reergueu. `init: true` mata a raiz disso de vez (mesmo padrão da nota do Tradição). O teto de CPU é o seguro contra o meltdown (ver [[../bugs-resolvidos/2026-06-23-vps46-cpu-throttle-meltdown-prevencao|meltdown 23/06]]).
+- ⚠️ O `docker update --cpus` que usávamos **NÃO persistia** (some no recreate). Por isso foi pro compose.
+- **autoheal SUMIU** da VPS (desinstalado no episódio de CPU, não voltou). Não é mais a estratégia — `init: true` previne em vez de remediar e tem custo zero de CPU. Label `autoheal=true` segue no compose mas é inócuo sem o container.
+
+### ✅ Resiliência Oracle JÁ estava deployada (descoberto 25/06)
+O `dist/` do backend em execução **já tinha** `poolPingInterval:60`, `callTimeout` (30000 e 300000) e `expireTime:30` (TCP keepalive). Ou seja: o travamento de 25h aconteceu **apesar** do callTimeout — prova de que a raiz era o **event loop morto + zumbis**, não query em voo. Por isso o **`init: true` é a cura real** (não precisou rebuild de backend). `callTimeout` só não cobre quando o processo inteiro morre.
+- ⚠️ Linha 259 do `oracle.service.ts` tem `callTimeout = 300000` (5 min — longo p/ relatórios grandes maxRows 50000). Linha 306 = 30000 (30s). Não mexido (mudar arrisca quebrar relatório legítimo).
+
+### ✅ SetupCheck timeout DEPLOYADO (25/06, commit `283c06b`)
+`SetupCheck.jsx` agora tem `api.get('/api/setup/status', { timeout: 8000 })`. Se o backend pendurar, site cai no login em 8s em vez de spinner eterno. Build cacheado + `nice` no SuperVital (frontend), bundle verificado. ⏳ Falta deployar nos outros clientes (push já está na TESTE).
+
+### ⚠️ Frontend reporta `unhealthy` à toa
+O healthcheck do frontend usa flags do `wget` GNU mas o probe roda `wget` do BusyBox → **sempre** mostra `unhealthy` mesmo servindo 200. Ignorar — verificar pelo bundle/HTTP, não pelo health. O monitor `/root/monitor-saude.sh` filtra `-frontend` por isso.
+
+Histórico do autoheal: [[../bugs-resolvidos/2026-06-17-supervital-backend-unhealthy-autoheal|nota do incidente 17/06]].
 
 ## 🚀 Deploy
 

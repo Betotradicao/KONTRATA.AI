@@ -57,5 +57,24 @@ Adicionar entrada em `DOC_TIPOS` (EmailsPadronizadosTab) e replicar o botão+mod
 no componente do doc. O endpoint e o serviço já são genéricos.
 
 ## Status
-✅ Local: backend tsc OK, frontend eslint OK, servidores de pé. ⏳ UNCOMMITADO, não testado
-end-to-end (precisa cadastrar e-mail Yahoo do cliente + testar envio real). Depois commit/push.
+✅ Testado end-to-end LOCAL (Yahoo do cliente, e-mail chegou na inbox com PDF íntegro após fix
+do prefixo data-uri). ✅ COMMIT+PUSH (`3231b76`, branch KONTRATAAI). ✅ **DEPLOY no TRADIÇÃO
+(25/06) feito+VERIFICADO:** backend healthy, rota `/rh/email-empresa/testar` 401, bundle público
+com marcador `email-empresa`. ⏳ Falta deploy nos outros 7 kontrata.
+
+⚠️ **PÓS-DEPLOY por cliente:** as creds `email_empresa_*` e os destinatários NÃO migram (são por
+banco/cliente). Em produção, cada cliente precisa cadastrar o e-mail remetente (Yahoo + senha de
+app) e os destinatários na aba Emails Padronizados antes de usar.
+
+## Lição: layout de PDF via html2canvas (campos "encavalados")
+Grade de 4 colunas muito estreita + `gap:1px` fazia nomes longos quebrarem linha e
+colidirem com a linha de baixo (e o html2canvas chega a "comer" espaços no wrap →
+"DONASCIMENTOALVES"). Fix (commit `c807078`): 4→3 colunas, `gap:5px 16px`,
+`align-items:start`, `line-height:1.45`, `overflow-wrap:anywhere`, e campos de texto
+longo (nome/pai/mãe/cônjuge/reservista/certidão/cartório) em **largura total**
+(`grid-column:1 / -1`, helper `linhaW`). Regra geral: em PDF rasterizado, texto longo →
+linha inteira, nunca célula estreita de grade.
+
+## Gotcha de deploy (PowerShell→ssh→bash)
+`docker ps --format "{{...}}"` e comandos com `()`/aspas aninhadas QUEBRAM no wrapper. Usar
+`docker ps` puro + `grep -e x -e y` (sem aspas), evitar parênteses em echo.

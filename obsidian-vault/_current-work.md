@@ -1,6 +1,13 @@
 # 🚧 Trabalho em Andamento
 
-## 💼 (07/07) — Indicadores RH: aba "Recrutamento" com dados reais (rh_vagas + curriculos) — LOCAL, uncommitado
+## 🏖️ (07/07) — Férias: modo Via Relógio de Ponto — ✅ DEPLOYADO Tradição (cfe1db9)
+Tela Controle de Férias com 2 modos (Manual + Via Relógio). Endpoint `/rh/ferias/deteccao-ponto` varre apuração RHiD da admissão→hoje, agrupa férias em períodos, compara com registros manuais (bate/só-ponto/só-sistema), só exibe (Confirmar grava). Cards KPI do topo trocados pro estilo "cor só na ponta". Detalhes: [[bugs-resolvidos/2026-07-07-feature-ferias-via-relogio-ponto]].
+- ⏳ PRÓXIMO: usuário roda o Escanear no Tradição (1ª vez demora, cache 6h) e compara relógio × sistema; ajustar detecção se precisar (tolerância de gap, etc.).
+
+## 💼 (07/07) — Recrutamento + Pesquisa de Clima — ✅ DEPLOYADO Tradição (740e306)
+Dashboards reais plugados. Recrutamento (`/rh/vagas/indicadores`: funil, desfechos, motivos, tempo). Pesquisa de Clima (`/pesquisa-clima/indicadores`: eNPS/satisfação, distribuição, evolução, médias, comentários, resumo NR-1). Ranking de ponto ganhou filtro Todos/Ativos/Inativos (2a2044b). Tudo no ar no Tradição.
+
+## 💼 (07/07) — [HISTÓRICO] Recrutamento aba (rh_vagas + curriculos)
 Antes era placeholder. Plugado em dados reais da tela RH > Vagas.
 - **Backend** `RhController.indicadoresRecrutamento` + rota `GET /rh/vagas/indicadores?ano=&cod_loja=` (sem cache). KPIs (vagas em aberto / preenchidas ano / tempo médio contratação dias / taxa recusa), funil (interessados→selecionados→entrevistados→contratados), desfechos (`selecionados[].resultado_entrevista`: passou/aguarda_decisao/nao_compareceu/reprovado/desistiu), motivos (`motivo_reprovacao`) ranqueados por tipo, motivos de não preenchimento (`motivo_fechamento` das Fechadas), por mês iniciados×encerrados, tempo pra finalizar (dias) por vaga, tabela vagas abertas detalhadas.
 - **Decisão:** SEM meta/SLA — tempo é descritivo ("quantos dias está demorando"). Usuário descartou painel Dentro/Fora do Prazo.
