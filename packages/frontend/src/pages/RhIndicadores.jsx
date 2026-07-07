@@ -187,6 +187,73 @@ export default function RhIndicadores() {
   );
 }
 
+// Lista expandida de nomes (com data opcional e motivo de desligamento opcional)
+function ExpandNomes({ pessoas, campoData, motivo }) {
+  return (
+    <div className="bg-indigo-50/60 border-l-2 border-indigo-300 rounded-r p-2 my-1 text-xs space-y-0.5 max-h-56 overflow-auto">
+      {(!pessoas || pessoas.length === 0) ? <div className="text-gray-400">Sem colaboradores</div> :
+        pessoas.map((p, i) => (
+          <div key={i} className="flex items-baseline gap-2 py-0.5 border-b border-indigo-100/60 last:border-0">
+            <span className="font-medium text-gray-700 whitespace-nowrap">{i + 1}. {p.nome}</span>
+            {campoData && p[campoData] && <span className="text-indigo-600 font-semibold whitespace-nowrap">— {MES_ABREV[new Date(p[campoData]).getMonth()]}/{new Date(p[campoData]).getFullYear()} <span className="text-gray-400 font-normal">({new Date(p[campoData]).toLocaleDateString('pt-BR')})</span></span>}
+            {motivo && (p.motivo_desligamento_nome || p.tipo_desligamento_nome) && <span className="text-rose-500 font-medium whitespace-nowrap">· {p.motivo_desligamento_nome || p.tipo_desligamento_nome}</span>}
+          </div>
+        ))}
+    </div>
+  );
+}
+
+// Bloco de ranking (label + qtd + barra + expandir nomes)
+function RankBloco({ titulo, entries, campoData, motivo }) {
+  const [aberto, setAberto] = useState(null);
+  const max = entries[0]?.[1]?.length || 1;
+  return (
+    <div className="bg-white rounded-lg border shadow-sm p-4">
+      <h3 className="font-bold text-gray-700 text-sm mb-2">{titulo}</h3>
+      {entries.length === 0 ? <div className="text-gray-400 text-xs py-4 text-center">Sem dados</div> : (
+        <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+          {entries.map(([label, pessoas], i) => {
+            const ab = aberto === label;
+            const pct = Math.round(pessoas.length / max * 100);
+            return (
+              <div key={label}>
+                <div className="flex items-center gap-2 text-xs">
+                  <button onClick={() => setAberto(ab ? null : label)} title="Ver nomes" className="w-4 h-4 inline-flex items-center justify-center rounded bg-gray-200 text-gray-600 font-bold hover:bg-indigo-200 flex-shrink-0">{ab ? '−' : '+'}</button>
+                  <span className="w-5 text-right font-bold text-gray-400">#{i + 1}</span>
+                  <span className="flex-1 truncate font-medium text-gray-700" title={label}>{label}</span>
+                  <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">{pessoas.length}</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded overflow-hidden mt-0.5"><div className="h-full bg-rose-400" style={{ width: `${pct}%` }}></div></div>
+                {ab && <ExpandNomes pessoas={pessoas} campoData={campoData} motivo={motivo} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Ranking de desligamentos por Setor / Tipo / Motivo
+function DesligamentosRanking({ colaboradores }) {
+  const deslig = colaboradores.filter(c => c.status === 'desligado');
+  const contar = (keyFn) => {
+    const m = {};
+    deslig.forEach(c => { const k = keyFn(c) || 'Não informado'; (m[k] ||= []).push(c); });
+    return Object.entries(m).map(([k, ps]) => [k, ps.sort((a, b) => new Date(b.data_desligamento) - new Date(a.data_desligamento))]).sort((a, b) => b[1].length - a[1].length);
+  };
+  return (
+    <div className="mb-4">
+      <h3 className="font-bold text-gray-700 mb-2 flex items-center gap-2">❌ Desligamentos — Ranking <span className="text-xs font-normal text-gray-400">({deslig.length} no total · clique no + pra ver nomes)</span></h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <RankBloco titulo="🏭 Por Setor" entries={contar(c => c.setor_departamento_nome || c.setor_nome)} campoData="data_desligamento" motivo />
+        <RankBloco titulo="📋 Por Tipo de Desligamento" entries={contar(c => c.tipo_desligamento_nome)} campoData="data_desligamento" motivo />
+        <RankBloco titulo="💬 Por Motivo" entries={contar(c => c.motivo_desligamento_nome)} campoData="data_desligamento" />
+      </div>
+    </div>
+  );
+}
+
 function AbaGeral({ loading, stats, colaboradores, ano }) {
   if (loading) return <div className="flex justify-center py-20"><RadarLoading size="sm" message="" /></div>;
 
@@ -233,17 +300,20 @@ function AbaGeral({ loading, stats, colaboradores, ano }) {
         </div>
       </div>
 
+      {/* Ranking de desligamentos por setor / tipo / motivo */}
+      <DesligamentosRanking colaboradores={colaboradores} />
+
       {/* Tabelas mensais (formato planilha): admissoes e desligamentos por cargo / mes */}
       <div className="space-y-4 mb-4">
         <TabelaMovimentacao
-          titulo="✅ ADMISSÕES POR MÊS"
+          titulo="▲ ADMISSÕES POR MÊS"
           colaboradores={colaboradores}
           ano={ano}
           campo="data_admissao"
           cor="emerald"
         />
         <TabelaMovimentacao
-          titulo="❌ DESLIGAMENTOS POR MÊS"
+          titulo="▼ DESLIGAMENTOS POR MÊS"
           colaboradores={colaboradores}
           ano={ano}
           campo="data_desligamento"
@@ -276,14 +346,16 @@ function GraficosGeral({ colaboradores }) {
   });
 
   // Setores
-  const setores = {};
+  const setores = {}, setoresP = {};
   ativos.forEach(c => {
     const k = c.setor_departamento_nome || c.setor_nome || 'Sem setor';
     setores[k] = (setores[k] || 0) + 1;
+    (setoresP[k] ||= []).push(c);
   });
 
   // Faixa etaria
   const faixas = { '16-20': 0, '21-25': 0, '26-30': 0, '31-35': 0, '36-40': 0, '41-50': 0, '51-60': 0, '61+': 0 };
+  const faixasP = {};
   ativos.forEach(c => {
     if (!c.data_nascimento) return;
     const idade = Math.floor((hoje - new Date(c.data_nascimento)) / (365.25 * 24 * 60 * 60 * 1000));
@@ -296,11 +368,12 @@ function GraficosGeral({ colaboradores }) {
     else if (idade <= 50) f = '41-50';
     else if (idade <= 60) f = '51-60';
     else f = '61+';
-    faixas[f]++;
+    faixas[f]++; (faixasP[f] ||= []).push(c);
   });
 
   // Tempo de empresa
   const tempos = { '< 6 meses': 0, '6-12 meses': 0, '1-2 anos': 0, '2-3 anos': 0, '3-5 anos': 0, '5-10 anos': 0, '10+ anos': 0 };
+  const temposP = {};
   ativos.forEach(c => {
     if (!c.data_admissao) return;
     const meses = (hoje - new Date(c.data_admissao)) / (30.44 * 24 * 60 * 60 * 1000);
@@ -312,7 +385,7 @@ function GraficosGeral({ colaboradores }) {
     else if (meses < 60) t = '3-5 anos';
     else if (meses < 120) t = '5-10 anos';
     else t = '10+ anos';
-    tempos[t]++;
+    tempos[t]++; (temposP[t] ||= []).push(c);
   });
 
   // Tipo de cargo
@@ -324,10 +397,11 @@ function GraficosGeral({ colaboradores }) {
   });
 
   // Cargos (todos, ordenados do maior pro menor)
-  const cargos = {};
+  const cargos = {}, cargosP = {};
   ativos.forEach(c => {
     const k = c.cargo_nome || 'Sem cargo';
     cargos[k] = (cargos[k] || 0) + 1;
+    (cargosP[k] ||= []).push(c);
   });
   const topCargos = Object.entries(cargos).sort((a, b) => b[1] - a[1]);
 
@@ -335,27 +409,42 @@ function GraficosGeral({ colaboradores }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Pizza titulo="Distribuição por Gênero" dados={genero} cores={['#3b82f6', '#ec4899', '#9ca3af']} />
       <Pizza titulo="Operacional vs Estratégico" dados={tipoCargo} cores={['#f59e0b', '#a855f7']} />
-      <BlocoBarras titulo="Tempo de Empresa" dados={tempos} cor="bg-emerald-500"
+      <BlocoBarras titulo="Tempo de Empresa" dados={tempos} pessoas={temposP} cor="bg-emerald-500"
         ordem={['10+ anos', '5-10 anos', '3-5 anos', '2-3 anos', '1-2 anos', '6-12 meses', '< 6 meses']} />
-      <BlocoBarras titulo="Faixa Etária" dados={faixas} cor="bg-purple-500"
+      <BlocoBarras titulo="Faixa Etária" dados={faixas} pessoas={faixasP} cor="bg-purple-500"
         ordem={['16-20', '21-25', '26-30', '31-35', '36-40', '41-50', '51-60', '61+']} />
-      <BlocoBarras titulo="Distribuição por Setor" dados={setores} cor="bg-amber-500" />
-      <div className="bg-white rounded-lg border shadow-sm p-5 flex flex-col">
-        <h3 className="font-bold text-gray-800 text-base mb-3">🏆 Cargos ({topCargos.length})</h3>
-        {topCargos.length === 0 ? (
-          <div className="text-center text-gray-400 py-8 text-sm">Sem dados</div>
-        ) : (
-          <div className="space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
-            {topCargos.map(([cargo, qtd], i) => (
-              <div key={cargo} className="flex items-center gap-3 text-sm">
-                <span className="w-8 text-right font-bold text-gray-400 text-base">#{i + 1}</span>
-                <span className="flex-1 truncate font-semibold text-gray-700">{cargo}</span>
-                <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-sm font-bold">{qtd}</span>
+      <BlocoBarras titulo="Distribuição por Setor" dados={setores} pessoas={setoresP} cor="bg-amber-500" />
+      <CargosLista topCargos={topCargos} cargosP={cargosP} />
+    </div>
+  );
+}
+
+// Lista de cargos com (+) pra expandir e ver os nomes
+function CargosLista({ topCargos, cargosP }) {
+  const [aberto, setAberto] = useState(null);
+  return (
+    <div className="bg-white rounded-lg border shadow-sm p-5 flex flex-col">
+      <h3 className="font-bold text-gray-800 text-base mb-3">🏆 Cargos ({topCargos.length})</h3>
+      {topCargos.length === 0 ? (
+        <div className="text-center text-gray-400 py-8 text-sm">Sem dados</div>
+      ) : (
+        <div className="space-y-1 overflow-y-auto pr-1 flex-1 min-h-0">
+          {topCargos.map(([cargo, qtd], i) => {
+            const ab = aberto === cargo;
+            return (
+              <div key={cargo}>
+                <div className="flex items-center gap-2 text-sm">
+                  <button onClick={() => setAberto(ab ? null : cargo)} title="Ver nomes" className="w-4 h-4 inline-flex items-center justify-center rounded bg-gray-200 text-gray-600 text-xs font-bold hover:bg-indigo-200 flex-shrink-0">{ab ? '−' : '+'}</button>
+                  <span className="w-6 text-right font-bold text-gray-400">#{i + 1}</span>
+                  <span className="flex-1 truncate font-semibold text-gray-700">{cargo}</span>
+                  <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-sm font-bold">{qtd}</span>
+                </div>
+                {ab && <ExpandNomes pessoas={cargosP[cargo]} />}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -368,12 +457,15 @@ function TabelaMovimentacao({ titulo, colaboradores, ano, campo, cor }) {
     rose: { bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', cell: 'text-rose-700' },
   };
   const cs = corMap[cor] || corMap.emerald;
+  const [aberto, setAberto] = useState(null);
+  const isDeslig = campo === 'data_desligamento';
 
   const hoje = new Date();
   const mesLimite = (hoje.getFullYear() === ano) ? hoje.getMonth() + 1 : 12;
 
-  // Agrupa: pra cada cargo, conta movimentacao por mes do ano-base
+  // Agrupa: pra cada cargo, conta movimentacao por mes do ano-base + guarda os colaboradores
   const porCargoMes = {}; // { cargo: [12 meses] }
+  const porCargoPessoas = {}; // { cargo: [colaboradores] }
   let totalGeral = 0;
   const totaisMes = Array(12).fill(0);
 
@@ -386,17 +478,18 @@ function TabelaMovimentacao({ titulo, colaboradores, ano, campo, cor }) {
     const cargo = c.cargo_nome || 'Sem cargo';
     if (!porCargoMes[cargo]) porCargoMes[cargo] = Array(12).fill(0);
     porCargoMes[cargo][mes]++;
+    (porCargoPessoas[cargo] ||= []).push(c);
     totaisMes[mes]++;
     totalGeral++;
   });
 
   const cargos = Object.entries(porCargoMes)
-    .map(([nome, meses]) => ({ nome, meses, total: meses.reduce((s, x) => s + x, 0) }))
+    .map(([nome, meses]) => ({ nome, meses, total: meses.reduce((s, x) => s + x, 0), pessoas: (porCargoPessoas[nome] || []).sort((a, b) => new Date(b[campo]) - new Date(a[campo])) }))
     .sort((a, b) => b.total - a.total);
 
   return (
     <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto slim-scroll">
         <table className="text-sm border-collapse table-fixed" style={{ width: '2180px' }}>
           <colgroup>
             <col style={{ width: '115px' }} />
@@ -420,19 +513,32 @@ function TabelaMovimentacao({ titulo, colaboradores, ano, campo, cor }) {
                   Nenhuma movimentação no ano de {ano}
                 </td>
               </tr>
-            ) : cargos.map(c => (
-              <tr key={c.nome} className="hover:bg-gray-50">
-                <td className="px-3 py-1.5 text-sm font-medium text-gray-700" colSpan={2}>{c.nome}</td>
-                {c.meses.map((q, i) => (
-                  <td key={i} className="px-2 py-1.5 text-center text-sm">
-                    {i + 1 > mesLimite ? <span className="text-gray-300">—</span> :
-                     q === 0 ? <span className="text-gray-300">—</span> :
-                     <span className={`font-bold ${cs.cell}`}>{q}</span>}
-                  </td>
-                ))}
-                <td className={`px-2 py-1.5 text-center text-sm font-bold ${cs.text} ${cs.bg}`}>{c.total}</td>
-              </tr>
-            ))}
+            ) : cargos.map(c => {
+              const ab = aberto === c.nome;
+              return (
+                <Fragment key={c.nome}>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-3 py-1.5 text-sm font-medium text-gray-700" colSpan={2}>
+                      <button onClick={() => setAberto(ab ? null : c.nome)} title="Ver nomes" className="mr-2 w-4 h-4 inline-flex items-center justify-center rounded bg-gray-200 text-gray-600 text-xs font-bold hover:bg-indigo-200 align-middle">{ab ? '−' : '+'}</button>
+                      {c.nome}
+                    </td>
+                    {c.meses.map((q, i) => (
+                      <td key={i} className="px-2 py-1.5 text-center text-sm">
+                        {i + 1 > mesLimite ? <span className="text-gray-300">—</span> :
+                         q === 0 ? <span className="text-gray-300">—</span> :
+                         <span className={`font-bold ${cs.cell}`}>{q}</span>}
+                      </td>
+                    ))}
+                    <td className={`px-2 py-1.5 text-center text-sm font-bold ${cs.text} ${cs.bg}`}>{c.total}</td>
+                  </tr>
+                  {ab && (
+                    <tr>
+                      <td colSpan={15} className="px-3 py-0"><ExpandNomes pessoas={c.pessoas} campoData={campo} motivo={isDeslig} /></td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
             {cargos.length > 0 && (
               <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
                 <td className="px-3 py-1.5 text-sm uppercase tracking-wide text-gray-700" colSpan={2}>TOTAL</td>
@@ -818,9 +924,20 @@ function AbaColaboradores({ loading, stats, colaboradores, ano }) {
 
   return (
     <>
+      {/* estilo da barra de rolagem — fininha e discreta */}
+      <style>{`
+        .slim-scroll::-webkit-scrollbar { height: 7px; }
+        .slim-scroll::-webkit-scrollbar-track { background: transparent; }
+        .slim-scroll::-webkit-scrollbar-thumb { background: rgba(148,163,184,.30); border-radius: 999px; }
+        .slim-scroll::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.50); }
+        .slim-scroll { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.30) transparent; }
+      `}</style>
+
       {/* Descricao da aba — comum as duas sub-abas */}
       <div className="bg-white rounded-lg border p-4 mb-4 flex items-start gap-3">
-        <span className="text-3xl">👥</span>
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-fuchsia-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
         <div className="flex-1">
           <h2 className="text-lg font-bold text-gray-800">Colaboradores</h2>
           <p className="text-sm text-gray-600">Perfil demográfico, distribuição, evolução do quadro</p>
@@ -836,7 +953,10 @@ function AbaColaboradores({ loading, stats, colaboradores, ano }) {
               ? 'border-pink-600 text-pink-700'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}>
-          📊 Geral
+          <span className="inline-flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="8" rx="1"/><rect x="12" y="5" width="3" height="12" rx="1"/><rect x="17" y="12" width="3" height="5" rx="1"/></svg>
+            Geral
+          </span>
         </button>
         <button onClick={() => setSubAba('colaboradores')}
           className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition ${
@@ -844,7 +964,10 @@ function AbaColaboradores({ loading, stats, colaboradores, ano }) {
               ? 'border-pink-600 text-pink-700'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}>
-          👥 Colaboradores
+          <span className="inline-flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Colaboradores
+          </span>
         </button>
         <button onClick={() => setSubAba('documentos')}
           className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition ${
@@ -852,7 +975,10 @@ function AbaColaboradores({ loading, stats, colaboradores, ano }) {
               ? 'border-pink-600 text-pink-700'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}>
-          📂 Documentos
+          <span className="inline-flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Documentos
+          </span>
         </button>
       </div>
 
@@ -1139,7 +1265,7 @@ function SubAbaDocumentos({ colaboradores }) {
 
       {/* Lista de colaboradores */}
       <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto slim-scroll">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
               <tr>
@@ -1348,13 +1474,10 @@ function CardDoc({ label, valor, cor, icone, destaque }) {
 
 // Tabela com formato planilha: linhas=faixas, colunas=meses + total
 function TabelaMensal({ titulo, colaboradores, ano, mesLimite, classificar, ordemFaixas, dependeMes, cor = 'slate' }) {
-  // Paleta de cores do header (azul/rosa intercalado, fallback slate)
-  const palette = {
-    azul:  { headBg: 'bg-blue-200',  subBg: 'bg-blue-100',  border: 'border-blue-300',  text: 'text-blue-800',  textSub: 'text-blue-700',  textMuted: 'text-blue-300' },
-    rosa:  { headBg: 'bg-pink-200',  subBg: 'bg-pink-100',  border: 'border-pink-300',  text: 'text-pink-800',  textSub: 'text-pink-700',  textMuted: 'text-pink-300' },
-    slate: { headBg: 'bg-slate-300', subBg: 'bg-slate-200', border: 'border-slate-400', text: 'text-slate-800', textSub: 'text-slate-700', textMuted: 'text-slate-400' },
-  };
-  const c = palette[cor] || palette.slate;
+  // Header unificado num tom discreto (slate suave) — todas as tabelas iguais
+  const discreto = { headBg: 'bg-slate-100', subBg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', textSub: 'text-slate-500', textMuted: 'text-slate-300' };
+  const palette = { azul: discreto, rosa: discreto, slate: discreto };
+  const c = palette[cor] || discreto;
   // Pra cada mes, classifica os ativos e conta por faixa
   const dadosPorMes = []; // [{ totais: {faixa: qtd}, total: N }] indexado por mes 0..11
   for (let m = 1; m <= 12; m++) {
@@ -1386,7 +1509,7 @@ function TabelaMensal({ titulo, colaboradores, ano, mesLimite, classificar, orde
 
   return (
     <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto slim-scroll">
         <table className="text-sm border-collapse table-fixed" style={{ width: '2030px' }}>
           <colgroup>
             <col style={{ width: '115px' }} />
@@ -1403,7 +1526,7 @@ function TabelaMensal({ titulo, colaboradores, ano, mesLimite, classificar, orde
               <th className={`text-left px-3 py-2 font-bold ${c.text} uppercase text-sm tracking-wide`} colSpan={2} rowSpan={2}>{titulo}</th>
               {MESES.map((m, i) => (
                 <th key={m} colSpan={2}
-                  className={`text-center px-2 py-1.5 text-xs font-bold border-l ${c.border} ${i + 1 > mesLimite ? c.textMuted : c.text}`}>{m}</th>
+                  className={`text-center px-2 py-1.5 text-xs font-bold border-l ${c.border} ${i + 1 > mesLimite ? 'text-slate-300 bg-slate-50' : 'text-emerald-700 bg-emerald-50'}`}>{m}</th>
               ))}
             </tr>
             <tr className={`${c.subBg} border-b-2 ${c.border} text-[10px] uppercase`}>
@@ -1496,7 +1619,7 @@ function TabelaMensalContratados({ titulo, colaboradores, ano, mesLimite }) {
 
   return (
     <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto slim-scroll">
         <table className="text-sm border-collapse table-fixed" style={{ width: '2180px' }}>
           <colgroup>
             <col style={{ width: '115px' }} />
@@ -1555,7 +1678,8 @@ function agrupar(arr, fn) {
   return map;
 }
 
-function BlocoBarras({ titulo, dados, cor, ordem }) {
+function BlocoBarras({ titulo, dados, cor, ordem, pessoas }) {
+  const [aberto, setAberto] = useState(null);
   let entries = Object.entries(dados).filter(([, v]) => v > 0);
   if (Array.isArray(ordem)) {
     // Ordena conforme ordem fornecida (mantem so as faixas que tem valor)
@@ -1580,15 +1704,20 @@ function BlocoBarras({ titulo, dados, cor, ordem }) {
       <div className="space-y-3">
         {entries.map(([label, qtd]) => {
           const pct = Math.round((qtd / total) * 100);
+          const ab = aberto === label;
           return (
             <div key={label}>
-              <div className="flex justify-between mb-1">
-                <span className="font-semibold text-gray-700 text-sm">{label}</span>
-                <span className="font-bold text-gray-800 text-base">{qtd} <span className="text-gray-700 font-semibold">({pct}%)</span></span>
+              <div className="flex justify-between mb-1 items-center gap-2">
+                <span className="font-semibold text-gray-700 text-sm flex items-center gap-2">
+                  {pessoas && <button onClick={() => setAberto(ab ? null : label)} title="Ver nomes" className="w-4 h-4 inline-flex items-center justify-center rounded bg-gray-200 text-gray-600 text-xs font-bold hover:bg-indigo-200 flex-shrink-0">{ab ? '−' : '+'}</button>}
+                  {label}
+                </span>
+                <span className="font-bold text-gray-800 text-base whitespace-nowrap">{qtd} <span className="text-gray-700 font-semibold">({pct}%)</span></span>
               </div>
               <div className="h-4 bg-gray-100 rounded overflow-hidden">
                 <div className={`h-full ${cor}`} style={{ width: `${pct}%` }}></div>
               </div>
+              {ab && pessoas && <ExpandNomes pessoas={pessoas[label]} />}
             </div>
           );
         })}

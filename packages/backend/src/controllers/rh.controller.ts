@@ -137,6 +137,8 @@ export class RhController {
                 esc.nome AS escala_nome,
                 rt.nome AS regime_trabalho_nome,
                 dep.nome AS setor_departamento_nome,
+                td.nome AS tipo_desligamento_nome,
+                md.nome AS motivo_desligamento_nome,
                 s.name AS setor_nome
          FROM rh_colaboradores c
          LEFT JOIN rh_cargos ca ON ca.id = c.cargo_id
@@ -145,6 +147,8 @@ export class RhController {
          LEFT JOIN rh_escolaridades es ON es.id = c.escolaridade_id
          LEFT JOIN rh_escalas esc ON esc.id = c.escala_id
          LEFT JOIN rh_regimes_trabalho rt ON rt.id = c.regime_trabalho_id
+         LEFT JOIN rh_tipos_desligamento td ON td.id = c.tipo_desligamento_id
+         LEFT JOIN rh_motivos_desligamento md ON md.id = c.motivo_desligamento_id
          LEFT JOIN rh_departamentos dep ON dep.id = c.departamento_id
          LEFT JOIN sectors s ON s.id = c.sector_id
          ${whereClause}
