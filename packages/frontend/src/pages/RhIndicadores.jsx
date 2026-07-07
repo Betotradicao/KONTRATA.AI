@@ -1653,7 +1653,8 @@ const totalTopoPlugin = {
   afterDatasetsDraw(chart) {
     const { ctx, scales: { y } } = chart;
     const dss = chart.data.datasets, n = chart.data.labels.length, stacks = {};
-    dss.forEach((ds, di) => { (stacks[ds.stack] ||= []).push(di); });
+    // só soma os datasets VISÍVEIS (respeita quando o usuário esconde uma série na legenda)
+    dss.forEach((ds, di) => { if (chart.isDatasetVisible(di)) (stacks[ds.stack] ||= []).push(di); });
     ctx.save(); ctx.font = 'bold 13px Arial'; ctx.fillStyle = '#111827'; ctx.textAlign = 'center';
     for (let i = 0; i < n; i++) {
       for (const s in stacks) {
@@ -1670,20 +1671,26 @@ const hmMin = (min) => { if (!min || min <= 0) return '0h'; const h = Math.floor
 // versão mais espaçada pros cards grandes (melhor leitura): "37236h 14min"
 const hmLong = (min) => { if (!min || min <= 0) return '0h'; const h = Math.floor(min / 60), m = Math.round(min % 60); return m ? `${h.toLocaleString('pt-BR')}h ${String(m).padStart(2, '0')}min` : `${h.toLocaleString('pt-BR')}h`; };
 
-function KpiCard({ titulo, valor, sub, cor = 'gray', destaque, info, valor2, sub2, cor2 = 'violet', chips }) {
+function KpiCard({ titulo, valor, sub, cor = 'gray', destaque, info, valor2, sub2, cor2 = 'violet', chips, gear, onGear, rodape }) {
   const bordas = { rose: 'border-rose-400', amber: 'border-amber-400', blue: 'border-blue-400', emerald: 'border-emerald-400', violet: 'border-violet-400', pink: 'border-pink-400', gray: 'border-gray-300' };
   const textos = { rose: 'text-rose-600', amber: 'text-amber-600', blue: 'text-blue-600', emerald: 'text-emerald-600', violet: 'text-violet-600', pink: 'text-pink-600', gray: 'text-gray-700' };
   return (
-    <div className={`relative bg-white rounded-lg border-l-4 ${bordas[cor]} shadow-sm p-4`}>
-      {info && (
-        <div className="absolute top-2 right-2 group z-20">
-          <span className="w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold cursor-help select-none">i</span>
-          <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 top-6 z-50 w-60 p-2.5 rounded-lg bg-gray-800 text-white text-[11px] leading-snug shadow-xl">
-            {info}
-            <span className="absolute -top-1 right-1.5 w-2 h-2 bg-gray-800 rotate-45"></span>
+    <div className={`relative h-full bg-white rounded-lg border-l-4 ${bordas[cor]} shadow-sm p-4`}>
+      <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+        {gear && (
+          <button onMouseDown={e => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onGear && onGear(); }} title="Configurar valor da hora (R$)"
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 text-xs">⚙️</button>
+        )}
+        {info && (
+          <div className="group relative">
+            <span className="w-4 h-4 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold cursor-help select-none">i</span>
+            <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 top-6 z-50 w-60 p-2.5 rounded-lg bg-gray-800 text-white text-[11px] leading-snug shadow-xl">
+              {info}
+              <span className="absolute -top-1 right-1.5 w-2 h-2 bg-gray-800 rotate-45"></span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       <p className="text-xs uppercase font-semibold text-gray-500 pr-5">{titulo}</p>
       {valor2 != null ? (
         <div className="flex items-end gap-4 mt-1">
@@ -1712,6 +1719,7 @@ function KpiCard({ titulo, valor, sub, cor = 'gray', destaque, info, valor2, sub
           {sub && <p className="text-[11px] text-gray-400 mt-1">{sub}</p>}
         </>
       )}
+      {rodape && <div className="mt-2 pt-2 border-t border-gray-100">{rodape}</div>}
     </div>
   );
 }
@@ -1787,6 +1795,31 @@ function AbaPontoAusencias({ ano, empresaId }) {
   });
   const [kpiDrag, setKpiDrag] = useState(null);
   const [kpiOver, setKpiOver] = useState(null);
+  // Valor médio da hora (R$) pra estimativa de perda financeira
+  const [valorHora, setValorHora] = useState(null);
+  const [salarioMedio, setSalarioMedio] = useState(0);
+  const [valorHoraSugerido, setValorHoraSugerido] = useState(null);
+  const [showConfigHora, setShowConfigHora] = useState(false);
+  const [inputHora, setInputHora] = useState('');
+  const [salvandoHora, setSalvandoHora] = useState(false);
+
+  useEffect(() => {
+    api.get('/rh/ponto/valor-hora').then(r => {
+      setValorHora(r.data?.valor_hora ?? null);
+      setSalarioMedio(r.data?.salario_medio || 0);
+      setValorHoraSugerido(r.data?.valor_hora_sugerido ?? null);
+    }).catch(() => { /* ignore */ });
+  }, []);
+
+  const salvarValorHora = async () => {
+    const v = Number(String(inputHora).replace(',', '.'));
+    if (!isFinite(v) || v < 0) { toast.error('Informe um valor válido'); return; }
+    setSalvandoHora(true);
+    try {
+      await api.post('/rh/ponto/valor-hora', { valor: v });
+      setValorHora(v); setShowConfigHora(false); toast.success('Valor da hora salvo');
+    } catch { toast.error('Erro ao salvar'); } finally { setSalvandoHora(false); }
+  };
 
   const carregar = async (refresh = false) => {
     setLoading(true); setErro(null);
@@ -1868,12 +1901,58 @@ function AbaPontoAusencias({ ano, empresaId }) {
   const optMes = {
     responsive: true, maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, filter: (item) => !/\d{4}$/.test(item.text) } },
+      legend: {
+        position: 'bottom',
+        labels: { boxWidth: 10, font: { size: 10 }, filter: (item) => !/\d{4}$/.test(item.text) },
+        // clicar num tipo esconde/mostra os DOIS anos (atual + anterior) daquele tipo
+        onClick: (e, item, legend) => {
+          const chart = legend.chart;
+          const base = item.text;
+          const vaiEsconder = chart.isDatasetVisible(item.datasetIndex);
+          chart.data.datasets.forEach((ds, i) => {
+            if (ds.label.replace(/\s+\d{4}$/, '') === base) chart.setDatasetVisibility(i, !vaiEsconder);
+          });
+          chart.update();
+        },
+      },
       datalabels: { color: '#fff', font: { size: 11, weight: 'bold' }, display: (c) => (c.dataset.data[c.dataIndex] || 0) >= 3, formatter: (v) => Math.round(v) + '%' },
       tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y}%` } },
     },
-    scales: { x: { stacked: true, ticks: { font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } } },
+    scales: { x: { stacked: true, ticks: { font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, grace: '35%', ticks: { callback: v => v + '%', font: { size: 10 } } } },
   };
+  // Plugin (por gráfico): diferença ano-a-ano acima de cada mês (%, horas, R$) — verde cai / vermelho sobe
+  const mkDiffPlugin = (tipos) => ({
+    id: 'diffAno',
+    afterDatasetsDraw(chart) {
+      if (!dataPrev) return;
+      const { ctx, chartArea, scales: { x } } = chart;
+      const minKeys = tipos.map(t => t.key.replace('_pct', '_min'));
+      const yL1 = chartArea.top + 12, yL2 = chartArea.top + 27;   // reta fixa no topo (todos alinhados)
+      ctx.save(); ctx.textAlign = 'center';
+      for (let i = 0; i < (data.por_mes || []).length; i++) {
+        const cur = data.por_mes[i]; if (!cur || cur.mes > ateMes) continue;
+        const prv = prevMes[i];
+        const sumMin = (o) => o ? minKeys.reduce((a, kk) => a + (o[kk] || 0), 0) : 0;
+        const sumPct = (o) => o ? tipos.reduce((a, t) => a + (o[t.key] || 0), 0) : 0;
+        const curMin = sumMin(cur), prvMin = sumMin(prv), curPct = sumPct(cur), prvPct = sumPct(prv);
+        if (curMin === 0 && prvMin === 0) continue;
+        const dPct = +(curPct - prvPct).toFixed(1), dMin = curMin - prvMin;
+        const dRe = valorHora != null ? (dMin / 60 * valorHora) : null;
+        // cor/seta pela variação do % (comparação justa, normaliza tamanho do quadro)
+        const subiu = dPct > 0;
+        const cor = dPct === 0 ? '#6b7280' : subiu ? '#dc2626' : '#16a34a';
+        const seta = dPct === 0 ? '=' : subiu ? '▲' : '▼';
+        const sinal = (v) => (v > 0 ? '+' : '');
+        const xPix = x.getPixelForValue(i);
+        ctx.fillStyle = cor;
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(`${seta} ${sinal(dPct)}${dPct}pp`, xPix, yL1);
+        ctx.font = 'bold 11px Arial';
+        ctx.fillText(`${sinal(dMin)}${Math.round(dMin / 60)}h${dRe != null ? ` · ${sinal(dRe)}${dRe.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}` : ''}`, xPix, yL2);
+      }
+      ctx.restore();
+    },
+  });
   const optBarH = { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } };
   const optLine = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } };
   const optTipo = {
@@ -1908,6 +1987,26 @@ function AbaPontoAusencias({ ano, empresaId }) {
 
   return (
     <>
+      {/* Modal: configurar valor médio da hora (R$) */}
+      {showConfigHora && (
+        <div className="fixed inset-0 z-[70] bg-black/40 flex items-center justify-center p-4" onClick={() => setShowConfigHora(false)}>
+          <div className="bg-white rounded-xl p-5 w-96 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-gray-800 mb-1">💰 Valor médio da hora</h3>
+            <p className="text-xs text-gray-500 mb-3">Usado pra estimar a perda financeira das ausências não planejadas.</p>
+            <label className="block text-xs font-bold uppercase text-gray-600 mb-1">R$ por hora</label>
+            <input type="text" inputMode="decimal" value={inputHora} onChange={e => setInputHora(e.target.value)} placeholder="Ex: 12,50"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-lg font-bold focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            <div className="mt-2 bg-purple-50 border border-purple-100 rounded-lg p-2 text-xs text-purple-800 flex items-center justify-between gap-2">
+              <span>Salário médio {salarioMedio.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} ÷ 220h</span>
+              {valorHoraSugerido != null && <button onClick={() => setInputHora(String(valorHoraSugerido))} className="px-2 py-1 rounded bg-purple-600 text-white font-semibold hover:bg-purple-700 whitespace-nowrap">💡 Sugerir {valorHoraSugerido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</button>}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={salvarValorHora} disabled={salvandoHora} className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-60">{salvandoHora ? 'Salvando…' : 'Salvar'}</button>
+              <button onClick={() => setShowConfigHora(false)} className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Barra de contexto + diagnóstico + recalcular */}
       {(() => {
         const dg = data.diagnostico || {};
@@ -1950,15 +2049,31 @@ function AbaPontoAusencias({ ano, empresaId }) {
         if (k.obito_min > 0) chipsPlan.push({ label: 'Óbito', valor: hmLong(k.obito_min), cor: 'gray' });
         if (k.banco_min > 0) chipsPlan.push({ label: 'Banco Horas', valor: hmLong(k.banco_min), cor: 'emerald' });
         const totalPlan = (k.ferias_min || 0) + (k.maternidade_min || 0) + (k.paternidade_min || 0) + (k.casamento_min || 0) + (k.obito_min || 0) + (k.banco_min || 0);
+        const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const abrirConfigHora = () => { setInputHora(valorHora != null ? String(valorHora) : (valorHoraSugerido != null ? String(valorHoraSugerido) : '')); setShowConfigHora(true); };
+        const gearRodape = (min, label, colorClass) => valorHora != null ? (
+          <div>
+            <div className="text-[10px] uppercase font-semibold text-gray-400">💰 {label}</div>
+            <div className={`text-lg font-bold ${colorClass} leading-tight`}>{brl(min / 60 * valorHora)}</div>
+            <div className="text-[10px] text-gray-400">{hmMin(min)} × {brl(valorHora)}/h</div>
+          </div>
+        ) : (
+          <button onClick={abrirConfigHora} className="text-[11px] text-purple-600 font-semibold hover:underline">⚙️ Configure o valor da hora pra estimar R$</button>
+        );
         const kpiDefs = {
           absenteismo: { titulo: 'Taxa de Absenteísmo', cor: 'rose', cor2: 'violet', valor: `${k.absenteismo_pct}%`, sub: 'sem atestado (falta+atraso)', valor2: `${k.absenteismo_com_atestado_pct}%`, sub2: 'com atestado', info: "Dois olhares: SEM atestado = só falta + atraso (o gerenciável). COM atestado = soma também a ausência justificada. Ambos ÷ jornada prevista." },
           gravidade: { titulo: 'Gravidade (h/func)', valor: hmLong(k.gravidade_min), sub: 'horas de ausência por funcionário', cor: 'amber', info: "Quão pesada é a ausência POR PESSOA: total de horas de ausência não planejada ÷ nº de funcionários." },
-          nao_planejada: { titulo: 'Ausência Não Planejada', valor: hmLong(k.nao_planejada_min), cor: 'rose', chips: [{ label: 'Falta', valor: hmLong(k.falta_min), cor: 'rose' }, { label: 'Atraso', valor: hmLong(k.atraso_min), cor: 'amber' }], info: "Total de horas perdidas sem justificativa = falta + atraso. NÃO inclui atestado/férias/maternidade." },
+          nao_planejada: {
+            titulo: 'Ausência Não Planejada', valor: hmLong(k.nao_planejada_min + k.atestado_min), cor: 'rose',
+            chips: [{ label: 'Falta', valor: hmLong(k.falta_min), cor: 'rose' }, { label: 'Atraso', valor: hmLong(k.atraso_min), cor: 'amber' }, { label: 'Atestado', valor: hmLong(k.atestado_min), cor: 'violet' }],
+            gear: true, onGear: abrirConfigHora, rodape: gearRodape(k.nao_planejada_min + k.atestado_min, 'Estimativa de perda', 'text-rose-700'),
+            info: "Ausências não programadas: Falta + Atraso + Atestado médico. Clique na ⚙️ pra definir o valor da hora e ver a estimativa de perda em R$.",
+          },
           planejadas: { titulo: 'Ausências Planejadas / Justificadas', valor: hmLong(totalPlan), cor: 'blue', chips: chipsPlan, info: "Ausências justificadas/programadas: Férias, Lic. Maternidade/Paternidade/Casamento, Óbito e Banco de Horas (compensado). NÃO entram no absenteísmo não planejado." },
           jornada: { titulo: 'Jornada de Trabalho', valor: hmLong(k.jornada_min), sub: `trabalhado ${hmLong(k.trabalhado_min)}`, cor: 'blue', info: "Total de horas que DEVERIAM ser trabalhadas (carga contratual). 'Trabalhado' = o que foi cumprido." },
           tea: { titulo: 'Emp. c/ Ausência (TEA)', valor: `${k.tea_pct}%`, sub: `${k.funcionarios_ausentes} de ${data.funcionarios}`, cor: 'violet', info: "Taxa de Empregados Ausentes: % dos funcionários que tiveram pelo menos uma ausência." },
           frequencia: { titulo: 'Frequência', valor: k.frequencia, sub: `${k.eventos} eventos ÷ ${data.funcionarios} func`, cor: 'gray', info: "Nº de eventos de ausência ÷ funcionários. Média de ocorrências por pessoa." },
-          atestados: { titulo: 'Atestados', valor: hmLong(k.atestado_min), sub: 'ausência justificada (médica)', cor: 'violet', info: "Horas de ausência justificada (atestado médico). NÃO entram no absenteísmo não planejado." },
+          atestados: { titulo: 'Atestados', valor: hmLong(k.atestado_min), sub: 'ausência justificada (médica)', cor: 'violet', gear: true, onGear: abrirConfigHora, rodape: gearRodape(k.atestado_min, 'Custo estimado', 'text-violet-700'), info: "Horas de ausência justificada (atestado médico). Clique na ⚙️ pra ver o custo estimado em R$." },
           he: { titulo: 'Horas Extras', valor: hmLong(k.he_min), sub: 'no período', cor: 'emerald', info: "Total de horas extras trabalhadas no período, conforme a apuração RHiD." },
         };
         const soltarKpi = (dest) => {
@@ -1978,7 +2093,7 @@ function AbaPontoAusencias({ ano, empresaId }) {
                 onDragOver={e => { e.preventDefault(); setKpiOver(key); }}
                 onDrop={() => soltarKpi(key)}
                 title="Arraste para reposicionar"
-                className={`cursor-move transition ${kpiDrag === key ? 'opacity-40' : ''} ${kpiOver === key && kpiDrag && kpiOver !== kpiDrag ? 'ring-2 ring-purple-400 rounded-lg' : ''}`}>
+                className={`cursor-move transition h-full ${kpiDrag === key ? 'opacity-40' : ''} ${kpiOver === key && kpiDrag && kpiOver !== kpiDrag ? 'ring-2 ring-purple-400 rounded-lg' : ''}`}>
                 <KpiCard {...kpiDefs[key]} />
               </div>
             ))}
@@ -2071,13 +2186,13 @@ function AbaPontoAusencias({ ano, empresaId }) {
 
       {/* Gráficos mês a mês — Não Planejadas (sempre) + Planejadas */}
       <div className="mb-4">
-        <Painel titulo="📈 Ausências NÃO Planejadas — mês a mês + comparativo de ano" hint={`Falta · Atraso · Atestado · total no topo · ${dataPrev ? `esquerda = ${anoAtual - 1} (clara) · direita = ${anoAtual} (forte)` : 'sem dados do ano anterior'}`}>
-          <div style={{ height: 300 }}><Bar data={chartNaoPlan} options={optMes} plugins={[ChartDataLabels, totalTopoPlugin]} /></div>
+        <Painel titulo="📈 Ausências NÃO Planejadas — mês a mês + comparativo de ano" hint={`Falta · Atraso · Atestado · total no topo · acima: diferença vs ano anterior (🟢 caiu · 🔴 subiu) em pp/horas/R$ · ${dataPrev ? `esquerda = ${anoAtual - 1} (clara) · direita = ${anoAtual} (forte)` : 'sem dados do ano anterior'}`}>
+          <div style={{ height: 320 }}><Bar data={chartNaoPlan} options={optMes} plugins={[ChartDataLabels, totalTopoPlugin, mkDiffPlugin(TIPOS_NAO_PLAN)]} /></div>
         </Painel>
       </div>
       <div className="mb-4">
-        <Painel titulo="🗓️ Ausências Planejadas — mês a mês + comparativo de ano" hint={`Férias · Lic. Maternidade · total no topo · ${dataPrev ? `esquerda = ${anoAtual - 1} (clara) · direita = ${anoAtual} (forte)` : 'sem dados do ano anterior'}`}>
-          <div style={{ height: 300 }}><Bar data={chartPlan} options={optMes} plugins={[ChartDataLabels, totalTopoPlugin]} /></div>
+        <Painel titulo="🗓️ Ausências Planejadas — mês a mês + comparativo de ano" hint={`Férias · Lic. Maternidade · total no topo · acima: diferença vs ano anterior (🟢 caiu · 🔴 subiu) em pp/horas/R$ · ${dataPrev ? `esquerda = ${anoAtual - 1} (clara) · direita = ${anoAtual} (forte)` : 'sem dados do ano anterior'}`}>
+          <div style={{ height: 320 }}><Bar data={chartPlan} options={optMes} plugins={[ChartDataLabels, totalTopoPlugin, mkDiffPlugin(TIPOS_PLAN)]} /></div>
         </Painel>
       </div>
 

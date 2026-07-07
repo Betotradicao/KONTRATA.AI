@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { RhidService } from '../services/rhid.service';
+import { ConfigurationService } from '../services/configuration.service';
 
 const fmtHora = (h: any) => { const s = String(h ?? '').padStart(4, '0'); return `${s.slice(0, 2)}:${s.slice(2, 4)}`; };
 const fmtDia = (ymd: string) => `${ymd.slice(6, 8)}/${ymd.slice(4, 6)}/${ymd.slice(0, 4)}`;
@@ -166,6 +167,36 @@ export class RhPontoController {
       return res.json({ ok: true, pis, cpf, total_pis: pis.length, total_cpf: cpf.length });
     } catch (err: any) {
       return res.status(502).json({ ok: false, error: err?.message || 'Falha ao consultar a RHiD', pis: [], cpf: [] });
+    }
+  }
+
+  /** Valor médio da hora (config) + salário médio pra sugestão (salário médio ÷ 220h). */
+  static async getValorHora(_req: AuthRequest, res: Response) {
+    try {
+      const salvo = await ConfigurationService.get('ponto_valor_hora');
+      const [row] = await AppDataSource.query(
+        `SELECT AVG(NULLIF(salario, 0)) AS media FROM rh_colaboradores WHERE status='ativo' AND salario IS NOT NULL AND salario > 0`
+      );
+      const salarioMedio = row?.media ? Number(row.media) : 0;
+      return res.json({
+        valor_hora: salvo ? Number(salvo) : null,
+        salario_medio: +salarioMedio.toFixed(2),
+        valor_hora_sugerido: salarioMedio ? +(salarioMedio / 220).toFixed(2) : null,   // 220h/mês (CLT)
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Erro ao ler valor da hora' });
+    }
+  }
+
+  /** Salva o valor médio da hora (R$) pro cálculo de estimativa de perda. */
+  static async salvarValorHora(req: AuthRequest, res: Response) {
+    try {
+      const v = Number(req.body?.valor);
+      if (!isFinite(v) || v < 0) return res.status(400).json({ error: 'Valor inválido' });
+      await ConfigurationService.set('ponto_valor_hora', String(v), false);
+      return res.json({ ok: true, valor_hora: v });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message || 'Erro ao salvar valor da hora' });
     }
   }
 

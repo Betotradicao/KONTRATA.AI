@@ -279,6 +279,8 @@ router.post('/ponto/sincronizar-pis', authenticateToken, RhPontoController.sincr
 router.get('/ponto/espelho', authenticateToken, RhPontoController.espelho);
 router.get('/ponto/indicadores', authenticateToken, RhPontoController.indicadores);
 router.get('/ponto/rhid/vinculos', authenticateToken, RhPontoController.pisVinculados);
+router.get('/ponto/valor-hora', authenticateToken, RhPontoController.getValorHora);
+router.post('/ponto/valor-hora', authenticateToken, RhPontoController.salvarValorHora);
 
 // Departamento Pessoal (docs da empresa)
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);
