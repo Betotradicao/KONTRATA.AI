@@ -429,9 +429,10 @@ export class RhPontoController {
         if (c && Date.now() - c.at < IND_TTL) return res.json({ ...c.data, cache: true });
       }
 
-      // Todos os colaboradores ativos (o filtro de PIS/não-bate é feito no JS pra montar o diagnóstico)
+      // Ativos + Desligados: os KPIs/setor/diagnóstico continuam SÓ sobre o quadro ativo;
+      // os desligados entram só no ranking (habilita o filtro Todos/Ativos/Inativos na tabela).
       const params: any[] = [];
-      let where = `c.status='ativo'`;
+      let where = `c.status IN ('ativo','desligado')`;
       if (empresaId) { params.push(empresaId); where += ` AND c.company_id = $${params.length}`; }
       const colabs = await AppDataSource.query(
         `SELECT c.id, c.nome, c.pis_pasep, c.cpf, c.foto_url, c.nao_bate_ponto, c.status, COALESCE(dep.nome,'Sem setor') AS setor
@@ -451,17 +452,23 @@ export class RhPontoController {
       const matchRhid = (c: any) => porCpf.get(cpfN(c.cpf)) || porPis.get(_pisNorm(c.pis_pasep)) || null;
       const temDoc = (c: any) => !!(cpfN(c.cpf) || _pisNorm(c.pis_pasep) !== '0' && _pisNorm(c.pis_pasep));
 
-      const naoBate = colabs.filter((c: any) => c.nao_bate_ponto === true);
-      const considerados = colabs.filter((c: any) => c.nao_bate_ponto !== true);
-      const alvos = considerados.map((c: any) => ({ ...c, rhid: matchRhid(c) })).filter((c: any) => c.rhid);
+      // alvos = quem entra na apuração (ativos + desligados que batem ponto e casam c/ RHiD).
+      // Cada alvo carrega o próprio status pra o ranking distinguir ativo/inativo.
+      const alvos = colabs.filter((c: any) => c.nao_bate_ponto !== true).map((c: any) => ({ ...c, rhid: matchRhid(c) })).filter((c: any) => c.rhid);
+
+      // Diagnóstico ("X de Y colaboradores ativos") é SEMPRE sobre o quadro ATIVO
+      const ativosCol = colabs.filter((c: any) => c.status === 'ativo');
+      const naoBate = ativosCol.filter((c: any) => c.nao_bate_ponto === true);
+      const considerados = ativosCol.filter((c: any) => c.nao_bate_ponto !== true);
+      const incluidosAtivos = considerados.filter((c: any) => matchRhid(c));
       const semMatch = considerados.filter((c: any) => !matchRhid(c));
       const semDoc = semMatch.filter((c: any) => !temDoc(c));
       const naoEncontrado = semMatch.filter((c: any) => temDoc(c));
 
       // Diagnóstico: por que alguém ficou de fora do dashboard
       const diagnostico = {
-        total_ativos: colabs.length,
-        incluidos: alvos.length,
+        total_ativos: ativosCol.length,
+        incluidos: incluidosAtivos.length,
         nao_bate_ponto: naoBate.length,
         sem_documento: semDoc.length,
         nao_encontrado: naoEncontrado.length,
@@ -533,18 +540,21 @@ export class RhPontoController {
         ...c, nao_planejada: c.falta + c.atraso, bradford: _bradford(diasAus[c.id]),
         absenteismo: c.jornada ? +((c.falta + c.atraso) / c.jornada * 100).toFixed(1) : 0,
       }));
+      // KPIs / por-mês / por-setor consideram SÓ o quadro ativo (não distorcer com desligados).
+      // O ranking (mais abaixo) usa o colabArr completo pra permitir o filtro Ativos/Inativos.
+      const ativosArr = colabArr.filter((c: any) => c.status === 'ativo');
 
-      const sum = (k: string) => colabArr.reduce((a: number, c: any) => a + (c[k] || 0), 0);
-      const nFunc = colabArr.length;
+      const sum = (k: string) => ativosArr.reduce((a: number, c: any) => a + (c[k] || 0), 0);
+      const nFunc = ativosArr.length;
       const jornadaTot = sum('jornada'), naoPlanTot = sum('nao_planejada');
-      const comAus = colabArr.filter((c: any) => c.nao_planejada > 0 || c.atestado > 0).length;
-      const eventos = colabArr.reduce((a: number, c: any) => a + c.diasFalta + c.diasAtestado, 0);
+      const comAus = ativosArr.filter((c: any) => c.nao_planejada > 0 || c.atestado > 0).length;
+      const eventos = ativosArr.reduce((a: number, c: any) => a + c.diasFalta + c.diasAtestado, 0);
 
       // Por mês (global) — Jan..Dez
       const porMes = Array.from({ length: 12 }, (_, i) => {
         const m = i + 1;
         let jornada = 0, falta = 0, atraso = 0, atestado = 0, ferias = 0, maternidade = 0, paternidade = 0, casamento = 0, obito = 0, banco = 0, he = 0;
-        for (const c of colabArr) { const pm = c.porMes[m]; if (pm) { jornada += pm.jornada; falta += pm.falta; atraso += pm.atraso; atestado += pm.atestado; ferias += pm.ferias || 0; maternidade += pm.maternidade || 0; paternidade += pm.paternidade || 0; casamento += pm.casamento || 0; obito += pm.obito || 0; banco += pm.banco || 0; he += pm.he; } }
+        for (const c of ativosArr) { const pm = c.porMes[m]; if (pm) { jornada += pm.jornada; falta += pm.falta; atraso += pm.atraso; atestado += pm.atestado; ferias += pm.ferias || 0; maternidade += pm.maternidade || 0; paternidade += pm.paternidade || 0; casamento += pm.casamento || 0; obito += pm.obito || 0; banco += pm.banco || 0; he += pm.he; } }
         const naoPlan = falta + atraso;
         const pct = (v: number) => jornada ? +(v / jornada * 100).toFixed(1) : 0;
         return { mes: m, label: MES_LABEL[m], jornada_min: jornada, falta_min: falta, atraso_min: atraso, atestado_min: atestado, ferias_min: ferias, maternidade_min: maternidade, he_min: he,
@@ -556,7 +566,7 @@ export class RhPontoController {
 
       // Por setor (com quebra mensal)
       const setorMap: Record<string, any> = {};
-      for (const c of colabArr) {
+      for (const c of ativosArr) {
         const s = (setorMap[c.setor] ||= { setor: c.setor, funcionarios: 0, jornada: 0, falta: 0, atraso: 0, atestado: 0, he: 0, porMes: {} });
         s.funcionarios++; s.jornada += c.jornada; s.falta += c.falta; s.atraso += c.atraso; s.atestado += c.atestado; s.he += c.he;
         for (let m = 1; m <= 12; m++) { const pm = c.porMes[m]; if (pm) { const spm = (s.porMes[m] ||= { jornada: 0, nao_planejada: 0 }); spm.jornada += pm.jornada; spm.nao_planejada += pm.falta + pm.atraso; } }
@@ -601,8 +611,8 @@ export class RhPontoController {
           gravidade_min: nFunc ? Math.round(naoPlanTot / nFunc) : 0,
           nao_planejada_min: naoPlanTot, jornada_min: jornadaTot, trabalhado_min: sum('trabalhado'),
           falta_min: sum('falta'), atraso_min: sum('atraso'), atestado_min: sum('atestado'), abono_min: sum('abono'), he_min: sum('he'),
-          ferias_min: sum('ferias'), ferias_dias: colabArr.reduce((a: number, c: any) => a + (c.diasFerias || 0), 0),
-          maternidade_min: sum('maternidade'), maternidade_dias: colabArr.reduce((a: number, c: any) => a + (c.diasMaternidade || 0), 0),
+          ferias_min: sum('ferias'), ferias_dias: ativosArr.reduce((a: number, c: any) => a + (c.diasFerias || 0), 0),
+          maternidade_min: sum('maternidade'), maternidade_dias: ativosArr.reduce((a: number, c: any) => a + (c.diasMaternidade || 0), 0),
           paternidade_min: sum('paternidade'), casamento_min: sum('casamento'), obito_min: sum('obito'), banco_min: sum('banco'),
           frequencia: nFunc ? +(eventos / nFunc).toFixed(1) : 0, tea_pct: nFunc ? Math.round(comAus / nFunc * 100) : 0,
           eventos, funcionarios_ausentes: comAus,

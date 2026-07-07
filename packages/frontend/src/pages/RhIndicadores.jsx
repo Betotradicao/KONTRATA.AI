@@ -1913,6 +1913,7 @@ function AbaPontoAusencias({ ano, empresaId }) {
   const [verFora, setVerFora] = useState(false);
   // Ordenação do ranking — padrão por Criticidade (Bradford). Reseta ao sair/voltar da aba.
   const [rankSort, setRankSort] = useState({ campo: 'bradford', dir: 'desc' });
+  const [rankStatus, setRankStatus] = useState('todos'); // todos | ativos | inativos
   const [expandido, setExpandido] = useState(null);   // id do colaborador com linha expandida
   // Ordem dos cards de KPI (arrastáveis) — salva no navegador
   const [kpiOrder, setKpiOrder] = useState(() => {
@@ -2105,11 +2106,15 @@ function AbaPontoAusencias({ ano, empresaId }) {
   const RANK_TEXT = new Set(['nome', 'setor']);
   const toggleRank = (campo) => setRankSort(s => s.campo === campo ? { campo, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { campo, dir: RANK_TEXT.has(campo) ? 'asc' : 'desc' });
   const setaRank = (campo) => rankSort.campo === campo ? (rankSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
-  const ranking = [...(data.ranking_colaboradores || [])].sort((a, b) => {
-    const { campo, dir } = rankSort;
-    if (RANK_TEXT.has(campo)) return String(a[campo] || '').localeCompare(String(b[campo] || ''), 'pt-BR') * (dir === 'asc' ? 1 : -1);
-    return ((a[campo] || 0) - (b[campo] || 0)) * (dir === 'asc' ? 1 : -1);
-  });
+  const rankingFull = data.ranking_colaboradores || [];
+  const rankCount = { todos: rankingFull.length, ativos: rankingFull.filter(c => c.ativo).length, inativos: rankingFull.filter(c => !c.ativo).length };
+  const ranking = [...rankingFull]
+    .filter(c => rankStatus === 'todos' ? true : rankStatus === 'ativos' ? c.ativo : !c.ativo)
+    .sort((a, b) => {
+      const { campo, dir } = rankSort;
+      if (RANK_TEXT.has(campo)) return String(a[campo] || '').localeCompare(String(b[campo] || ''), 'pt-BR') * (dir === 'asc' ? 1 : -1);
+      return ((a[campo] || 0) - (b[campo] || 0)) * (dir === 'asc' ? 1 : -1);
+    });
   // Pílula (badge arredondado) pros valores do ranking
   const pill = (txt, cls) => <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>{txt}</span>;
   const dashCell = <span className="text-gray-300">—</span>;
@@ -2246,6 +2251,18 @@ function AbaPontoAusencias({ ano, empresaId }) {
 
       {/* Ranking colaboradores — no topo, com foto + colunas mês a mês */}
       <Painel titulo="🏆 Ranking de Ausências por Colaborador" hint="clique nas colunas pra ordenar (A→Z / maior→menor) · padrão = Criticidade · colunas mês a mês = horas de ausência não planejada (falta+atraso); 🟥 mais forte = pior" className="mb-4">
+        <div className="flex items-center gap-1 mb-2">
+          {[
+            { id: 'todos', label: 'Todos', cor: 'bg-gray-700' },
+            { id: 'ativos', label: 'Ativos', cor: 'bg-emerald-600' },
+            { id: 'inativos', label: 'Inativos', cor: 'bg-rose-600' },
+          ].map(o => (
+            <button key={o.id} onClick={() => setRankStatus(o.id)}
+              className={`px-3 py-1 rounded-full text-xs font-bold transition ${rankStatus === o.id ? `${o.cor} text-white shadow` : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+              {o.label} <span className={`ml-1 ${rankStatus === o.id ? 'opacity-90' : 'opacity-60'}`}>{rankCount[o.id]}</span>
+            </button>
+          ))}
+        </div>
         <div className="overflow-auto max-h-[460px]">
           <table className="min-w-full text-sm border-separate" style={{ borderSpacing: 0 }}>
             <thead className="bg-gray-600 text-white sticky top-0 z-20">
