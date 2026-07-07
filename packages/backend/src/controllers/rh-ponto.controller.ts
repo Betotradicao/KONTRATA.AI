@@ -32,14 +32,20 @@ function _classificaDia(d: any) {
   const soJust = bat.length > 0 && bat.every((b: any) => b._typeEntradaSaida === 'D' && !ehPunch(b));
   const isFeriado = d.isHoliday === 1;
   const isFalta = !!d.faltaDiaInteiro || (d.faltasDiasInteiro || 0) > 0;
-  // Sub-tipo da justificativa (dia todo tipo "D"): Férias / Maternidade / Atestado (médico)
+  // Sub-tipo da justificativa (dia todo tipo "D"). Rótulos reais da RHiD:
+  // Ferias, Matern, Paternidade, Casam, Banco (compensação), Medico, Justif(óbito/abono)
   const justAbrev = String(bat.find((b: any) => b.abreviationJustification)?.abreviationJustification || '').toLowerCase();
+  const detTxt = String(bat.map((b: any) => (b.afdtLogs || []).map((l: any) => l.detalheDiferencaConsiderada).find(Boolean)).find(Boolean) || '').toLowerCase();
   let status: string;
   if (isFeriado) status = 'feriado'; else if (isFalta) status = 'falta';
   else if (soJust && !temReal) {
     if (justAbrev.includes('matern')) status = 'maternidade';
-    else if (justAbrev.includes('feria')) status = 'ferias';       // "Ferias"/"Férias"
-    else status = 'atestado';                                       // médico e demais
+    else if (justAbrev.includes('patern')) status = 'paternidade';
+    else if (justAbrev.includes('casam') || detTxt.includes('casamento')) status = 'casamento';
+    else if (justAbrev.includes('banco')) status = 'banco';         // compensado por banco de horas
+    else if (justAbrev.includes('feria')) status = 'ferias';
+    else if (detTxt.includes('obito') || detTxt.includes('óbito')) status = 'obito';
+    else status = 'atestado';                                       // médico + demais justificativas
   }
   else if (!jorStr && !temReal) status = 'folga'; else status = 'trabalhou';
   const uteis = d.horasUteis || 0;   // jornada prevista do dia (min)
@@ -52,6 +58,8 @@ function _classificaDia(d: any) {
     abono: d.minutosAbono || 0, he: d.horasExtrasCalculadas || 0,
     falta: status === 'falta' ? uteis : 0, atestado: status === 'atestado' ? uteis : 0,
     ferias: status === 'ferias' ? uteis : 0, maternidade: status === 'maternidade' ? uteis : 0,
+    paternidade: status === 'paternidade' ? uteis : 0, casamento: status === 'casamento' ? uteis : 0,
+    obito: status === 'obito' ? uteis : 0, banco: status === 'banco' ? uteis : 0,
   };
 }
 
@@ -446,13 +454,15 @@ export class RhPontoController {
         const ini = `${ano}-${String(m).padStart(2, '0')}-01`;
         const fim = `${ano}-${String(m).padStart(2, '0')}-${String(ultDia(m)).padStart(2, '0')}`;
         const apur = await RhidService.apuracao(c.rhid.id, ini, fim).catch(() => []);
-        const acc = (byColab[c.id] ||= { id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, status: c.status, jornada: 0, trabalhado: 0, falta: 0, atraso: 0, atestado: 0, ferias: 0, maternidade: 0, abono: 0, he: 0, diasFalta: 0, diasAtestado: 0, diasFerias: 0, diasMaternidade: 0, porMes: {} });
+        const acc = (byColab[c.id] ||= { id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, status: c.status, jornada: 0, trabalhado: 0, falta: 0, atraso: 0, atestado: 0, ferias: 0, maternidade: 0, paternidade: 0, casamento: 0, obito: 0, banco: 0, abono: 0, he: 0, diasFalta: 0, diasAtestado: 0, diasFerias: 0, diasMaternidade: 0, porMes: {} });
         for (const d of apur) {
           const x = _classificaDia(d);
           acc.jornada += x.jornada; acc.trabalhado += x.trabalhado; acc.atraso += x.atraso; acc.abono += x.abono; acc.he += x.he;
           acc.falta += x.falta; acc.atestado += x.atestado; acc.ferias += x.ferias; acc.maternidade += x.maternidade;
-          const pm = (acc.porMes[x.mes] ||= { jornada: 0, falta: 0, atraso: 0, atestado: 0, ferias: 0, maternidade: 0, he: 0, falta_dias: 0, atestado_dias: 0, ferias_dias: 0, maternidade_dias: 0 });
-          pm.jornada += x.jornada; pm.falta += x.falta; pm.atraso += x.atraso; pm.atestado += x.atestado; pm.ferias += x.ferias; pm.maternidade += x.maternidade; pm.he += x.he;
+          acc.paternidade += x.paternidade; acc.casamento += x.casamento; acc.obito += x.obito; acc.banco += x.banco;
+          const pm = (acc.porMes[x.mes] ||= { jornada: 0, falta: 0, atraso: 0, atestado: 0, ferias: 0, maternidade: 0, paternidade: 0, casamento: 0, obito: 0, banco: 0, he: 0, falta_dias: 0, atestado_dias: 0, ferias_dias: 0, maternidade_dias: 0 });
+          pm.jornada += x.jornada; pm.falta += x.falta; pm.atraso += x.atraso; pm.atestado += x.atestado; pm.ferias += x.ferias; pm.maternidade += x.maternidade;
+          pm.paternidade += x.paternidade; pm.casamento += x.casamento; pm.obito += x.obito; pm.banco += x.banco; pm.he += x.he;
           if (x.status === 'falta') { acc.diasFalta++; pm.falta_dias++; (diasAus[c.id] ||= []).push(x.ymd); (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'falta', min: x.jornada }); }
           if (x.status === 'atestado') { acc.diasAtestado++; pm.atestado_dias++; (diasAus[c.id] ||= []).push(x.ymd); (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'atestado', min: x.jornada }); }
           if (x.status === 'ferias') { acc.diasFerias++; pm.ferias_dias++; (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'ferias', min: x.jornada }); }
@@ -475,13 +485,14 @@ export class RhPontoController {
       // Por mês (global) — Jan..Dez
       const porMes = Array.from({ length: 12 }, (_, i) => {
         const m = i + 1;
-        let jornada = 0, falta = 0, atraso = 0, atestado = 0, ferias = 0, maternidade = 0, he = 0;
-        for (const c of colabArr) { const pm = c.porMes[m]; if (pm) { jornada += pm.jornada; falta += pm.falta; atraso += pm.atraso; atestado += pm.atestado; ferias += pm.ferias || 0; maternidade += pm.maternidade || 0; he += pm.he; } }
+        let jornada = 0, falta = 0, atraso = 0, atestado = 0, ferias = 0, maternidade = 0, paternidade = 0, casamento = 0, obito = 0, banco = 0, he = 0;
+        for (const c of colabArr) { const pm = c.porMes[m]; if (pm) { jornada += pm.jornada; falta += pm.falta; atraso += pm.atraso; atestado += pm.atestado; ferias += pm.ferias || 0; maternidade += pm.maternidade || 0; paternidade += pm.paternidade || 0; casamento += pm.casamento || 0; obito += pm.obito || 0; banco += pm.banco || 0; he += pm.he; } }
         const naoPlan = falta + atraso;
         const pct = (v: number) => jornada ? +(v / jornada * 100).toFixed(1) : 0;
         return { mes: m, label: MES_LABEL[m], jornada_min: jornada, falta_min: falta, atraso_min: atraso, atestado_min: atestado, ferias_min: ferias, maternidade_min: maternidade, he_min: he,
           nao_planejada_min: naoPlan, absenteismo_pct: pct(naoPlan),
           falta_pct: pct(falta), atraso_pct: pct(atraso), atestado_pct: pct(atestado), ferias_pct: pct(ferias), maternidade_pct: pct(maternidade),
+          paternidade_pct: pct(paternidade), casamento_pct: pct(casamento), obito_pct: pct(obito), banco_pct: pct(banco),
           gravidade_min: nFunc ? Math.round(naoPlan / nFunc) : 0, sem_dados: m > ateMes };
       });
 
@@ -534,6 +545,7 @@ export class RhPontoController {
           falta_min: sum('falta'), atraso_min: sum('atraso'), atestado_min: sum('atestado'), abono_min: sum('abono'), he_min: sum('he'),
           ferias_min: sum('ferias'), ferias_dias: colabArr.reduce((a: number, c: any) => a + (c.diasFerias || 0), 0),
           maternidade_min: sum('maternidade'), maternidade_dias: colabArr.reduce((a: number, c: any) => a + (c.diasMaternidade || 0), 0),
+          paternidade_min: sum('paternidade'), casamento_min: sum('casamento'), obito_min: sum('obito'), banco_min: sum('banco'),
           frequencia: nFunc ? +(eventos / nFunc).toFixed(1) : 0, tea_pct: nFunc ? Math.round(comAus / nFunc * 100) : 0,
           eventos, funcionarios_ausentes: comAus,
         },
@@ -543,6 +555,10 @@ export class RhPontoController {
           { tipo: 'Atestado', min: sum('atestado'), cor: '#8b5cf6' },
           { tipo: 'Férias', min: sum('ferias'), cor: '#3b82f6' },
           { tipo: 'Maternidade', min: sum('maternidade'), cor: '#ec4899' },
+          { tipo: 'Paternidade', min: sum('paternidade'), cor: '#14b8a6' },
+          { tipo: 'Casamento', min: sum('casamento'), cor: '#eab308' },
+          { tipo: 'Óbito', min: sum('obito'), cor: '#64748b' },
+          { tipo: 'Banco Horas', min: sum('banco'), cor: '#10b981' },
           { tipo: 'Abono', min: sum('abono'), cor: '#6366f1' },
         ],
         por_mes: porMes, por_setor: porSetor, ranking_colaboradores: ranking,

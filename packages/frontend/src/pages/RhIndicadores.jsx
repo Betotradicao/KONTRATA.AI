@@ -1633,13 +1633,19 @@ function Tabela({ titulo, cor, linhas }) {
 const PALETA = ['#6366f1', '#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#eab308', '#64748b'];
 const MES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const KPI_PADRAO = ['absenteismo', 'gravidade', 'nao_planejada', 'planejadas', 'jornada', 'tea', 'frequencia', 'atestados', 'he'];
-// Tipos de ausência pro gráfico empilhado mês a mês
-const ABS_TIPOS = [
+// Tipos de ausência pros gráficos empilhados mês a mês (2 gráficos separados)
+const TIPOS_NAO_PLAN = [
   { key: 'falta_pct', label: 'Falta', cor: '#ef4444' },
   { key: 'atraso_pct', label: 'Atraso', cor: '#f59e0b' },
   { key: 'atestado_pct', label: 'Atestado', cor: '#8b5cf6' },
+];
+const TIPOS_PLAN = [
   { key: 'ferias_pct', label: 'Férias', cor: '#3b82f6' },
-  { key: 'maternidade_pct', label: 'Maternidade', cor: '#ec4899' },
+  { key: 'maternidade_pct', label: 'Lic. Maternidade', cor: '#ec4899' },
+  { key: 'paternidade_pct', label: 'Lic. Paternidade', cor: '#14b8a6' },
+  { key: 'casamento_pct', label: 'Lic. Casamento', cor: '#eab308' },
+  { key: 'obito_pct', label: 'Óbito', cor: '#64748b' },
+  { key: 'banco_pct', label: 'Banco Horas', cor: '#10b981' },
 ];
 // Plugin: desenha o TOTAL (%) no topo de cada barra empilhada (por ano/stack)
 const totalTopoPlugin = {
@@ -1820,15 +1826,16 @@ function AbaPontoAusencias({ ano, empresaId }) {
   const mesesFechados = data.por_mes.filter(m => m.mes <= ateMes);   // só meses encerrados (com sub-colunas)
   const colSpanTotal = 3 + mesesFechados.length * 5 + 6;             // colaborador+setor+ativo + meses*5 + resumo
 
-  // Gráfico 1: Absenteísmo mês a mês — empilhado por tipo, agrupado por ano (anterior vs atual)
+  // Gráficos mês a mês — empilhado por tipo, agrupado por ano (anterior vs atual)
   const anoAtual = data.periodo.ano;
   const prevMes = dataPrev?.por_mes || [];
-  const dsAtual = ABS_TIPOS.map(t => ({ label: t.label, data: data.por_mes.map(m => m.mes > ateMes ? null : (m[t.key] || 0)), backgroundColor: t.cor, stack: 'atual', maxBarThickness: 36 }));
-  const dsPrev = ABS_TIPOS.map(t => ({ label: `${t.label} ${anoAtual - 1}`, data: prevMes.map(m => (m[t.key] || 0)), backgroundColor: t.cor + '66', stack: 'anterior', maxBarThickness: 36 }));
-  const chartMes = {
-    labels: MESES,
-    datasets: dataPrev ? [...dsPrev, ...dsAtual] : dsAtual,
+  const buildStacked = (tipos) => {
+    const dsAtual = tipos.map(t => ({ label: t.label, data: data.por_mes.map(m => m.mes > ateMes ? null : (m[t.key] || 0)), backgroundColor: t.cor, stack: 'atual', maxBarThickness: 36 }));
+    const dsPrev = tipos.map(t => ({ label: `${t.label} ${anoAtual - 1}`, data: prevMes.map(m => (m[t.key] || 0)), backgroundColor: t.cor + '66', stack: 'anterior', maxBarThickness: 36 }));
+    return { labels: MESES, datasets: dataPrev ? [...dsPrev, ...dsAtual] : dsAtual };
   };
+  const chartNaoPlan = buildStacked(TIPOS_NAO_PLAN);
+  const chartPlan = buildStacked(TIPOS_PLAN);
 
   // Gráfico 2: Absenteísmo por setor (barras horizontais)
   const setores = data.por_setor;
@@ -1838,10 +1845,13 @@ function AbaPontoAusencias({ ano, empresaId }) {
   };
 
   // Gráfico 3: por tipo (rosca)
-  const chartTipo = {
-    labels: data.por_tipo.map(t => t.tipo),
-    datasets: [{ data: data.por_tipo.map(t => Math.round(t.min / 60)), backgroundColor: data.por_tipo.map(t => t.cor), borderWidth: 0 }],
-  };
+  // Pizzas divididas: Não Planejadas x Planejadas
+  const LABELS_NAO_PLAN = ['Falta', 'Atraso', 'Atestado', 'Abono'];
+  const mkPizza = (arr) => ({ labels: arr.map(t => t.tipo), datasets: [{ data: arr.map(t => Math.round(t.min / 60)), backgroundColor: arr.map(t => t.cor), borderWidth: 0 }] });
+  const tiposNaoPlan = (data.por_tipo || []).filter(t => LABELS_NAO_PLAN.includes(t.tipo) && t.min > 0).sort((a, b) => b.min - a.min);
+  const tiposPlan = (data.por_tipo || []).filter(t => !LABELS_NAO_PLAN.includes(t.tipo) && t.min > 0).sort((a, b) => b.min - a.min);
+  const chartTipoNaoPlan = mkPizza(tiposNaoPlan);
+  const chartTipoPlan = mkPizza(tiposPlan);
 
   // Gráfico 4: por setor mês a mês (linha, top 6 setores)
   const top6 = setores.slice(0, 6);
@@ -1866,7 +1876,22 @@ function AbaPontoAusencias({ ano, empresaId }) {
   };
   const optBarH = { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } };
   const optLine = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%', font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } };
-  const optTipo = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed}h` } } } };
+  const optTipo = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          boxWidth: 12, font: { size: 11 },
+          generateLabels: (chart) => {
+            const ds = chart.data.datasets[0]; const tot = (ds.data || []).reduce((a, b) => a + b, 0) || 1;
+            return chart.data.labels.map((lbl, i) => ({ text: `${lbl} — ${(ds.data[i] / tot * 100).toFixed(1)}%`, fillStyle: ds.backgroundColor[i], strokeStyle: ds.backgroundColor[i], index: i }));
+          },
+        },
+      },
+      tooltip: { callbacks: { label: c => { const tot = c.dataset.data.reduce((a, b) => a + b, 0) || 1; return `${c.label}: ${c.parsed}h (${(c.parsed / tot * 100).toFixed(1)}%)`; } } },
+    },
+  };
 
   // Ordenação do ranking (colunas clicáveis). Texto = A→Z; números = maior→menor por padrão.
   const RANK_TEXT = new Set(['nome', 'setor']);
@@ -1916,11 +1941,20 @@ function AbaPontoAusencias({ ano, empresaId }) {
 
       {/* KPIs — cards arrastáveis (ordem salva no navegador) */}
       {(() => {
+        const chipsPlan = [
+          { label: 'Férias', valor: hmLong(k.ferias_min), cor: 'blue' },
+          { label: 'Lic. Maternidade', valor: hmLong(k.maternidade_min), cor: 'pink' },
+        ];
+        if (k.paternidade_min > 0) chipsPlan.push({ label: 'Lic. Paternidade', valor: hmLong(k.paternidade_min), cor: 'emerald' });
+        if (k.casamento_min > 0) chipsPlan.push({ label: 'Lic. Casamento', valor: hmLong(k.casamento_min), cor: 'amber' });
+        if (k.obito_min > 0) chipsPlan.push({ label: 'Óbito', valor: hmLong(k.obito_min), cor: 'gray' });
+        if (k.banco_min > 0) chipsPlan.push({ label: 'Banco Horas', valor: hmLong(k.banco_min), cor: 'emerald' });
+        const totalPlan = (k.ferias_min || 0) + (k.maternidade_min || 0) + (k.paternidade_min || 0) + (k.casamento_min || 0) + (k.obito_min || 0) + (k.banco_min || 0);
         const kpiDefs = {
           absenteismo: { titulo: 'Taxa de Absenteísmo', cor: 'rose', cor2: 'violet', valor: `${k.absenteismo_pct}%`, sub: 'sem atestado (falta+atraso)', valor2: `${k.absenteismo_com_atestado_pct}%`, sub2: 'com atestado', info: "Dois olhares: SEM atestado = só falta + atraso (o gerenciável). COM atestado = soma também a ausência justificada. Ambos ÷ jornada prevista." },
           gravidade: { titulo: 'Gravidade (h/func)', valor: hmLong(k.gravidade_min), sub: 'horas de ausência por funcionário', cor: 'amber', info: "Quão pesada é a ausência POR PESSOA: total de horas de ausência não planejada ÷ nº de funcionários." },
           nao_planejada: { titulo: 'Ausência Não Planejada', valor: hmLong(k.nao_planejada_min), cor: 'rose', chips: [{ label: 'Falta', valor: hmLong(k.falta_min), cor: 'rose' }, { label: 'Atraso', valor: hmLong(k.atraso_min), cor: 'amber' }], info: "Total de horas perdidas sem justificativa = falta + atraso. NÃO inclui atestado/férias/maternidade." },
-          planejadas: { titulo: 'Ausências Planejadas', valor: hmLong(k.ferias_min + k.maternidade_min), cor: 'blue', chips: [{ label: 'Férias', valor: hmLong(k.ferias_min), cor: 'blue' }, { label: 'Lic. Maternidade', valor: hmLong(k.maternidade_min), cor: 'pink' }], info: "Ausências justificadas e programadas: Férias + Licença Maternidade. NÃO entram no absenteísmo." },
+          planejadas: { titulo: 'Ausências Planejadas / Justificadas', valor: hmLong(totalPlan), cor: 'blue', chips: chipsPlan, info: "Ausências justificadas/programadas: Férias, Lic. Maternidade/Paternidade/Casamento, Óbito e Banco de Horas (compensado). NÃO entram no absenteísmo não planejado." },
           jornada: { titulo: 'Jornada de Trabalho', valor: hmLong(k.jornada_min), sub: `trabalhado ${hmLong(k.trabalhado_min)}`, cor: 'blue', info: "Total de horas que DEVERIAM ser trabalhadas (carga contratual). 'Trabalhado' = o que foi cumprido." },
           tea: { titulo: 'Emp. c/ Ausência (TEA)', valor: `${k.tea_pct}%`, sub: `${k.funcionarios_ausentes} de ${data.funcionarios}`, cor: 'violet', info: "Taxa de Empregados Ausentes: % dos funcionários que tiveram pelo menos uma ausência." },
           frequencia: { titulo: 'Frequência', valor: k.frequencia, sub: `${k.eventos} eventos ÷ ${data.funcionarios} func`, cor: 'gray', info: "Nº de eventos de ausência ÷ funcionários. Média de ocorrências por pessoa." },
@@ -2035,19 +2069,30 @@ function AbaPontoAusencias({ ano, empresaId }) {
         </div>
       </Painel>
 
-      {/* Gráficos compactos */}
+      {/* Gráficos mês a mês — Não Planejadas (sempre) + Planejadas */}
       <div className="mb-4">
-        <Painel titulo="📈 Absenteísmo mês a mês — por tipo + comparativo de ano" hint={`barra dividida por tipo (cores) · total no topo · ${dataPrev ? `esquerda = ${anoAtual - 1} (clara) · direita = ${anoAtual} (forte)` : 'sem dados do ano anterior'}`}>
-          <div style={{ height: 300 }}><Bar data={chartMes} options={optMes} plugins={[ChartDataLabels, totalTopoPlugin]} /></div>
+        <Painel titulo="📈 Ausências NÃO Planejadas — mês a mês + comparativo de ano" hint={`Falta · Atraso · Atestado · total no topo · ${dataPrev ? `esquerda = ${anoAtual - 1} (clara) · direita = ${anoAtual} (forte)` : 'sem dados do ano anterior'}`}>
+          <div style={{ height: 300 }}><Bar data={chartNaoPlan} options={optMes} plugins={[ChartDataLabels, totalTopoPlugin]} /></div>
+        </Painel>
+      </div>
+      <div className="mb-4">
+        <Painel titulo="🗓️ Ausências Planejadas — mês a mês + comparativo de ano" hint={`Férias · Lic. Maternidade · total no topo · ${dataPrev ? `esquerda = ${anoAtual - 1} (clara) · direita = ${anoAtual} (forte)` : 'sem dados do ano anterior'}`}>
+          <div style={{ height: 300 }}><Bar data={chartPlan} options={optMes} plugins={[ChartDataLabels, totalTopoPlugin]} /></div>
         </Painel>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <Painel titulo="🥧 Ausências NÃO Planejadas — por tipo" hint="Falta · Atraso · Atestado (horas no ano)">
+          <div style={{ height: 200 }}>{tiposNaoPlan.length ? <Doughnut data={chartTipoNaoPlan} options={optTipo} /> : <p className="text-gray-400 text-sm text-center pt-16">Sem ausências não planejadas</p>}</div>
+        </Painel>
+        <Painel titulo="🥧 Ausências Planejadas — por tipo" hint="Férias · Maternidade · Paternidade · Casamento · Óbito · Banco (horas no ano)">
+          <div style={{ height: 200 }}>{tiposPlan.length ? <Doughnut data={chartTipoPlan} options={optTipo} /> : <p className="text-gray-400 text-sm text-center pt-16">Sem ausências planejadas</p>}</div>
+        </Painel>
+      </div>
+
+      <div className="mb-4">
         <Painel titulo="🏭 Absenteísmo por Setor" hint="quais setores mais faltam (ano)">
           <div style={{ height: Math.min(300, Math.max(140, setores.length * 20)) }}><Bar data={chartSetor} options={optBarH} /></div>
-        </Painel>
-        <Painel titulo="🥧 Ausências por Tipo" hint="horas por categoria no ano">
-          <div style={{ height: 190 }}><Doughnut data={chartTipo} options={optTipo} /></div>
         </Painel>
       </div>
 
