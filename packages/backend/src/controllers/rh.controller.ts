@@ -1230,6 +1230,122 @@ export class RhController {
   // =============================================
   // VAGAS (Recrutamento)
   // =============================================
+
+  /**
+   * Indicadores de Recrutamento — agrega rh_vagas + curriculos pra alimentar o
+   * dashboard (RH > Indicadores > Recrutamento). Fonte: tela RH > Vagas.
+   * Sem cache (dado volátil e volume pequeno). Sem meta/SLA: o tempo é descritivo
+   * (quantos dias cada vaga levou/está levando pra finalizar).
+   */
+  static async indicadoresRecrutamento(req: AuthRequest, res: Response) {
+    try {
+      const ano = parseInt((req.query.ano as string) || '') || new Date().getFullYear();
+      const codLoja = req.query.cod_loja ? parseInt(req.query.cod_loja as string) : null;
+      const params: any[] = [];
+      let where = '';
+      if (codLoja != null && !isNaN(codLoja)) { params.push(codLoja); where = `WHERE v.cod_loja = $${params.length}`; }
+
+      const vagas = await AppDataSource.query(
+        `SELECT v.id, v.titulo, v.status, v.data_abertura, v.data_fechamento, v.motivo_fechamento,
+                v.quantidade_vagas, v.cod_loja, v.selecionados, v.recusados, v.vagas_futuras,
+                ca.nome AS cargo_nome,
+                COALESCE(emp.apelido, emp.nome_fantasia, emp.razao_social, 'Loja ' || v.cod_loja::text) AS loja_nome,
+                (SELECT count(*)::int FROM curriculos c WHERE c.vagas_interesse_ids @> jsonb_build_array(v.id)) AS interessados
+         FROM rh_vagas v
+         LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id
+         LEFT JOIN rh_empresas emp ON emp.cod_loja = v.cod_loja
+         ${where}
+         ORDER BY v.data_abertura DESC NULLS LAST`, params);
+
+      const hoje = new Date();
+      const diasEntre = (a: any, b: Date): number | null => a ? Math.max(0, Math.round((b.getTime() - new Date(a).getTime()) / 86400000)) : null;
+      const isAberta = (s: string) => s === 'Aberta' || s === 'Em Selecao';
+      const isPreenchida = (s: string) => s === 'Contratado(a)';
+      const isFechada = (s: string) => s === 'Fechada';
+      const noAno = (d: any) => d && new Date(d).getFullYear() === ano;
+
+      const abertas = vagas.filter((v: any) => isAberta(v.status));
+      const preenchidasAno = vagas.filter((v: any) => isPreenchida(v.status) && noAno(v.data_fechamento));
+      const temposFech = preenchidasAno.map((v: any) => diasEntre(v.data_abertura, new Date(v.data_fechamento))).filter((n: any) => n != null) as number[];
+      const tempoMedioDias = temposFech.length ? Math.round(temposFech.reduce((a, b) => a + b, 0) / temposFech.length) : null;
+
+      // Funil + desfechos do processo (varre selecionados de todas as vagas)
+      const RES_LABEL: Record<string, string> = { passou: 'Aprovado', aguarda_decisao: 'Aguarda decisão', nao_compareceu: 'Não compareceu', reprovado: 'Reprovado', desistiu: 'Desistiu' };
+      const desfechos: Record<string, number> = { passou: 0, aguarda_decisao: 0, nao_compareceu: 0, reprovado: 0, desistiu: 0, em_processo: 0 };
+      const motivosMap: Record<string, { motivo: string; tipo: string; qtd: number }> = {};
+      let totInteressados = 0, totSelecionados = 0, totEntrevistados = 0, totContratados = 0;
+      for (const v of vagas) {
+        totInteressados += v.interessados || 0;
+        const sels: any[] = Array.isArray(v.selecionados) ? v.selecionados : [];
+        totSelecionados += sels.length;
+        for (const s of sels) {
+          if (s.entrevista === 'realizada' || s.data_entrevista || s.resultado_entrevista) totEntrevistados++;
+          if (s.contratado) totContratados++;
+          const r = s.resultado_entrevista;
+          if (r && desfechos[r] != null) desfechos[r]++; else if (!r) desfechos.em_processo++;
+          if (r === 'reprovado' || r === 'desistiu' || r === 'nao_compareceu') {
+            const mot = String(s.motivo_reprovacao || '').trim() || (r === 'nao_compareceu' ? '(não compareceu)' : 'Sem motivo informado');
+            const key = `${r}::${mot.toLowerCase()}`;
+            (motivosMap[key] ||= { motivo: mot, tipo: r, qtd: 0 }).qtd++;
+          }
+        }
+      }
+      const desfechosArr = Object.entries(desfechos).filter(([k]) => k !== 'em_processo').map(([k, qtd]) => ({ resultado: k, label: RES_LABEL[k] || k, qtd })).sort((a, b) => b.qtd - a.qtd);
+      const motivosArr = Object.values(motivosMap).map(m => ({ ...m, tipo_label: RES_LABEL[m.tipo] || m.tipo })).sort((a, b) => b.qtd - a.qtd);
+
+      const negativos = desfechos.reprovado + desfechos.desistiu + desfechos.nao_compareceu;
+      const avaliados = negativos + desfechos.passou + desfechos.aguarda_decisao;
+      const taxaRecusa = avaliados ? Math.round(negativos / avaliados * 100) : 0;
+
+      // Processos por mês: iniciados (data_abertura) vs encerrados (data_fechamento)
+      const porMes = Array.from({ length: 12 }, (_, i) => ({ mes: i + 1, iniciados: 0, encerrados: 0 }));
+      for (const v of vagas) {
+        if (noAno(v.data_abertura)) porMes[new Date(v.data_abertura).getMonth()].iniciados++;
+        if (noAno(v.data_fechamento)) porMes[new Date(v.data_fechamento).getMonth()].encerrados++;
+      }
+
+      // Motivos de não preenchimento (vagas Fechadas sem contratar)
+      const motNP: Record<string, number> = {};
+      for (const v of vagas.filter((v: any) => isFechada(v.status))) {
+        const m = String(v.motivo_fechamento || '').trim() || 'Sem motivo informado';
+        motNP[m] = (motNP[m] || 0) + 1;
+      }
+      const motivosNaoPreenchimento = Object.entries(motNP).map(([motivo, qtd]) => ({ motivo, qtd })).sort((a, b) => b.qtd - a.qtd);
+
+      // Tempo pra finalizar (dias) por vaga — abertas contam até hoje
+      const tempoVagas = vagas.map((v: any) => {
+        const aberta = isAberta(v.status);
+        const dias = aberta ? diasEntre(v.data_abertura, hoje) : diasEntre(v.data_abertura, v.data_fechamento ? new Date(v.data_fechamento) : hoje);
+        const sels = Array.isArray(v.selecionados) ? v.selecionados : [];
+        return { id: v.id, titulo: v.titulo || v.cargo_nome, cargo: v.cargo_nome, loja: v.loja_nome, status: v.status, aberta, dias, data_abertura: v.data_abertura, data_fechamento: v.data_fechamento, interessados: v.interessados || 0, selecionados: sels.length, contratados: sels.filter((s: any) => s.contratado).length };
+      }).sort((a: any, b: any) => (b.dias || 0) - (a.dias || 0));
+      const diasAbertas = tempoVagas.filter((t: any) => t.aberta && t.dias != null).map((t: any) => t.dias);
+      const mediaDiasAbertas = diasAbertas.length ? Math.round(diasAbertas.reduce((a: number, b: number) => a + b, 0) / diasAbertas.length) : null;
+
+      res.json({
+        ano, cod_loja: codLoja, gerado_em: new Date().toISOString(),
+        kpis: {
+          vagas_em_aberto: abertas.length,
+          vagas_preenchidas_ano: preenchidasAno.length,
+          tempo_medio_dias: tempoMedioDias,
+          taxa_recusa_pct: taxaRecusa,
+          total_vagas: vagas.length,
+          media_dias_abertas: mediaDiasAbertas,
+        },
+        funil: { interessados: totInteressados, selecionados: totSelecionados, entrevistados: totEntrevistados, contratados: totContratados },
+        desfechos: desfechosArr,
+        motivos: motivosArr,
+        motivos_nao_preenchimento: motivosNaoPreenchimento,
+        por_mes: porMes,
+        tempo_vagas: tempoVagas,
+        vagas_abertas: tempoVagas.filter((t: any) => t.aberta),
+      });
+    } catch (e: any) {
+      console.error('indicadoresRecrutamento error:', e);
+      res.status(500).json({ error: 'Erro ao gerar indicadores de recrutamento', detail: e?.message });
+    }
+  }
+
   static async listarVagas(req: AuthRequest, res: Response) {
     try {
       const status = req.query.status as string | undefined;

@@ -179,8 +179,14 @@ export default function RhIndicadores() {
           {/* Aba Ponto e Ausências — funcional (apuração RHiD agregada) */}
           {aba === 'ponto-ausencias' && <AbaPontoAusencias ano={ano} empresaId={empresaId} />}
 
+          {/* Aba Recrutamento — funcional (rh_vagas + curriculos) */}
+          {aba === 'recrutamento' && <AbaRecrutamento ano={ano} />}
+
+          {/* Aba Pesquisa de Clima — funcional (pesquisa_* + NR-1) */}
+          {aba === 'pesquisa-clima' && <AbaPesquisaClima ano={ano} />}
+
           {/* Outras abas — esqueleto que vai ser conectado conforme cada tela origem fica pronta */}
-          {aba !== 'colaboradores' && aba !== 'ponto-ausencias' && <Esqueleto aba={aba} ano={ano} />}
+          {aba !== 'colaboradores' && aba !== 'ponto-ausencias' && aba !== 'recrutamento' && aba !== 'pesquisa-clima' && <Esqueleto aba={aba} ano={ano} />}
         </div>
       </div>
     </div>
@@ -2380,6 +2386,363 @@ function AbaPontoAusencias({ ano, empresaId }) {
       <div className="text-[11px] text-gray-400 mt-3">
         ✅ Dados oficiais da RHiD. <strong>Absenteísmo s/ atestado</strong> = falta + atraso ÷ jornada (o gerenciável). <strong>Absenteísmo c/ atestado</strong> = soma também a ausência justificada (médica) — igual ao relatório "Absenteísmo" da RHiD. <strong>Gravidade</strong> = horas de ausência por funcionário. <strong>Criticidade</strong> (Fator Bradford) = episódios² × dias — penaliza quem falta de forma curta e frequente.
       </div>
+    </>
+  );
+}
+
+// ============================================================================
+// Aba RECRUTAMENTO — dashboard real plugado em rh_vagas + curriculos
+// Fonte: RH > Vagas. Funil, desfechos do processo, motivos, tempo pra finalizar.
+// ============================================================================
+function KpiRec({ label, valor, unidade, cor, sub }) {
+  const cores = {
+    amber: 'border-amber-400 text-amber-600', emerald: 'border-emerald-400 text-emerald-600',
+    blue: 'border-blue-400 text-blue-600', rose: 'border-rose-400 text-rose-600',
+  };
+  return (
+    <div className={`bg-white rounded-lg border-l-4 shadow-sm p-4 ${cores[cor] || cores.blue}`}>
+      <p className="text-xs uppercase font-bold text-gray-500">{label}</p>
+      <p className="mt-1"><span className="text-3xl font-bold">{valor}</span>{unidade && <span className="text-lg font-semibold ml-1">{unidade}</span>}</p>
+      {sub && <p className="text-[13px] text-gray-500 mt-1 leading-snug">{sub}</p>}
+    </div>
+  );
+}
+
+// Paleta padrão (mesma dos rankings de Desligamentos): barra -400 + pill -100/-700
+const REC_COR = {
+  emerald: { bar: 'bg-emerald-400', pill: 'bg-emerald-100 text-emerald-700' },
+  amber: { bar: 'bg-amber-400', pill: 'bg-amber-100 text-amber-700' },
+  slate: { bar: 'bg-slate-400', pill: 'bg-slate-100 text-slate-600' },
+  rose: { bar: 'bg-rose-400', pill: 'bg-rose-100 text-rose-700' },
+  orange: { bar: 'bg-orange-400', pill: 'bg-orange-100 text-orange-700' },
+  indigo: { bar: 'bg-indigo-400', pill: 'bg-indigo-100 text-indigo-700' },
+  blue: { bar: 'bg-blue-400', pill: 'bg-blue-100 text-blue-700' },
+};
+
+// Lista ranqueada no MESMO padrão do RankBloco (Desligamentos): #N + pill + barra
+function RankRec({ itens, vazio = 'Sem dados' }) {
+  if (!itens || itens.length === 0) return <p className="text-gray-400 text-xs py-4 text-center">{vazio}</p>;
+  const max = Math.max(1, ...itens.map(i => i.qtd));
+  return (
+    <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+      {itens.map((it, i) => {
+        const c = REC_COR[it.corKey] || REC_COR.indigo;
+        return (
+          <div key={i}>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="w-5 text-right font-bold text-gray-400">#{i + 1}</span>
+              <span className="flex-1 truncate font-medium text-gray-700" title={it.label}>{it.label}{it.badge && <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${it.badgeCls || 'bg-gray-100 text-gray-600'}`}>{it.badge}</span>}</span>
+              <span className={`px-2 py-0.5 rounded-full font-bold ${c.pill}`}>{it.qtd}</span>
+            </div>
+            <div className="h-1.5 bg-gray-100 rounded overflow-hidden mt-0.5"><div className={`h-full ${c.bar}`} style={{ width: `${Math.round(it.qtd / max * 100)}%` }}></div></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AbaRecrutamento({ ano }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    setLoading(true); setErro(null);
+    api.get(`/rh/vagas/indicadores?ano=${ano}`)
+      .then(r => { if (vivo) { setData(r.data); setLoading(false); } })
+      .catch(e => { if (vivo) { setErro(e?.response?.data?.error || 'Erro ao carregar recrutamento'); setLoading(false); } });
+    return () => { vivo = false; };
+  }, [ano]);
+
+  if (loading) return <div className="py-16 text-center text-gray-400">Carregando recrutamento…</div>;
+  if (erro) return <div className="py-16 text-center text-rose-500">⚠️ {erro}</div>;
+  if (!data) return null;
+
+  const k = data.kpis || {};
+  const funil = data.funil || {};
+  const fmtData = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+
+  // Funil
+  const stages = [
+    { label: 'Interessados', v: funil.interessados || 0, cor: 'bg-blue-500' },
+    { label: 'Selecionados', v: funil.selecionados || 0, cor: 'bg-indigo-500' },
+    { label: 'Entrevistados', v: funil.entrevistados || 0, cor: 'bg-purple-500' },
+    { label: 'Contratados', v: funil.contratados || 0, cor: 'bg-emerald-500' },
+  ];
+  const maxF = Math.max(1, ...stages.map(s => s.v));
+
+  // Processos por mês (Bar)
+  const chartMes = {
+    labels: MES_ABREV,
+    datasets: [
+      { label: 'Iniciados', data: (data.por_mes || []).map(m => m.iniciados), backgroundColor: '#10b981', borderRadius: 4, maxBarThickness: 22 },
+      { label: 'Encerrados', data: (data.por_mes || []).map(m => m.encerrados), backgroundColor: '#94a3b8', borderRadius: 4, maxBarThickness: 22 },
+    ],
+  };
+  const optsMes = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, datalabels: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+  };
+
+  // Desfechos do processo (cor por semântica, na paleta padrão)
+  const DESF_KEY = { passou: 'emerald', aguarda_decisao: 'amber', nao_compareceu: 'slate', reprovado: 'rose', desistiu: 'orange' };
+  const desfItens = (data.desfechos || []).map(d => ({ label: d.label, qtd: d.qtd, corKey: DESF_KEY[d.resultado] || 'indigo' }));
+
+  // Motivos (desistência / reprovação / não compareceu)
+  const TIPO_BADGE = { reprovado: 'bg-rose-100 text-rose-700', desistiu: 'bg-orange-100 text-orange-700', nao_compareceu: 'bg-slate-100 text-slate-600' };
+  const motItens = (data.motivos || []).map(m => ({ label: m.motivo, qtd: m.qtd, badge: m.tipo_label, badgeCls: TIPO_BADGE[m.tipo], corKey: DESF_KEY[m.tipo] || 'rose' }));
+  const motNP = (data.motivos_nao_preenchimento || []).map(m => ({ label: m.motivo, qtd: m.qtd, corKey: 'rose' }));
+
+  return (
+    <>
+      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+        <span>💼 <b className="text-gray-700">{k.total_vagas || 0}</b> vagas no total · <b className="text-amber-600">{k.vagas_em_aberto || 0}</b> em aberto · ano {ano} · fonte: RH &gt; Vagas</span>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <KpiRec label="Vagas em Aberto" valor={k.vagas_em_aberto || 0} cor="amber" sub={`${k.media_dias_abertas != null ? k.media_dias_abertas + ' dias em média abertas' : 'nenhuma aberta'}`} />
+        <KpiRec label="Vagas Preenchidas (ano)" valor={k.vagas_preenchidas_ano || 0} cor="emerald" sub="contratadas no ano-base" />
+        <KpiRec label="Tempo Médio de Contratação" valor={k.tempo_medio_dias != null ? k.tempo_medio_dias : '—'} unidade={k.tempo_medio_dias != null ? 'dias' : ''} cor="blue" sub="da abertura até preencher" />
+        <KpiRec label="Taxa de Recusa" valor={k.taxa_recusa_pct || 0} unidade="%" cor="rose" sub="reprovados + desistências + faltas ÷ avaliados" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Processos Iniciados vs Encerrados */}
+        <Painel titulo="📊 Processos Iniciados vs Encerrados" hint="vagas abertas (por data de abertura) × encerradas (por data de fechamento), mês a mês">
+          <div style={{ height: 260 }}><Bar data={chartMes} options={optsMes} /></div>
+        </Painel>
+
+        {/* Funil */}
+        <Painel titulo="🫧 Funil: Candidatos → Entrevistas → Contratados" hint="soma de todas as vagas do período">
+          <div className="space-y-3 mt-1">
+            {stages.map((s, i) => (
+              <div key={i}>
+                <div className="flex justify-between text-sm mb-0.5"><span className="font-medium text-gray-700">{s.label}</span><span className="font-bold text-gray-800">{s.v}</span></div>
+                <div className="h-6 bg-gray-100 rounded-lg overflow-hidden"><div className={`h-full ${s.cor} rounded-lg flex items-center justify-end pr-2 text-white text-xs font-bold transition-all`} style={{ width: `${Math.max(4, Math.round(s.v / maxF * 100))}%` }}>{s.v > 0 && s.v}</div></div>
+                {i < stages.length - 1 && stages[i].v > 0 && <div className="text-[10px] text-gray-400 text-center">↓ {Math.round((stages[i + 1].v / stages[i].v) * 100)}% avançam</div>}
+              </div>
+            ))}
+          </div>
+        </Painel>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Desfechos do processo */}
+        <Painel titulo="🎯 Desfechos do Processo Seletivo" hint="resultado da entrevista dos candidatos selecionados">
+          <RankRec itens={desfItens} vazio="Nenhum resultado de entrevista lançado ainda" />
+        </Painel>
+
+        {/* Motivos de desistência/reprovação */}
+        <Painel titulo="💬 Motivos (Desistência / Reprovação / Não Compareceu)" hint="ranking dos motivos informados nos desfechos negativos">
+          <RankRec itens={motItens} vazio="Nenhum motivo registrado ainda" />
+        </Painel>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Motivos de não preenchimento */}
+        <Painel titulo="🚫 Motivos de Não Preenchimento" hint="vagas fechadas sem contratação (motivo do fechamento)">
+          <RankRec itens={motNP} vazio="Nenhuma vaga fechada sem preencher" />
+        </Painel>
+
+        {/* Resumo tempo */}
+        <Painel titulo="⏱️ Tempo pra Finalizar (dias)" hint="quanto cada vaga levou/está levando da abertura até fechar">
+          <div className="flex gap-4 mb-2">
+            <div className="flex-1 bg-amber-50 rounded-lg p-3 text-center"><p className="text-[11px] uppercase font-bold text-amber-600">Abertas (em média)</p><p className="text-2xl font-bold text-amber-700">{k.media_dias_abertas != null ? k.media_dias_abertas : '—'}<span className="text-sm ml-1">dias</span></p></div>
+            <div className="flex-1 bg-emerald-50 rounded-lg p-3 text-center"><p className="text-[11px] uppercase font-bold text-emerald-600">Preenchidas (em média)</p><p className="text-2xl font-bold text-emerald-700">{k.tempo_medio_dias != null ? k.tempo_medio_dias : '—'}<span className="text-sm ml-1">dias</span></p></div>
+          </div>
+          <RankRec itens={(data.tempo_vagas || []).slice(0, 8).map(t => ({ label: `${t.titulo}${t.aberta ? '' : ' ✓'}`, qtd: t.dias || 0, corKey: t.aberta ? 'amber' : 'emerald' }))} vazio="Sem vagas" />
+        </Painel>
+      </div>
+
+      {/* Vagas em aberto detalhadas */}
+      <Painel titulo="📋 Vagas em Aberto Detalhadas" hint="cada vaga aberta, há quantos dias, e o andamento dos candidatos">
+        <div className="overflow-x-auto slim-scroll">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase text-gray-500 border-b">
+                <th className="px-2 py-1.5">Vaga / Cargo</th>
+                <th className="px-2 py-1.5">Loja</th>
+                <th className="px-2 py-1.5">Status</th>
+                <th className="px-2 py-1.5">Aberta em</th>
+                <th className="px-2 py-1.5 text-center">Dias em aberto</th>
+                <th className="px-2 py-1.5 text-center">Interessados</th>
+                <th className="px-2 py-1.5 text-center">Selecionados</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {(data.vagas_abertas || []).length === 0 ? (
+                <tr><td colSpan={7} className="text-center text-gray-400 py-6">Nenhuma vaga em aberto</td></tr>
+              ) : (data.vagas_abertas || []).map((v) => (
+                <tr key={v.id} className="hover:bg-gray-50">
+                  <td className="px-2 py-1.5"><span className="font-medium text-gray-700">{v.titulo}</span>{v.cargo && v.cargo !== v.titulo && <span className="text-gray-400 text-xs block">{v.cargo}</span>}</td>
+                  <td className="px-2 py-1.5 text-gray-600">{v.loja}</td>
+                  <td className="px-2 py-1.5"><span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{v.status}</span></td>
+                  <td className="px-2 py-1.5 text-gray-600">{fmtData(v.data_abertura)}</td>
+                  <td className="px-2 py-1.5 text-center"><span className={`font-bold ${v.dias > 30 ? 'text-rose-600' : v.dias > 15 ? 'text-amber-600' : 'text-gray-700'}`}>{v.dias != null ? v.dias : '—'}</span></td>
+                  <td className="px-2 py-1.5 text-center text-gray-700">{v.interessados}</td>
+                  <td className="px-2 py-1.5 text-center text-gray-700">{v.selecionados}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Painel>
+
+      <div className="text-xs text-gray-400 mt-4 text-center">Ano-base: {ano} · Dados reais de RH &gt; Vagas</div>
+    </>
+  );
+}
+
+// ============================================================================
+// Aba PESQUISA DE CLIMA — dashboard real (pesquisa_modelos/rodadas/respostas + NR-1)
+// ============================================================================
+function AbaPesquisaClima({ ano }) {
+  const [data, setData] = useState(null);
+  const [modeloId, setModeloId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    setLoading(true); setErro(null);
+    const q = modeloId ? `?modelo_id=${modeloId}` : '';
+    api.get(`/pesquisa-clima/indicadores${q}`)
+      .then(r => { if (vivo) { setData(r.data); setLoading(false); } })
+      .catch(e => { if (vivo) { setErro(e?.response?.data?.error || 'Erro ao carregar pesquisa de clima'); setLoading(false); } });
+    return () => { vivo = false; };
+  }, [modeloId]);
+
+  if (loading && !data) return <div className="py-16 text-center text-gray-400">Carregando pesquisa de clima…</div>;
+  if (erro) return <div className="py-16 text-center text-rose-500">⚠️ {erro}</div>;
+  if (!data) return null;
+
+  const k = data.kpis || {};
+  const temNps = data.tem_nps;
+  const modelosComResp = (data.modelos || []).filter(m => m.total_respostas > 0 && m.tipo !== 'nr1');
+  const semDados = !data.modelo || (data.rodada_atual == null);
+  const trunc = (s, n = 42) => (s && s.length > n ? s.slice(0, n) + '…' : s);
+  const selValue = modeloId ?? data.modelo_id ?? '';
+
+  // Distribuição (doughnut)
+  const dist = data.distribuicao;
+  const chartDist = dist && {
+    labels: ['Promotores (9-10)', 'Passivos (7-8)', 'Detratores (0-6)'],
+    datasets: [{ data: [dist.promotores, dist.passivos, dist.detratores], backgroundColor: ['#10b981', '#94a3b8', '#ef4444'], borderWidth: 0 }],
+  };
+  const optsDist = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 13 }, formatter: (v) => v || '' } } };
+
+  // Evolução (line)
+  const evo = data.evolucao || [];
+  const chartEvo = {
+    labels: evo.map(e => e.rodada),
+    datasets: [{ label: temNps ? 'eNPS' : 'Satisfação média', data: evo.map(e => temNps ? e.enps : e.satisf), borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,.15)', fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: '#8b5cf6' }],
+  };
+  const optsEvo = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { align: 'top', color: '#6d28d9', font: { weight: 'bold', size: 11 }, formatter: (v) => v == null ? '' : v } }, scales: { y: temNps ? { min: -100, max: 100 } : { min: 0, max: 5 } } };
+
+  // Médias por pergunta (bar horizontal)
+  const med = data.medias_perguntas || [];
+  const maxEscala = med[0]?.max || 5;
+  const chartMed = {
+    labels: med.map(m => trunc(m.enunciado, 50)),
+    datasets: [{ data: med.map(m => m.media), backgroundColor: med.map(m => m.media >= maxEscala * 0.8 ? '#10b981' : m.media >= maxEscala * 0.6 ? '#f59e0b' : '#ef4444'), borderRadius: 4, maxBarThickness: 20 }],
+  };
+  const optsMed = { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', color: '#374151', font: { weight: 'bold', size: 11 }, formatter: (v) => v == null ? '' : v.toFixed(1) } }, scales: { x: { min: 0, max: maxEscala } } };
+
+  return (
+    <>
+      {/* Cabeçalho + seletor de pesquisa */}
+      <div className="bg-white rounded-lg border p-4 mb-4 flex flex-wrap items-center gap-3 justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-xl shrink-0">😊</div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-800">Pesquisa de Clima</h2>
+            <p className="text-sm text-gray-500">{data.modelo ? data.modelo.nome : 'Nenhuma pesquisa com respostas'}{data.rodada_atual ? ` · ${data.rodada_atual.nome} · ${data.rodada_atual.total_respostas} respostas` : ''}</p>
+          </div>
+        </div>
+        {modelosComResp.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold uppercase text-gray-500">Pesquisa:</label>
+            <select value={selValue} onChange={e => setModeloId(Number(e.target.value))}
+              className="border rounded-lg px-3 py-2 text-sm font-semibold bg-white">
+              {modelosComResp.map(m => <option key={m.id} value={m.id}>{m.nome} ({m.total_respostas})</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {semDados ? (
+        <div className="bg-white rounded-lg border p-10 text-center text-gray-400">Nenhuma pesquisa respondida ainda nesta seleção.</div>
+      ) : (
+        <>
+          {/* KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            {temNps
+              ? <KpiRec label="eNPS Atual" valor={k.enps != null ? (k.enps > 0 ? '+' + k.enps : k.enps) : '—'} cor="emerald" sub="promotores − detratores (−100 a +100)" />
+              : <KpiRec label="Satisfação Média" valor={k.satisfacao_media != null ? k.satisfacao_media : '—'} unidade="/5" cor="emerald" sub="média das notas de satisfação" />}
+            <KpiRec label="Total de Respostas" valor={k.total_respostas || 0} cor="blue" sub="na rodada atual" />
+            <KpiRec label="Taxa de Participação" valor={k.participacao_pct != null ? k.participacao_pct : '—'} unidade={k.participacao_pct != null ? '%' : ''} cor="amber" sub={`${k.total_respostas || 0} de ${k.total_colaboradores || 0} colaboradores ativos`} />
+            <KpiRec label="Variação vs Rodada Anterior" valor={k.variacao != null ? (k.variacao > 0 ? '+' + k.variacao : k.variacao) : '—'} unidade={k.variacao != null ? 'pts' : ''} cor={k.variacao != null && k.variacao < 0 ? 'rose' : 'emerald'} sub={data.rodada_anterior ? `vs ${data.rodada_anterior.nome}` : 'sem rodada anterior'} />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            {chartDist && (
+              <Painel titulo="🥧 Distribuição Promotores / Passivos / Detratores" hint="com base na pergunta de recomendação (0-10)">
+                <div style={{ height: 260 }}><Doughnut data={chartDist} options={optsDist} /></div>
+              </Painel>
+            )}
+            <Painel titulo={`📈 Evolução ${temNps ? 'do eNPS' : 'da Satisfação'} (rodadas)`} hint="rodada a rodada da pesquisa selecionada">
+              {evo.length > 1 ? <div style={{ height: 260 }}><Line data={chartEvo} options={optsEvo} /></div>
+                : <p className="text-sm text-gray-400 py-16 text-center">Só há uma rodada — a evolução aparece a partir da 2ª.</p>}
+            </Painel>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <Painel titulo="📊 Médias por Pergunta" hint="ordenado do pior pro melhor (verde ≥80% · âmbar ≥60% · vermelho abaixo)">
+              {med.length ? <div style={{ height: Math.max(200, med.length * 34) }}><Bar data={chartMed} options={optsMed} /></div>
+                : <p className="text-sm text-gray-400 py-10 text-center">Sem perguntas de nota nesta pesquisa.</p>}
+            </Painel>
+
+            <Painel titulo="💬 Comentários Abertos" hint="respostas de texto livre">
+              {(data.comentarios || []).length ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                  {data.comentarios.map((c, i) => (
+                    <div key={i} className="border-l-2 border-amber-300 bg-amber-50/50 rounded-r p-2">
+                      <p className="text-sm text-gray-700">“{c.texto}”</p>
+                      {c.enunciado && <p className="text-[10px] text-gray-400 mt-0.5">{c.secao ? c.secao + ' · ' : ''}{c.enunciado}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="text-sm text-gray-400 py-10 text-center">Nenhum comentário aberto nesta rodada.</p>}
+            </Painel>
+          </div>
+        </>
+      )}
+
+      {/* NR-1 — Riscos Psicossociais */}
+      {data.nr1 && (
+        <Painel titulo="🧠 NR-1 — Riscos Psicossociais" hint="obrigação legal (GRO): avaliação de fatores de risco psicossocial" className="mb-4">
+          {data.nr1.sem_respostas ? (
+            <div className="bg-indigo-50/60 border border-indigo-100 rounded-lg p-4 flex items-start gap-3">
+              <span className="text-2xl">📋</span>
+              <div className="text-sm text-gray-600">
+                <p className="font-semibold text-gray-700">Ainda não há respostas na Avaliação de Riscos Psicossociais.</p>
+                <p className="mt-1">Assim que a pesquisa <b>{data.nr1.nome}</b> for respondida ({data.nr1.qtd_rodadas} rodada(s) já criada(s)), o <b>farol de risco por dimensão</b> (verde / amarelo / vermelho) e as <b>ocorrências</b> aparecem aqui automaticamente.</p>
+                <p className="mt-1 text-gray-500">Planos de ação NR-1 cadastrados: <b>{data.nr1.planos_acao}</b></p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600">
+              <p><b>{data.nr1.total_respostas}</b> respostas · <b>{data.nr1.planos_acao}</b> planos de ação. Abra a tela <b>Análise NR-1</b> pro farol completo por dimensão.</p>
+            </div>
+          )}
+        </Painel>
+      )}
+
+      <div className="text-xs text-gray-400 mt-2 text-center">Fonte: RH &gt; Pesquisa de Clima {data.rodada_atual ? `· ${data.rodada_atual.total_respostas} respostas na rodada atual` : ''}</div>
     </>
   );
 }

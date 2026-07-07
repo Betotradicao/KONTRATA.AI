@@ -11,6 +11,9 @@ router.post('/publico/:token/submeter', PesquisaClimaController.publicoSubmeter)
 // Autenticado (RH)
 router.use(authenticateToken);
 
+// Indicadores consolidados (aba RH > Indicadores > Pesquisa de Clima)
+router.get('/indicadores', PesquisaClimaController.indicadoresConsolidado);
+
 // Modelos
 router.get('/modelos', PesquisaClimaController.listarModelos);
 router.get('/modelos/:id', PesquisaClimaController.getModelo);

@@ -176,6 +176,7 @@ router.delete('/treinamentos-materiais/:id', authenticateToken, RhController.del
 router.get('/aniversariantes', authenticateToken, RhController.listarAniversariantes);
 
 // Vagas (Recrutamento)
+router.get('/vagas/indicadores', authenticateToken, RhController.indicadoresRecrutamento);
 router.get('/vagas', authenticateToken, RhController.listarVagas);
 router.post('/vagas', authenticateToken, RhController.criarVaga);
 router.put('/vagas/:id', authenticateToken, RhController.atualizarVaga);

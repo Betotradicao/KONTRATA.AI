@@ -837,4 +837,121 @@ Analise esses dados e retorne o JSON conforme estrutura. Foque em ações que d�
       res.status(500).json({ error: e.message });
     }
   }
+
+  // ===========================================================================
+  // INDICADORES CONSOLIDADOS (aba RH > Indicadores > Pesquisa de Clima)
+  // Overview de todas as pesquisas + deep-dive de UMA (eNPS / satisfação /
+  // distribuição / evolução / médias / comentários) + resumo NR-1.
+  // ===========================================================================
+  static async indicadoresConsolidado(req: AuthRequest, res: Response) {
+    try {
+      const modelos = await AppDataSource.query(`
+        SELECT m.id, m.nome, m.cor, m.icone,
+          (SELECT COUNT(*)::int FROM pesquisa_rodadas r WHERE r.modelo_id = m.id) AS qtd_rodadas,
+          (SELECT COUNT(*)::int FROM pesquisa_rodadas r JOIN pesquisa_respostas resp ON resp.rodada_id = r.id WHERE r.modelo_id = m.id) AS total_respostas
+        FROM pesquisa_modelos m ORDER BY m.created_at DESC`);
+
+      const isNr1Nome = (n: string) => /nr.?1|psicossoc/i.test(n || '');
+      const isDeslig = (n: string) => /deslig/i.test(n || '');
+      const tipoModelo = (n: string) => isNr1Nome(n) ? 'nr1' : isDeslig(n) ? 'desligamento' : /satisfa/i.test(n) ? 'satisfacao' : 'clima';
+
+      // Seleciona o modelo do deep-dive: param, ou o de clima com mais respostas
+      let modeloId = parseInt(req.query.modelo_id as string) || 0;
+      const comResp = modelos.filter((m: any) => m.total_respostas > 0 && !isNr1Nome(m.nome) && !isDeslig(m.nome));
+      if (!modeloId) {
+        const climas = comResp.filter((m: any) => /clima/i.test(m.nome));
+        const pool = climas.length ? climas : comResp;
+        modeloId = (pool.sort((a: any, b: any) => b.total_respostas - a.total_respostas)[0] || modelos[0] || {}).id || 0;
+      }
+      const modelo = modelos.find((m: any) => m.id === modeloId) || null;
+
+      const perguntas = modeloId ? await AppDataSource.query(
+        `SELECT id, secao, ordem, tipo, enunciado, configuracao FROM pesquisa_perguntas WHERE modelo_id = $1 ORDER BY ordem`, [modeloId]) : [];
+      const rodadas = modeloId ? await AppDataSource.query(
+        `SELECT r.id, r.nome, r.created_at,
+           (SELECT COUNT(*)::int FROM pesquisa_respostas WHERE rodada_id = r.id) AS total_respostas
+         FROM pesquisa_rodadas r WHERE r.modelo_id = $1 ORDER BY r.created_at ASC`, [modeloId]) : [];
+      const itens = modeloId ? await AppDataSource.query(
+        `SELECT ri.pergunta_id, ri.valor_numerico, ri.valor_texto, resp.rodada_id
+         FROM pesquisa_resp_itens ri JOIN pesquisa_respostas resp ON resp.id = ri.resposta_id
+         JOIN pesquisa_rodadas r ON r.id = resp.rodada_id WHERE r.modelo_id = $1`, [modeloId]) : [];
+
+      const npsQ = perguntas.find((p: any) => p.tipo === 'nps_0_10');
+      const ratingTipos = new Set(['rating_5', 'rating_10', 'rating_5_matriz']);
+      const ratingQs = perguntas.filter((p: any) => ratingTipos.has(p.tipo));
+      const textoQs = perguntas.filter((p: any) => p.tipo === 'texto_longo' || p.tipo === 'texto_curto');
+      const num = (v: any) => { const n = Number(v); return isNaN(n) ? null : n; };
+
+      const porRodada: Record<number, any[]> = {};
+      for (const it of itens) (porRodada[it.rodada_id] ||= []).push(it);
+
+      const calcEnps = (arr: any[]) => {
+        if (!npsQ) return null;
+        const vals = arr.filter(i => i.pergunta_id === npsQ.id).map(i => num(i.valor_numerico)).filter(v => v != null) as number[];
+        if (!vals.length) return null;
+        const prom = vals.filter(v => v >= 9).length, det = vals.filter(v => v <= 6).length;
+        return { enps: Math.round((prom - det) / vals.length * 100), promotores: prom, passivos: vals.length - prom - det, detratores: det, n: vals.length };
+      };
+      const calcSatisf = (arr: any[]) => {
+        const ids = new Set(ratingQs.map((p: any) => p.id));
+        const vals = arr.filter(i => ids.has(i.pergunta_id)).map(i => num(i.valor_numerico)).filter(v => v != null) as number[];
+        return vals.length ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
+      };
+
+      const rodadasResp = rodadas.filter((r: any) => r.total_respostas > 0);
+      const rodadaAtual = rodadasResp[rodadasResp.length - 1] || null;
+      const rodadaAnterior = rodadasResp[rodadasResp.length - 2] || null;
+      const arrAtual = rodadaAtual ? (porRodada[rodadaAtual.id] || []) : [];
+
+      const enpsAtual = rodadaAtual ? calcEnps(arrAtual) : null;
+      const enpsAnterior = rodadaAnterior ? calcEnps(porRodada[rodadaAnterior.id] || []) : null;
+
+      const evolucao = rodadasResp.map((r: any) => {
+        const e = calcEnps(porRodada[r.id] || []);
+        return { rodada: r.nome, enps: e ? e.enps : null, satisf: calcSatisf(porRodada[r.id] || []), respostas: r.total_respostas };
+      });
+
+      const mediasPerguntas = ratingQs.map((p: any) => {
+        const vals = arrAtual.filter(i => i.pergunta_id === p.id).map(i => num(i.valor_numerico)).filter(v => v != null) as number[];
+        return { enunciado: p.enunciado, secao: p.secao, max: p.tipo === 'rating_10' ? 10 : 5, n: vals.length, media: vals.length ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null };
+      }).filter((x: any) => x.n > 0).sort((a: any, b: any) => (a.media || 0) - (b.media || 0));
+
+      const comentarios = arrAtual
+        .filter(i => textoQs.some((p: any) => p.id === i.pergunta_id) && i.valor_texto && String(i.valor_texto).trim())
+        .map(i => { const p = textoQs.find((p: any) => p.id === i.pergunta_id); return { secao: p?.secao, enunciado: p?.enunciado, texto: String(i.valor_texto).trim() }; })
+        .slice(0, 40);
+
+      const [{ ativos }] = await AppDataSource.query(`SELECT COUNT(*)::int AS ativos FROM rh_colaboradores WHERE status='ativo'`);
+      const participacao = (rodadaAtual && ativos) ? Math.round(rodadaAtual.total_respostas / ativos * 100) : null;
+
+      // Resumo NR-1 (independente do modelo selecionado) — "aponta lá quando tiver"
+      const nr1Modelo = modelos.find((m: any) => isNr1Nome(m.nome));
+      let nr1: any = null;
+      if (nr1Modelo) {
+        let planos = 0;
+        try { const [pl] = await AppDataSource.query(`SELECT COUNT(*)::int AS n FROM rh_nr1_planos_acao`); planos = pl?.n || 0; } catch { /* tabela pode não existir */ }
+        nr1 = { modelo_id: nr1Modelo.id, nome: nr1Modelo.nome, total_respostas: nr1Modelo.total_respostas, qtd_rodadas: nr1Modelo.qtd_rodadas, planos_acao: planos, sem_respostas: nr1Modelo.total_respostas === 0 };
+      }
+
+      res.json({
+        modelos: modelos.map((m: any) => ({ ...m, tipo: tipoModelo(m.nome) })),
+        modelo_id: modeloId, modelo, tem_nps: !!npsQ,
+        rodada_atual: rodadaAtual, rodada_anterior: rodadaAnterior,
+        kpis: {
+          enps: enpsAtual ? enpsAtual.enps : null,
+          enps_anterior: enpsAnterior ? enpsAnterior.enps : null,
+          variacao: (enpsAtual && enpsAnterior) ? enpsAtual.enps - enpsAnterior.enps : null,
+          satisfacao_media: calcSatisf(arrAtual),
+          total_respostas: rodadaAtual ? rodadaAtual.total_respostas : 0,
+          total_colaboradores: ativos,
+          participacao_pct: participacao,
+        },
+        distribuicao: enpsAtual ? { promotores: enpsAtual.promotores, passivos: enpsAtual.passivos, detratores: enpsAtual.detratores } : null,
+        evolucao, medias_perguntas: mediasPerguntas, comentarios, nr1,
+      });
+    } catch (e: any) {
+      console.error('[PesquisaClima] indicadoresConsolidado:', e);
+      res.status(500).json({ error: e.message });
+    }
+  }
 }
