@@ -113,6 +113,18 @@ export const RhidService = {
     return list.find(p => pisNorm(p.pis) === alvo) || null;
   },
 
+  /** Casa a pessoa por CPF (prioridade) OU PIS — mesma regra do Indicadores/Cadastro.
+   *  O PIS na RHiD costuma vir zerado/incorreto, então o CPF é a chave mais confiável. */
+  async idPersonPorCpfOuPis(cpf?: string, pis?: string): Promise<RhidPerson | null> {
+    const cpfN = (s: any) => { const d = String(s ?? '').replace(/\D/g, ''); return d && d !== '00000000000' ? d.padStart(11, '0') : ''; };
+    const list = await this.listarPessoas();
+    const alvoCpf = cpfN(cpf);
+    if (alvoCpf) { const m = list.find(p => cpfN(p.cpf) === alvoCpf); if (m) return m; }
+    const alvoPis = pisNorm(pis || '');
+    if (alvoPis && alvoPis !== '0') { const m = list.find(p => pisNorm(p.pis) === alvoPis); if (m) return m; }
+    return null;
+  },
+
   /** Apuração oficial (array de dias) de um idPerson no período. */
   async apuracao(idPerson: number, dataIni: string, dataFinal: string): Promise<any[]> {
     let data = await authGet(`/apuracao_ponto?dataIni=${dataIni}&dataFinal=${dataFinal}&idPerson=${idPerson}`);

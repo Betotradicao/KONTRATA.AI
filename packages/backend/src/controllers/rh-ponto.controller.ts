@@ -227,11 +227,15 @@ export class RhPontoController {
          WHERE c.id = $1`, [colaborador_id]
       );
       if (!colab) return res.status(404).json({ error: 'Colaborador não encontrado' });
-      if (!colab.pis_pasep || !String(colab.pis_pasep).replace(/\D/g, '')) {
+      // Casa por CPF OU PIS (o PIS na RHiD costuma vir errado). Só é "sem documento"
+      // se o cadastro não tiver NEM CPF NEM PIS.
+      const temCpf = !!String(colab.cpf || '').replace(/\D/g, '').replace(/^0+/, '');
+      const temPis = !!String(colab.pis_pasep || '').replace(/\D/g, '').replace(/^0+/, '');
+      if (!temCpf && !temPis) {
         return res.json({ colaborador: colab, sem_pis: true, dias: [], totais: null });
       }
 
-      const pessoa = await RhidService.idPersonPorPis(colab.pis_pasep);
+      const pessoa = await RhidService.idPersonPorCpfOuPis(colab.cpf, colab.pis_pasep);
       if (!pessoa) return res.json({ colaborador: colab, nao_encontrado_rhid: true, dias: [], totais: null });
 
       const apur = await RhidService.apuracao(pessoa.id, data_inicio, data_fim);

@@ -433,8 +433,8 @@ export default function RhEspelhoPonto() {
           ) : resultado.nao_encontrado_rhid ? (
             <div className="text-center py-16 text-amber-600 bg-amber-50 rounded-lg border border-amber-200">
               <div className="text-4xl mb-2">🔎</div>
-              <p className="font-bold">{col?.nome} (PIS {col?.pis_pasep}) não foi encontrado na RHiD</p>
-              <p className="text-sm mt-1 text-amber-700">Confira se o PIS bate com o cadastro na RHiD.</p>
+              <p className="font-bold">{col?.nome} não foi encontrado na RHiD</p>
+              <p className="text-sm mt-1 text-amber-700">Buscamos por CPF ({col?.cpf || '—'}) e por PIS ({col?.pis_pasep || '—'}) e nenhum bateu com o cadastro na RHiD. Confira o CPF/PIS do colaborador no relógio.</p>
             </div>
           ) : (
             <>
