@@ -10,6 +10,11 @@ const fmtDia = (ymd: string) => `${ymd.slice(6, 8)}/${ymd.slice(4, 6)}/${ymd.sli
 // ---------- Indicadores de Ponto/Ausências (agregação da apuração RHiD) ----------
 const _indCache = new Map<string, { at: number; data: any }>();
 const IND_TTL = 20 * 60 * 1000;   // 20 min
+
+// Cache da detecção de férias no ponto (o scan admissão→hoje é caro). Meses
+// passados nunca mudam, então cacheamos por colaborador por bastante tempo.
+const _detFeriasCache = new Map<number, { at: number; data: any }>();
+const DET_FERIAS_TTL = 6 * 60 * 60 * 1000;   // 6 h
 /** Invalida o cache dos indicadores — chamado quando um colaborador é criado/editado/excluído
  * (ex: marcar "não bate ponto" tem que refletir na hora, sem precisar clicar em Recalcular). */
 export function limparCacheIndicadores() { _indCache.clear(); }
@@ -636,6 +641,107 @@ export class RhPontoController {
     } catch (err: any) {
       console.error('[PONTO] indicadores:', err?.message);
       return res.status(502).json({ error: err?.message || 'Erro ao gerar indicadores de ponto' });
+    }
+  }
+
+  /**
+   * DETECÇÃO DE FÉRIAS PELO PONTO (modo "Via Relógio de Ponto" da tela de Férias).
+   * Varre a apuração RHiD de cada colaborador da ADMISSÃO até hoje (blocos de 2
+   * meses = limite da API), pega os dias marcados como férias e agrupa os
+   * consecutivos em PERÍODOS de gozo. Retorna como SUGESTÃO (não grava nada).
+   * Query: colaborador_id (opcional, senão todos ativos), refresh=1 pra ignorar cache.
+   */
+  static async deteccaoFeriasPonto(req: AuthRequest, res: Response) {
+    try {
+      const colabId = req.query.colaborador_id ? parseInt(req.query.colaborador_id as string) : null;
+      const refresh = req.query.refresh === '1';
+      const hoje = new Date();
+
+      const params: any[] = [];
+      let where = `c.status='ativo'`;
+      if (colabId) { params.push(colabId); where = `c.id = $1`; }
+      const colabs = await AppDataSource.query(
+        `SELECT c.id, c.nome, c.cpf, c.pis_pasep, c.data_admissao
+         FROM rh_colaboradores c WHERE ${where}`, params);
+
+      // Match colaborador ↔ RHiD por CPF OU PIS (mesma regra das outras telas)
+      const pessoas = await RhidService.listarPessoas();
+      const cpfN = (s: any) => { const d = String(s || '').replace(/\D/g, ''); return d && d !== '00000000000' ? d.padStart(11, '0') : ''; };
+      const porPis = new Map<string, any>(), porCpf = new Map<string, any>();
+      for (const p of pessoas) { const pk = _pisNorm(p.pis); if (pk && pk !== '0') porPis.set(pk, p); const ck = cpfN(p.cpf); if (ck) porCpf.set(ck, p); }
+      const matchRhid = (c: any) => porCpf.get(cpfN(c.cpf)) || porPis.get(_pisNorm(c.pis_pasep)) || null;
+
+      const fmt = (ymd: string) => `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
+      const toDate = (ymd: string) => new Date(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8));
+
+      const resultado: any[] = [];
+      for (const c of colabs) {
+        const cc = _detFeriasCache.get(c.id);
+        if (!refresh && cc && Date.now() - cc.at < DET_FERIAS_TTL) { resultado.push(cc.data); continue; }
+
+        const rhid = matchRhid(c);
+        if (!rhid) { const d = { colaborador_id: c.id, nome: c.nome, periodos: [], sem_match: true }; _detFeriasCache.set(c.id, { at: Date.now(), data: d }); resultado.push(d); continue; }
+        if (!c.data_admissao) { const d = { colaborador_id: c.id, nome: c.nome, periodos: [], sem_admissao: true }; resultado.push(d); continue; }
+
+        // Blocos de 2 meses da admissão até o mês corrente (limite da API RHiD)
+        const adm = new Date(String(c.data_admissao).slice(0, 10) + 'T00:00:00');
+        const fimGlobal = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+        const chunks: { ini: string; fim: string }[] = [];
+        let cur = new Date(adm.getFullYear(), adm.getMonth(), 1);
+        const iso = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        while (cur <= fimGlobal) {
+          const fimD = new Date(cur.getFullYear(), cur.getMonth() + 2, 0);
+          chunks.push({ ini: iso(cur), fim: iso(fimD > fimGlobal ? fimGlobal : fimD) });
+          cur = new Date(cur.getFullYear(), cur.getMonth() + 2, 1);
+        }
+
+        const feriasDias = new Set<string>();
+        await _mapPool(chunks, 6, async (ch) => {
+          const apur = await RhidService.apuracao(rhid.id, ch.ini, ch.fim).catch(() => []);
+          for (const d of apur) { const x = _classificaDia(d); if (x.status === 'ferias' && x.ymd) feriasDias.add(x.ymd); }
+        });
+
+        // Agrupa dias consecutivos (tolera gap ≤4 dias = fim de semana/feriado) em períodos
+        const dias = Array.from(feriasDias).sort();
+        const periodos: any[] = [];
+        let ini: string | null = null, ult: string | null = null;
+        const fechar = () => { if (ini && ult) periodos.push({ inicio: fmt(ini), fim: fmt(ult), dias: Math.round((toDate(ult).getTime() - toDate(ini).getTime()) / 86400000) + 1, dias_marcados: 0 }); };
+        for (const ymd of dias) {
+          if (ini && ult && (toDate(ymd).getTime() - toDate(ult).getTime()) / 86400000 <= 4) { ult = ymd; }
+          else { fechar(); ini = ymd; ult = ymd; }
+        }
+        fechar();
+        // conta os dias efetivamente marcados dentro de cada período
+        for (const p of periodos) { p.dias_marcados = dias.filter(d => fmt(d) >= p.inicio && fmt(d) <= p.fim).length; }
+        periodos.reverse(); // mais recente primeiro
+
+        const data = { colaborador_id: c.id, nome: c.nome, periodos, admissao: String(c.data_admissao).slice(0, 10), meses_escaneados: chunks.length * 2 };
+        _detFeriasCache.set(c.id, { at: Date.now(), data });
+        resultado.push(data);
+      }
+
+      // COMPARAÇÃO: o que o ponto achou × o que já está registrado (manual) na tela.
+      // Traz os gozos manuais e marca cada período detectado como "bate" ou "diverge",
+      // e lista os manuais que NÃO apareceram no ponto.
+      const ids = resultado.map((r: any) => r.colaborador_id);
+      if (ids.length) {
+        const manuais = await AppDataSource.query(
+          `SELECT colaborador_id, data_inicio_gozo, data_fim_gozo, dias_gozados
+           FROM rh_ferias WHERE status='gozada' AND data_inicio_gozo IS NOT NULL AND colaborador_id = ANY($1)`, [ids]);
+        const porColab: Record<number, any[]> = {};
+        for (const m of manuais) (porColab[m.colaborador_id] ||= []).push({ inicio: String(m.data_inicio_gozo).slice(0, 10), fim: String(m.data_fim_gozo || m.data_inicio_gozo).slice(0, 10), dias: m.dias_gozados });
+        const overlap = (a1: string, a2: string, b1: string, b2: string) => a1 <= b2 && b1 <= a2;
+        for (const r of resultado) {
+          r.manual = porColab[r.colaborador_id] || [];
+          for (const p of (r.periodos || [])) p.bate_manual = r.manual.some((m: any) => overlap(p.inicio, p.fim, m.inicio, m.fim));
+          r.manual_sem_ponto = r.manual.filter((m: any) => !(r.periodos || []).some((p: any) => overlap(p.inicio, p.fim, m.inicio, m.fim)));
+        }
+      }
+
+      return res.json({ colaboradores: resultado, gerado_em: new Date().toISOString() });
+    } catch (err: any) {
+      console.error('[PONTO] deteccaoFeriasPonto:', err?.message);
+      return res.status(502).json({ error: err?.message || 'Erro ao detectar férias no ponto' });
     }
   }
 }

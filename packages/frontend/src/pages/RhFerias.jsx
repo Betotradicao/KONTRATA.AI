@@ -66,6 +66,13 @@ export default function RhFerias({ user }) {
   const [form, setForm] = useState({ data_programada: '', data_inicio_gozo: '', data_fim_gozo: '', dias_gozados: 30, abono_pecuniario_dias: 0, observacoes: '' });
   const [salvando, setSalvando] = useState(false);
 
+  // Modo de trabalho da tela: manual (hoje) | ponto (detecta férias no relógio)
+  const [modo, setModo] = useState('manual');
+  const [deteccao, setDeteccao] = useState(null);   // [{colaborador_id, nome, periodos:[...]}]
+  const [scanning, setScanning] = useState(false);
+  const [confirmando, setConfirmando] = useState(null);
+  const [confirmados, setConfirmados] = useState(new Set());
+
   // Calendario
   const [mesAtual, setMesAtual] = useState(() => new Date().toISOString().slice(0, 7));
   const [eventosCal, setEventosCal] = useState([]);
@@ -201,6 +208,30 @@ export default function RhFerias({ user }) {
     } finally { setSalvando(false); }
   };
 
+  // Modo "Via Relógio": varre a apuração RHiD (admissão→hoje) e sugere os períodos de férias
+  const escanearPonto = async () => {
+    setScanning(true);
+    try {
+      const r = await api.get('/rh/ferias/deteccao-ponto', { timeout: 300000 });
+      setDeteccao(r.data?.colaboradores || []);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao escanear o ponto');
+    } finally { setScanning(false); }
+  };
+
+  const confirmarPeriodo = async (colab, p) => {
+    const key = `${colab.colaborador_id}-${p.inicio}-${p.fim}`;
+    setConfirmando(key);
+    try {
+      await api.post('/rh/ferias', { colaborador_id: colab.colaborador_id, data_inicio_gozo: p.inicio, data_fim_gozo: p.fim, dias_gozados: p.dias, status: 'gozada' });
+      toast.success('Período confirmado como gozo');
+      setConfirmados(s => new Set(s).add(key));
+      carregar();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || 'Erro ao confirmar');
+    } finally { setConfirmando(null); }
+  };
+
   const cancelarProgramacao = async (feriasId) => {
     if (!window.confirm('Cancelar férias programadas?')) return;
     try {
@@ -258,13 +289,28 @@ export default function RhFerias({ user }) {
 
         {/* KPIs */}
         <div className="px-6 py-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPI emoji="👥" label="Colaboradores ativos" valor={kpis.total} cor="from-purple-500 to-indigo-600" />
-          <KPI emoji="🔴" label="Em dobro (atrasadas)" valor={kpis.em_dobro} cor="from-red-500 to-rose-600" />
-          <KPI emoji="🟠" label="Vencem em 30 dias" valor={kpis.vence_30d} cor="from-orange-500 to-amber-600" />
-          <KPI emoji="📅" label="Programadas" valor={kpis.programadas} cor="from-blue-500 to-cyan-600" />
+          <KPI emoji="👥" label="Colaboradores ativos" valor={kpis.total} cor="indigo" />
+          <KPI emoji="⚠️" label="Em dobro (atrasadas)" valor={kpis.em_dobro} cor="rose" />
+          <KPI emoji="⏳" label="Vencem em 30 dias" valor={kpis.vence_30d} cor="amber" />
+          <KPI emoji="📅" label="Programadas" valor={kpis.programadas} cor="blue" />
         </div>
 
-        {/* Abas */}
+        {/* Modo de trabalho: Manual x Via Relógio de Ponto */}
+        <div className="px-6 pb-1">
+          <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+            <button onClick={() => setModo('manual')}
+              className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${modo === 'manual' ? 'bg-purple-600 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+              ✋ Manual
+            </button>
+            <button onClick={() => setModo('ponto')}
+              className={`px-4 py-1.5 rounded-md text-sm font-bold transition ${modo === 'ponto' ? 'bg-indigo-600 text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+              🕐 Via Relógio de Ponto
+            </button>
+          </div>
+        </div>
+
+        {/* Abas (só no modo Manual) */}
+        {modo === 'manual' && (
         <div className="px-6 border-b border-gray-200 flex gap-2">
           <button onClick={() => setAba('lista')}
             className={`px-4 py-2 text-sm font-bold border-b-2 transition ${aba === 'lista' ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -275,9 +321,83 @@ export default function RhFerias({ user }) {
             📅 Calendário
           </button>
         </div>
+        )}
 
         <div className="flex-1 overflow-auto p-6">
-          {aba === 'lista' && (
+          {/* MODO VIA RELÓGIO DE PONTO — sugestões de férias detectadas na apuração RHiD */}
+          {modo === 'ponto' && (
+            <>
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-gray-700">
+                  <p className="font-bold">🕐 Férias detectadas pelo relógio de ponto</p>
+                  <p className="text-gray-500">Varre a apuração RHiD de cada colaborador ativo, <b>da admissão até hoje</b>, e sugere os períodos de férias que encontrou. Confira e clique em <b>Confirmar</b> pra virar registro oficial. Nada é gravado automaticamente.</p>
+                </div>
+                <button onClick={escanearPonto} disabled={scanning}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 disabled:opacity-60 whitespace-nowrap">
+                  {scanning ? '⏳ Escaneando…' : deteccao ? '🔄 Reescanear' : '🔍 Escanear ponto'}
+                </button>
+              </div>
+
+              {scanning ? (
+                <div className="text-center text-gray-400 p-12">🔍 Lendo as marcações do relógio… na 1ª vez pode levar alguns minutos (depois fica em cache por 6h).</div>
+              ) : !deteccao ? (
+                <div className="text-center text-gray-400 p-12 bg-white rounded-lg border-2 border-dashed border-gray-200">Clique em <b>🔍 Escanear ponto</b> pra buscar as férias marcadas no relógio.</div>
+              ) : (() => {
+                const comAlgo = deteccao.filter(c => (c.periodos || []).length > 0 || (c.manual_sem_ponto || []).length > 0);
+                const totBate = deteccao.reduce((a, c) => a + (c.periodos || []).filter(p => p.bate_manual).length, 0);
+                const totSoPonto = deteccao.reduce((a, c) => a + (c.periodos || []).filter(p => !p.bate_manual).length, 0);
+                const totSoManual = deteccao.reduce((a, c) => a + (c.manual_sem_ponto || []).length, 0);
+                if (comAlgo.length === 0) return <div className="text-center text-gray-400 p-12 bg-white rounded-lg border">Nenhuma férias encontrada no ponto (no período varrido). Verifique se as férias foram marcadas no relógio.</div>;
+                return (
+                  <div className="space-y-3">
+                    {/* Resumo da comparação relógio × sistema */}
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-bold">✓ {totBate} batem (ponto = sistema)</span>
+                      <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-bold">🕐 {totSoPonto} só no ponto (falta registrar)</span>
+                      <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-700 font-bold">⚠️ {totSoManual} só no sistema (ponto não achou)</span>
+                    </div>
+                    {comAlgo.map(c => (
+                      <div key={c.colaborador_id} className="bg-white rounded-lg border shadow-sm p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-bold text-gray-800">{c.nome}</h3>
+                          <span className="text-[11px] text-gray-400">admissão {c.admissao ? fmtData(c.admissao) : '—'}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {(c.periodos || []).map((p, i) => {
+                            const key = `${c.colaborador_id}-${p.inicio}-${p.fim}`;
+                            const ok = confirmados.has(key);
+                            return (
+                              <div key={i} className={`flex items-center justify-between gap-3 border rounded px-3 py-2 ${p.bate_manual ? 'bg-emerald-50/60 border-emerald-100' : 'bg-amber-50/60 border-amber-100'}`}>
+                                <div className="text-sm text-gray-700">
+                                  🕐 <b>{fmtData(p.inicio)}</b> → <b>{fmtData(p.fim)}</b> <span className="text-gray-500">· {p.dias} dias {p.dias_marcados ? `(${p.dias_marcados} marcados)` : ''}</span>
+                                  {p.bate_manual
+                                    ? <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">✓ bate com o sistema</span>
+                                    : <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">🕐 só no ponto</span>}
+                                </div>
+                                {ok
+                                  ? <span className="text-emerald-600 text-sm font-bold whitespace-nowrap">✓ Confirmado</span>
+                                  : <button onClick={() => confirmarPeriodo(c, p)} disabled={confirmando === key}
+                                      className="px-3 py-1 rounded bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 whitespace-nowrap">{confirmando === key ? '…' : '✓ Confirmar como gozo'}</button>}
+                              </div>
+                            );
+                          })}
+                          {/* Manuais que o ponto NÃO achou = divergência a investigar */}
+                          {(c.manual_sem_ponto || []).map((m, i) => (
+                            <div key={`m${i}`} className="flex items-center gap-2 border border-rose-100 bg-rose-50/60 rounded px-3 py-2 text-sm text-gray-700">
+                              📄 <b>{fmtData(m.inicio)}</b> → <b>{fmtData(m.fim)}</b> <span className="text-gray-500">· {m.dias} dias</span>
+                              <span className="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold">⚠️ está no sistema mas o ponto não achou</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {modo === 'manual' && aba === 'lista' && (
             <>
               {/* Filtros */}
               <div className="bg-white rounded-lg shadow p-3 mb-3 flex flex-wrap gap-2 items-center">
@@ -439,7 +559,7 @@ export default function RhFerias({ user }) {
             </>
           )}
 
-          {aba === 'calendario' && (
+          {modo === 'manual' && aba === 'calendario' && (
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center justify-between mb-3">
                 <button onClick={() => mudarMes(-1)} className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded font-bold">‹ Anterior</button>
@@ -574,11 +694,25 @@ export default function RhFerias({ user }) {
 }
 
 function KPI({ emoji, label, valor, cor }) {
+  // Estilo "cor só na ponta" (igual aos cards do Cadastro Geral): card branco,
+  // ícone em círculo tonalizado, número colorido e faixa fina na lateral.
+  const cores = {
+    indigo: { strip: 'bg-indigo-400', icon: 'bg-indigo-100 text-indigo-500', num: 'text-indigo-700' },
+    rose: { strip: 'bg-rose-400', icon: 'bg-rose-100 text-rose-500', num: 'text-rose-700' },
+    amber: { strip: 'bg-amber-400', icon: 'bg-amber-100 text-amber-500', num: 'text-amber-700' },
+    blue: { strip: 'bg-blue-400', icon: 'bg-blue-100 text-blue-500', num: 'text-blue-700' },
+  };
+  const c = cores[cor] || cores.indigo;
   return (
-    <div className={`rounded-lg shadow p-3 text-white bg-gradient-to-br ${cor}`}>
-      <div className="text-2xl">{emoji}</div>
-      <div className="text-2xl font-bold">{valor}</div>
-      <div className="text-xs opacity-90 uppercase font-semibold">{label}</div>
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex items-stretch">
+      <div className="flex-1 p-4 flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${c.icon}`}>{emoji}</div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">{label}</p>
+          <p className={`text-2xl font-bold mt-0.5 ${c.num}`}>{valor}</p>
+        </div>
+      </div>
+      <div className={`w-2 ${c.strip}`} />
     </div>
   );
 }

@@ -283,6 +283,9 @@ router.get('/ponto/rhid/vinculos', authenticateToken, RhPontoController.pisVincu
 router.get('/ponto/valor-hora', authenticateToken, RhPontoController.getValorHora);
 router.post('/ponto/valor-hora', authenticateToken, RhPontoController.salvarValorHora);
 
+// Férias detectadas pelo ponto (modo "Via Relógio de Ponto")
+router.get('/ferias/deteccao-ponto', authenticateToken, RhPontoController.deteccaoFeriasPonto);
+
 // Departamento Pessoal (docs da empresa)
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);
 router.post('/dp/pastas', authenticateToken, RhDpController.criarPasta);
