@@ -94,6 +94,8 @@ export default function RhCadastroGeral() {
   const [uploadingFoto, setUploadingFoto] = useState(false);
   // Vínculos do relógio de ponto (RHiD): PIS/CPF que o relógio conhece
   const [pontoVinculos, setPontoVinculos] = useState(null);
+  // Foto expandida (lightbox) ao clicar na foto do colaborador
+  const [fotoExpandida, setFotoExpandida] = useState(null);
 
   // Busca (não bloqueante) quais PIS/CPF o relógio identifica — pra coluna "Relógio de Ponto"
   useEffect(() => {
@@ -726,6 +728,18 @@ export default function RhCadastroGeral() {
 
   return (
     <div className="flex h-screen bg-gray-100">
+      {/* Lightbox da foto do colaborador */}
+      {fotoExpandida && (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={() => setFotoExpandida(null)}>
+          <div className="relative" onClick={e => e.stopPropagation()}>
+            <img src={fotoExpandida.url} alt={fotoExpandida.nome}
+              className="max-w-[90vw] max-h-[85vh] rounded-lg shadow-2xl object-contain bg-white" />
+            <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-sm font-semibold px-3 py-2 rounded-b-lg">{fotoExpandida.nome}</div>
+            <button onClick={() => setFotoExpandida(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-700 shadow-lg flex items-center justify-center font-bold hover:bg-gray-100">✕</button>
+          </div>
+        </div>
+      )}
       <Sidebar
         user={user}
         onLogout={logout}
@@ -980,7 +994,9 @@ export default function RhCadastroGeral() {
                           <td className="px-4 py-2">
                             {colab.foto_url ? (
                               <img src={colab.foto_url} alt={colab.nome}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-orange-200" />
+                                onClick={() => setFotoExpandida({ url: colab.foto_url, nome: colab.nome })}
+                                title="Clique para ampliar"
+                                className="w-10 h-10 rounded-full object-cover border-2 border-orange-200 cursor-pointer hover:ring-2 hover:ring-orange-400 transition" />
                             ) : (
                               <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold border-2 border-orange-200">
                                 {(colab.nome || '?').charAt(0).toUpperCase()}

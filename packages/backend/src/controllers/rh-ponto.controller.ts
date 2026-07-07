@@ -32,9 +32,15 @@ function _classificaDia(d: any) {
   const soJust = bat.length > 0 && bat.every((b: any) => b._typeEntradaSaida === 'D' && !ehPunch(b));
   const isFeriado = d.isHoliday === 1;
   const isFalta = !!d.faltaDiaInteiro || (d.faltasDiasInteiro || 0) > 0;
+  // Sub-tipo da justificativa (dia todo tipo "D"): Férias / Maternidade / Atestado (médico)
+  const justAbrev = String(bat.find((b: any) => b.abreviationJustification)?.abreviationJustification || '').toLowerCase();
   let status: string;
   if (isFeriado) status = 'feriado'; else if (isFalta) status = 'falta';
-  else if (soJust && !temReal) status = 'atestado';
+  else if (soJust && !temReal) {
+    if (justAbrev.includes('matern')) status = 'maternidade';
+    else if (justAbrev.includes('feria')) status = 'ferias';       // "Ferias"/"Férias"
+    else status = 'atestado';                                       // médico e demais
+  }
   else if (!jorStr && !temReal) status = 'folga'; else status = 'trabalhou';
   const uteis = d.horasUteis || 0;   // jornada prevista do dia (min)
   return {
@@ -45,6 +51,7 @@ function _classificaDia(d: any) {
     atraso: status === 'trabalhou' ? (d.horasFaltaAtraso || 0) : 0,
     abono: d.minutosAbono || 0, he: d.horasExtrasCalculadas || 0,
     falta: status === 'falta' ? uteis : 0, atestado: status === 'atestado' ? uteis : 0,
+    ferias: status === 'ferias' ? uteis : 0, maternidade: status === 'maternidade' ? uteis : 0,
   };
 }
 
@@ -384,7 +391,7 @@ export class RhPontoController {
       let where = `c.status='ativo'`;
       if (empresaId) { params.push(empresaId); where += ` AND c.company_id = $${params.length}`; }
       const colabs = await AppDataSource.query(
-        `SELECT c.id, c.nome, c.pis_pasep, c.cpf, c.foto_url, c.nao_bate_ponto, COALESCE(dep.nome,'Sem setor') AS setor
+        `SELECT c.id, c.nome, c.pis_pasep, c.cpf, c.foto_url, c.nao_bate_ponto, c.status, COALESCE(dep.nome,'Sem setor') AS setor
          FROM rh_colaboradores c LEFT JOIN rh_departamentos dep ON dep.id = c.departamento_id
          WHERE ${where}`, params);
 
@@ -434,19 +441,23 @@ export class RhPontoController {
 
       const byColab: Record<number, any> = {};
       const diasAus: Record<number, string[]> = {};
+      const ocorr: Record<number, any[]> = {};   // ocorrências com data (pro expandir)
       await _mapPool(tarefas, 8, async ({ c, m }) => {
         const ini = `${ano}-${String(m).padStart(2, '0')}-01`;
         const fim = `${ano}-${String(m).padStart(2, '0')}-${String(ultDia(m)).padStart(2, '0')}`;
         const apur = await RhidService.apuracao(c.rhid.id, ini, fim).catch(() => []);
-        const acc = (byColab[c.id] ||= { id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, jornada: 0, trabalhado: 0, falta: 0, atraso: 0, atestado: 0, abono: 0, he: 0, diasFalta: 0, diasAtestado: 0, porMes: {} });
+        const acc = (byColab[c.id] ||= { id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, status: c.status, jornada: 0, trabalhado: 0, falta: 0, atraso: 0, atestado: 0, ferias: 0, maternidade: 0, abono: 0, he: 0, diasFalta: 0, diasAtestado: 0, diasFerias: 0, diasMaternidade: 0, porMes: {} });
         for (const d of apur) {
           const x = _classificaDia(d);
           acc.jornada += x.jornada; acc.trabalhado += x.trabalhado; acc.atraso += x.atraso; acc.abono += x.abono; acc.he += x.he;
-          acc.falta += x.falta; acc.atestado += x.atestado;
-          if (x.status === 'falta') { acc.diasFalta++; (diasAus[c.id] ||= []).push(x.ymd); }
-          if (x.status === 'atestado') { acc.diasAtestado++; (diasAus[c.id] ||= []).push(x.ymd); }
-          const pm = (acc.porMes[x.mes] ||= { jornada: 0, falta: 0, atraso: 0, atestado: 0, he: 0 });
-          pm.jornada += x.jornada; pm.falta += x.falta; pm.atraso += x.atraso; pm.atestado += x.atestado; pm.he += x.he;
+          acc.falta += x.falta; acc.atestado += x.atestado; acc.ferias += x.ferias; acc.maternidade += x.maternidade;
+          const pm = (acc.porMes[x.mes] ||= { jornada: 0, falta: 0, atraso: 0, atestado: 0, ferias: 0, maternidade: 0, he: 0, falta_dias: 0, atestado_dias: 0, ferias_dias: 0, maternidade_dias: 0 });
+          pm.jornada += x.jornada; pm.falta += x.falta; pm.atraso += x.atraso; pm.atestado += x.atestado; pm.ferias += x.ferias; pm.maternidade += x.maternidade; pm.he += x.he;
+          if (x.status === 'falta') { acc.diasFalta++; pm.falta_dias++; (diasAus[c.id] ||= []).push(x.ymd); (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'falta', min: x.jornada }); }
+          if (x.status === 'atestado') { acc.diasAtestado++; pm.atestado_dias++; (diasAus[c.id] ||= []).push(x.ymd); (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'atestado', min: x.jornada }); }
+          if (x.status === 'ferias') { acc.diasFerias++; pm.ferias_dias++; (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'ferias', min: x.jornada }); }
+          if (x.status === 'maternidade') { acc.diasMaternidade++; pm.maternidade_dias++; (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'maternidade', min: x.jornada }); }
+          if (x.status === 'trabalhou' && x.atraso > 0) { (ocorr[c.id] ||= []).push({ ymd: x.ymd, tipo: 'atraso', min: x.atraso }); }
         }
       });
 
@@ -464,11 +475,13 @@ export class RhPontoController {
       // Por mês (global) — Jan..Dez
       const porMes = Array.from({ length: 12 }, (_, i) => {
         const m = i + 1;
-        let jornada = 0, falta = 0, atraso = 0, atestado = 0, he = 0;
-        for (const c of colabArr) { const pm = c.porMes[m]; if (pm) { jornada += pm.jornada; falta += pm.falta; atraso += pm.atraso; atestado += pm.atestado; he += pm.he; } }
+        let jornada = 0, falta = 0, atraso = 0, atestado = 0, ferias = 0, maternidade = 0, he = 0;
+        for (const c of colabArr) { const pm = c.porMes[m]; if (pm) { jornada += pm.jornada; falta += pm.falta; atraso += pm.atraso; atestado += pm.atestado; ferias += pm.ferias || 0; maternidade += pm.maternidade || 0; he += pm.he; } }
         const naoPlan = falta + atraso;
-        return { mes: m, label: MES_LABEL[m], jornada_min: jornada, falta_min: falta, atraso_min: atraso, atestado_min: atestado, he_min: he,
-          nao_planejada_min: naoPlan, absenteismo_pct: jornada ? +(naoPlan / jornada * 100).toFixed(1) : 0,
+        const pct = (v: number) => jornada ? +(v / jornada * 100).toFixed(1) : 0;
+        return { mes: m, label: MES_LABEL[m], jornada_min: jornada, falta_min: falta, atraso_min: atraso, atestado_min: atestado, ferias_min: ferias, maternidade_min: maternidade, he_min: he,
+          nao_planejada_min: naoPlan, absenteismo_pct: pct(naoPlan),
+          falta_pct: pct(falta), atraso_pct: pct(atraso), atestado_pct: pct(atestado), ferias_pct: pct(ferias), maternidade_pct: pct(maternidade),
           gravidade_min: nFunc ? Math.round(naoPlan / nFunc) : 0, sem_dados: m > ateMes };
       });
 
@@ -488,14 +501,25 @@ export class RhPontoController {
 
       // Ranking colaboradores (top 100 por Bradford)
       const ranking = colabArr.map((c: any) => ({
-        id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, falta_min: c.falta, atraso_min: c.atraso, atestado_min: c.atestado, abono_min: c.abono, he_min: c.he,
-        dias_falta: c.diasFalta, dias_atestado: c.diasAtestado, nao_planejada_min: c.nao_planejada, absenteismo_pct: c.absenteismo, bradford: c.bradford,
-        // quebra mês a mês (Jan..Dez) pra colunas mensais no ranking
+        id: c.id, nome: c.nome, setor: c.setor, foto_url: c.foto_url, ativo: c.status === 'ativo', falta_min: c.falta, atraso_min: c.atraso, atestado_min: c.atestado, abono_min: c.abono, he_min: c.he,
+        ferias_min: c.ferias, ferias_dias: c.diasFerias, maternidade_min: c.maternidade, maternidade_dias: c.diasMaternidade,
+        dias_falta: c.diasFalta, dias_atestado: c.diasAtestado, nao_planejada_min: c.nao_planejada, absenteismo_pct: c.absenteismo,
+        absenteismo_com_atestado_pct: c.jornada ? +((c.falta + c.atraso + c.atestado) / c.jornada * 100).toFixed(1) : 0,
+        bradford: c.bradford,
+        // quebra mês a mês (Jan..Dez) — total (heatmap) + detalhe (atrasos/faltas/atestados)
         por_mes: Array.from({ length: 12 }, (_, i) => {
-          const pm = c.porMes[i + 1] || { jornada: 0, falta: 0, atraso: 0, atestado: 0 };
+          const pm = c.porMes[i + 1] || { jornada: 0, falta: 0, atraso: 0, atestado: 0, falta_dias: 0, atestado_dias: 0, ferias_dias: 0, maternidade_dias: 0 };
           const np = pm.falta + pm.atraso;
-          return { mes: i + 1, nao_planejada_min: np, atestado_min: pm.atestado, abs_pct: pm.jornada ? +(np / pm.jornada * 100).toFixed(1) : 0 };
+          return {
+            mes: i + 1, nao_planejada_min: np, atraso_min: pm.atraso, falta_min: pm.falta,
+            falta_dias: pm.falta_dias || 0, atestado_min: pm.atestado, atestado_dias: pm.atestado_dias || 0,
+            ferias_dias: pm.ferias_dias || 0, maternidade_dias: pm.maternidade_dias || 0,
+            abs_pct: pm.jornada ? +(np / pm.jornada * 100).toFixed(1) : 0,
+            abs_com_pct: pm.jornada ? +((np + pm.atestado) / pm.jornada * 100).toFixed(1) : 0,
+          };
         }),
+        // ocorrências com data (pro botão expandir): falta/atestado/atraso por dia
+        ocorrencias: (ocorr[c.id] || []).sort((a: any, b: any) => a.ymd.localeCompare(b.ymd)),
       })).sort((a, b) => b.bradford - a.bradford).slice(0, 100);
 
       const data = {
@@ -504,9 +528,12 @@ export class RhPontoController {
         diagnostico,
         kpis: {
           absenteismo_pct: jornadaTot ? +(naoPlanTot / jornadaTot * 100).toFixed(1) : 0,
+          absenteismo_com_atestado_pct: jornadaTot ? +((naoPlanTot + sum('atestado')) / jornadaTot * 100).toFixed(1) : 0,
           gravidade_min: nFunc ? Math.round(naoPlanTot / nFunc) : 0,
           nao_planejada_min: naoPlanTot, jornada_min: jornadaTot, trabalhado_min: sum('trabalhado'),
           falta_min: sum('falta'), atraso_min: sum('atraso'), atestado_min: sum('atestado'), abono_min: sum('abono'), he_min: sum('he'),
+          ferias_min: sum('ferias'), ferias_dias: colabArr.reduce((a: number, c: any) => a + (c.diasFerias || 0), 0),
+          maternidade_min: sum('maternidade'), maternidade_dias: colabArr.reduce((a: number, c: any) => a + (c.diasMaternidade || 0), 0),
           frequencia: nFunc ? +(eventos / nFunc).toFixed(1) : 0, tea_pct: nFunc ? Math.round(comAus / nFunc * 100) : 0,
           eventos, funcionarios_ausentes: comAus,
         },
@@ -514,6 +541,8 @@ export class RhPontoController {
           { tipo: 'Falta', min: sum('falta'), cor: '#ef4444' },
           { tipo: 'Atraso', min: sum('atraso'), cor: '#f59e0b' },
           { tipo: 'Atestado', min: sum('atestado'), cor: '#8b5cf6' },
+          { tipo: 'Férias', min: sum('ferias'), cor: '#3b82f6' },
+          { tipo: 'Maternidade', min: sum('maternidade'), cor: '#ec4899' },
           { tipo: 'Abono', min: sum('abono'), cor: '#6366f1' },
         ],
         por_mes: porMes, por_setor: porSetor, ranking_colaboradores: ranking,
