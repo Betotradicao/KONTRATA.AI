@@ -209,9 +209,28 @@ function ExpandNomes({ pessoas, campoData, motivo }) {
   );
 }
 
-// Bloco de ranking (label + qtd + barra + expandir nomes)
-function RankBloco({ titulo, entries, campoData, motivo }) {
-  const [aberto, setAberto] = useState(null);
+// Idade (anos) na data de referência (desligamento, senão hoje)
+function calcIdade(nasc, ref) {
+  if (!nasc) return null;
+  const n = new Date(nasc), r = ref ? new Date(ref) : new Date();
+  let idade = r.getFullYear() - n.getFullYear();
+  const mm = r.getMonth() - n.getMonth();
+  if (mm < 0 || (mm === 0 && r.getDate() < n.getDate())) idade--;
+  return idade >= 0 && idade < 120 ? idade : null;
+}
+// Tempo de trabalho: admissão → desligamento (ou hoje). Ex.: "3a 5m" / "7m"
+function calcTempo(adm, deslig) {
+  if (!adm) return null;
+  const a = new Date(adm), b = deslig ? new Date(deslig) : new Date();
+  let meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  if (b.getDate() < a.getDate()) meses--;
+  if (meses < 0) meses = 0;
+  const anos = Math.floor(meses / 12), m = meses % 12;
+  return anos > 0 ? `${anos}a ${m}m` : `${m}m`;
+}
+
+// Bloco de ranking (label + qtd + barra). Ao clicar no +, abre a tabela-perfil full-width.
+function RankBloco({ titulo, entries, onAbrir, abertoKey }) {
   const max = entries[0]?.[1]?.length || 1;
   return (
     <div className="bg-white rounded-lg border shadow-sm p-4">
@@ -219,18 +238,18 @@ function RankBloco({ titulo, entries, campoData, motivo }) {
       {entries.length === 0 ? <div className="text-gray-400 text-xs py-4 text-center">Sem dados</div> : (
         <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
           {entries.map(([label, pessoas], i) => {
-            const ab = aberto === label;
+            const key = `${titulo}::${label}`;
+            const ativo = abertoKey === key;
             const pct = Math.round(pessoas.length / max * 100);
             return (
               <div key={label}>
                 <div className="flex items-center gap-2 text-xs">
-                  <button onClick={() => setAberto(ab ? null : label)} title="Ver nomes" className="w-4 h-4 inline-flex items-center justify-center rounded bg-gray-200 text-gray-600 font-bold hover:bg-indigo-200 flex-shrink-0">{ab ? '−' : '+'}</button>
+                  <button onClick={() => onAbrir(ativo ? null : { key, titulo, label, pessoas })} title="Ver perfil dos desligados" className={`w-4 h-4 inline-flex items-center justify-center rounded font-bold flex-shrink-0 ${ativo ? 'bg-rose-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-rose-200'}`}>{ativo ? '−' : '+'}</button>
                   <span className="w-5 text-right font-bold text-gray-400">#{i + 1}</span>
-                  <span className="flex-1 truncate font-medium text-gray-700" title={label}>{label}</span>
+                  <span className={`flex-1 truncate font-medium ${ativo ? 'text-rose-700' : 'text-gray-700'}`} title={label}>{label}</span>
                   <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">{pessoas.length}</span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded overflow-hidden mt-0.5"><div className="h-full bg-rose-400" style={{ width: `${pct}%` }}></div></div>
-                {ab && <ExpandNomes pessoas={pessoas} campoData={campoData} motivo={motivo} />}
               </div>
             );
           })}
@@ -240,9 +259,65 @@ function RankBloco({ titulo, entries, campoData, motivo }) {
   );
 }
 
-// Ranking de desligamentos por Setor / Tipo / Motivo
+// Tabela-perfil (full-width) dos desligados de um grupo: Nome/Idade/Tempo/Km/Motivo/Data
+function PerfilDeslig({ detalhe, kmMap, onFechar }) {
+  const { titulo, label, pessoas } = detalhe;
+  return (
+    <div className="mt-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2 bg-rose-50 border-b border-rose-100">
+        <h4 className="font-bold text-gray-800 text-sm">{titulo} · <span className="text-rose-700">{label}</span> <span className="text-gray-400 font-normal">({pessoas.length} desligado{pessoas.length !== 1 ? 's' : ''})</span></h4>
+        <button onClick={onFechar} className="text-gray-400 hover:text-gray-600 text-xs font-bold">✕ fechar</button>
+      </div>
+      <div className="overflow-x-auto slim-scroll">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-left text-[11px] uppercase text-gray-500 border-b bg-gray-50">
+              <th className="px-3 py-1.5">#</th>
+              <th className="px-3 py-1.5">Nome</th>
+              <th className="px-3 py-1.5 text-center">Idade</th>
+              <th className="px-3 py-1.5 text-center">Tempo de Trabalho</th>
+              <th className="px-3 py-1.5 text-center">Km da Loja</th>
+              <th className="px-3 py-1.5">Motivo</th>
+              <th className="px-3 py-1.5 text-center">Desligamento</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {pessoas.map((p, i) => {
+              const idade = calcIdade(p.data_nascimento, p.data_desligamento);
+              const tempo = calcTempo(p.data_admissao, p.data_desligamento);
+              const km = kmMap[p.id]?.km_residencia;
+              return (
+                <tr key={p.id || i} className="hover:bg-gray-50">
+                  <td className="px-3 py-1.5 text-gray-400">{i + 1}</td>
+                  <td className="px-3 py-1.5 font-medium text-gray-700 whitespace-nowrap">{p.nome}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap">{idade != null ? `${idade} anos` : <span className="text-gray-300">—</span>}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap">{tempo || <span className="text-gray-300">—</span>}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap">{km ? <span className="text-indigo-600 font-medium">{km}</span> : <span className="text-gray-300">—</span>}</td>
+                  <td className="px-3 py-1.5 text-rose-600 whitespace-nowrap">{p.motivo_desligamento_nome || p.tipo_desligamento_nome || <span className="text-gray-300">—</span>}</td>
+                  <td className="px-3 py-1.5 text-center whitespace-nowrap text-gray-600">{p.data_desligamento ? new Date(p.data_desligamento).toLocaleDateString('pt-BR') : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[11px] text-gray-400 px-4 py-1.5">💡 Km da Loja = distância entre o CEP do colaborador e o CEP da loja. No 1º acesso pode aparecer "—" enquanto geocodifica; recarregue em alguns segundos.</p>
+    </div>
+  );
+}
+
+// Ranking de desligamentos por Setor / Tipo / Motivo (expande em tabela-perfil)
 function DesligamentosRanking({ colaboradores }) {
   const deslig = colaboradores.filter(c => c.status === 'desligado');
+  const [detalhe, setDetalhe] = useState(null);
+  const [kmMap, setKmMap] = useState({});
+  useEffect(() => {
+    let vivo = true;
+    const buscar = () => api.get('/rh/colaboradores/km').then(r => { if (vivo) setKmMap(r.data?.km || {}); }).catch(() => {});
+    buscar();
+    const t = setTimeout(buscar, 5000); // pega o geocode self-heal do 1º acesso
+    return () => { vivo = false; clearTimeout(t); };
+  }, []);
   const contar = (keyFn) => {
     const m = {};
     deslig.forEach(c => { const k = keyFn(c) || 'Não informado'; (m[k] ||= []).push(c); });
@@ -250,12 +325,13 @@ function DesligamentosRanking({ colaboradores }) {
   };
   return (
     <div className="mb-4">
-      <h3 className="font-bold text-gray-700 mb-2 flex items-center gap-2">❌ Desligamentos — Ranking <span className="text-xs font-normal text-gray-400">({deslig.length} no total · clique no + pra ver nomes)</span></h3>
+      <h3 className="font-bold text-gray-700 mb-2 flex items-center gap-2">❌ Desligamentos — Ranking <span className="text-xs font-normal text-gray-400">({deslig.length} no total · clique no + pra ver o perfil em colunas)</span></h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <RankBloco titulo="🏭 Por Setor" entries={contar(c => c.setor_departamento_nome || c.setor_nome)} campoData="data_desligamento" motivo />
-        <RankBloco titulo="📋 Por Tipo de Desligamento" entries={contar(c => c.tipo_desligamento_nome)} campoData="data_desligamento" motivo />
-        <RankBloco titulo="💬 Por Motivo" entries={contar(c => c.motivo_desligamento_nome)} campoData="data_desligamento" />
+        <RankBloco titulo="🏭 Por Setor" entries={contar(c => c.setor_departamento_nome || c.setor_nome)} onAbrir={setDetalhe} abertoKey={detalhe?.key} />
+        <RankBloco titulo="📋 Por Tipo de Desligamento" entries={contar(c => c.tipo_desligamento_nome)} onAbrir={setDetalhe} abertoKey={detalhe?.key} />
+        <RankBloco titulo="💬 Por Motivo" entries={contar(c => c.motivo_desligamento_nome)} onAbrir={setDetalhe} abertoKey={detalhe?.key} />
       </div>
+      {detalhe && <PerfilDeslig detalhe={detalhe} kmMap={kmMap} onFechar={() => setDetalhe(null)} />}
     </div>
   );
 }

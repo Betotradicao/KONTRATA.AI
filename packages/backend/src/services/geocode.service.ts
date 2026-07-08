@@ -108,17 +108,20 @@ export class GeocodeService {
 
   // Geocoda em background (nao trava a tela) os itens que faltam coords e
   // persiste. Busca o endereco completo no banco pra geocodar pela rua.
-  static warmInBackground(itens: Array<{ tipo: 'curriculo' | 'empresa'; chave: number }>): void {
+  static warmInBackground(itens: Array<{ tipo: 'curriculo' | 'empresa' | 'colaborador'; chave: number }>): void {
     const curIds = [...new Set(itens.filter(i => i.tipo === 'curriculo').map(i => i.chave))]
       .filter(id => !pendentes.has(`curriculo:${id}`));
     const lojaIds = [...new Set(itens.filter(i => i.tipo === 'empresa').map(i => i.chave))]
       .filter(id => !pendentes.has(`empresa:${id}`));
-    if (!curIds.length && !lojaIds.length) return;
+    const colabIds = [...new Set(itens.filter(i => i.tipo === 'colaborador').map(i => i.chave))]
+      .filter(id => !pendentes.has(`colaborador:${id}`));
+    if (!curIds.length && !lojaIds.length && !colabIds.length) return;
 
     (async () => {
-      const lotes: Array<{ tipo: 'curriculo' | 'empresa'; tabela: string; chaveCol: string; ids: number[] }> = [
+      const lotes: Array<{ tipo: 'curriculo' | 'empresa' | 'colaborador'; tabela: string; chaveCol: string; ids: number[] }> = [
         { tipo: 'curriculo', tabela: 'curriculos', chaveCol: 'id', ids: curIds },
         { tipo: 'empresa', tabela: 'rh_empresas', chaveCol: 'cod_loja', ids: lojaIds },
+        { tipo: 'colaborador', tabela: 'rh_colaboradores', chaveCol: 'id', ids: colabIds },
       ];
       for (const lote of lotes) {
         if (!lote.ids.length) continue;

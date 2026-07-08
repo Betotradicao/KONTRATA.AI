@@ -43,6 +43,7 @@ import RhEscalaRegrasSetor from './pages/RhEscalaRegrasSetor';
 import RhEscalaMemoria from './pages/RhEscalaMemoria';
 import RhEscalaEventos from './pages/RhEscalaEventos';
 import RhFolhaPagamento from './pages/RhFolhaPagamento';
+import RhPerformanceSetor from './pages/RhPerformanceSetor';
 import RhConfiguracoes from './pages/RhConfiguracoes';
 import RhMetodoDisc from './pages/RhMetodoDisc';
 import RhMetodoDiscResultados from './pages/RhMetodoDiscResultados';
@@ -140,6 +141,7 @@ function App() {
               {/* RH — Financeiro */}
               <Route path="/rh/lancamentos" element={<ProtectedRoute moduleId="rh-lancamentos"><RhLancamentos /></ProtectedRoute>} />
               <Route path="/rh/folha" element={<ProtectedRoute moduleId="rh-folha"><RhFolhaPagamento /></ProtectedRoute>} />
+              <Route path="/rh/performance-setor" element={<ProtectedRoute moduleId="rh-folha"><RhPerformanceSetor /></ProtectedRoute>} />
 
               {/* RH — Escala de Trabalho */}
               <Route path="/rh/escala" element={<ProtectedRoute moduleId="rh-escala-grid"><RhEscala /></ProtectedRoute>} />

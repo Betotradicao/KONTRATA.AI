@@ -16,6 +16,7 @@ import { RhFeriasController } from '../controllers/rh-ferias.controller';
 import { RhDocTemplateController } from '../controllers/rh-doc-template.controller';
 import { RhEmailDocController } from '../controllers/rh-email-doc.controller';
 import { RhPontoController } from '../controllers/rh-ponto.controller';
+import { RhPerformanceController } from '../controllers/rh-performance.controller';
 import { authenticateToken } from '../middleware/auth';
 
 const router: Router = Router();
@@ -26,6 +27,7 @@ router.post('/enviar-documento-email', authenticateToken, RhEmailDocController.e
 router.post('/email-empresa/testar', authenticateToken, RhEmailDocController.testarEmailEmpresa);
 
 router.get('/colaboradores', authenticateToken, RhController.listColaboradores);
+router.get('/colaboradores/km', authenticateToken, RhController.kmDesligados);
 router.get('/colaboradores/stats', authenticateToken, RhController.getStats);
 router.get('/colaboradores/:id', authenticateToken, RhController.getColaboradorById);
 router.post('/colaboradores', authenticateToken, RhController.createColaborador);
@@ -285,6 +287,13 @@ router.post('/ponto/valor-hora', authenticateToken, RhPontoController.salvarValo
 
 // Férias detectadas pelo ponto (modo "Via Relógio de Ponto")
 router.get('/ferias/deteccao-ponto', authenticateToken, RhPontoController.deteccaoFeriasPonto);
+
+// Performance por Setor (Financeiro RH)
+router.get('/performance-setor', authenticateToken, RhPerformanceController.listar);
+router.post('/performance-setor', authenticateToken, RhPerformanceController.criarSetor);
+router.put('/performance-setor/:id', authenticateToken, RhPerformanceController.atualizarSetor);
+router.delete('/performance-setor/:id', authenticateToken, RhPerformanceController.deletarSetor);
+router.post('/performance-setor/venda', authenticateToken, RhPerformanceController.salvarVenda);
 
 // Departamento Pessoal (docs da empresa)
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);

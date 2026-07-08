@@ -1227,6 +1227,53 @@ export class RhController {
     }
   }
 
+  /**
+   * GET /rh/colaboradores/km?company_id= — distância casa → loja dos colaboradores
+   * DESLIGADOS (coluna "Km da Loja" no ranking de desligamentos). Mesmo padrão das
+   * Vagas: usa coords já geocodadas; o que falta é geocodado em background (self-heal,
+   * aparece no próximo refresh). Retorna { km: { [colaborador_id]: {km_residencia, distancia_m} } }.
+   */
+  static async kmDesligados(req: AuthRequest, res: Response) {
+    try {
+      const companyId = req.query.company_id as string | undefined;
+      const params: any[] = [];
+      let where = `c.status = 'desligado'`;
+      if (companyId) { params.push(companyId); where += ` AND c.company_id = $${params.length}`; }
+      const rows = await AppDataSource.query(
+        `SELECT c.id, c.cep, c.latitude, c.longitude, c.geo_cep,
+                comp.cod_loja AS loja_cod, comp.cep AS loja_cep, comp.latitude AS loja_lat,
+                comp.longitude AS loja_lng, comp.geo_cep AS loja_geo_cep
+         FROM rh_colaboradores c
+         LEFT JOIN rh_empresas comp ON comp.id = c.company_id
+         WHERE ${where}`, params);
+
+      const aGeocodar: Array<{ tipo: 'empresa' | 'colaborador'; chave: number }> = [];
+      const lojasVistas = new Set<number>();
+      const km: Record<number, { km_residencia: string | null; distancia_m: number | null }> = {};
+      for (const r of rows) {
+        const lojaCepNorm = GeocodeService.normalizarCep(r.loja_cep);
+        const lojaCoords = (r.loja_lat != null && r.loja_lng != null) ? { lat: r.loja_lat, lng: r.loja_lng } : null;
+        if (r.loja_cod != null && lojaCepNorm && (!lojaCoords || r.loja_geo_cep !== lojaCepNorm) && !lojasVistas.has(r.loja_cod)) {
+          aGeocodar.push({ tipo: 'empresa', chave: r.loja_cod }); lojasVistas.add(r.loja_cod);
+        }
+        const cepNorm = GeocodeService.normalizarCep(r.cep);
+        const coords = (r.latitude != null && r.longitude != null) ? { lat: r.latitude, lng: r.longitude } : null;
+        if (cepNorm && (!coords || r.geo_cep !== cepNorm)) aGeocodar.push({ tipo: 'colaborador', chave: r.id });
+        if (lojaCoords && coords) {
+          const m = GeocodeService.distanciaMetros(coords, lojaCoords);
+          km[r.id] = { distancia_m: Math.round(m), km_residencia: GeocodeService.formatarDistancia(m) };
+        } else {
+          km[r.id] = { distancia_m: null, km_residencia: null };
+        }
+      }
+      if (aGeocodar.length) GeocodeService.warmInBackground(aGeocodar);
+      return res.json({ km });
+    } catch (e: any) {
+      console.error('[RH] kmDesligados:', e?.message);
+      return res.status(500).json({ error: e?.message || 'Erro ao calcular KM' });
+    }
+  }
+
   // =============================================
   // VAGAS (Recrutamento)
   // =============================================
