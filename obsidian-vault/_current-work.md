@@ -1,7 +1,7 @@
 # 🚧 Trabalho em Andamento
 
-## 📄 (08/07) — Performance por Setor: botão PDF + 2 fixes nos Indicadores RH — LOCAL, uncommitado
-Trabalhando em `RhPerformanceSetor.jsx` e `RhIndicadores.jsx`. Backend tsc=0, front build=0. **NÃO commitado / NÃO deployado.**
+## 📄 (08/07) — Performance por Setor: botão PDF + 2 fixes nos Indicadores RH — ✅ DEPLOYADO Tradição (8cfa071)
+`RhPerformanceSetor.jsx` + `RhIndicadores.jsx` + `geocode.service.ts`. Commit `8cfa071` (push KONTRATAAI). **DEPLOYADO VPS 46 kontrata-tradicao (08/07):** repo→8cfa071, build --no-cache back+front, up --no-deps, backend healthy, dist tem `ruaCol`×5, bundle novo `index-Mt7bIxjR` serve `Performance-Setor`, HTTP 200. ⏳ Falta deploy nos outros clientes kontrata. ⏳ Usuário testar: PDF sai OK? KM aparece após uns refreshes (self-heal, precisa CEP no colab+loja).
 1. ✅ **Botão 📄 PDF** na tela Performance por Setor (`RhPerformanceSetor.jsx`): jsPDF+autoTable (padrão do RhIndicadores), A4 paisagem, cabeçalho roxo. **Só inclui os meses COM venda lançada** (senão 24 colunas ficam ilegíveis); se nenhum mês tiver dado, cai pro ano inteiro. Total no rodapé.
 2. ✅ **Fix — desligado de 2025 aparecia no filtro 2026** (`RhIndicadores.jsx`, `DesligamentosRanking`): filtrava só `status==='desligado'` SEM ano. Agora recebe `ano` e exige `data_desligamento` no ano-base. Cadeia: AbaColaboradores→AbaGeral→DesligamentosRanking.
 3. ✅ **Fix — KM da Loja vinha "—" pra todos:** causa-raiz em `geocode.service.ts` `warmInBackground` (SELECT hardcoded `rua`, mas `rh_colaboradores` usa `endereco` → query estourava, `catch{}` engolia, colaborador nunca geocodado). Aliasado `ruaCol` por tabela. Detalhes: [[bugs-resolvidos/2026-07-08-km-desligados-coluna-rua-vs-endereco]].
