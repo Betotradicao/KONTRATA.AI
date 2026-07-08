@@ -307,8 +307,12 @@ function PerfilDeslig({ detalhe, kmMap, onFechar }) {
 }
 
 // Ranking de desligamentos por Setor / Tipo / Motivo (expande em tabela-perfil)
-function DesligamentosRanking({ colaboradores }) {
-  const deslig = colaboradores.filter(c => c.status === 'desligado');
+// Respeita o filtro de ANO: só entra quem foi desligado DENTRO do ano-base
+// (data_desligamento no ano). Sem isso um desligado em 2025 aparecia no filtro 2026.
+function DesligamentosRanking({ colaboradores, ano }) {
+  const deslig = colaboradores.filter(c =>
+    c.status === 'desligado' && c.data_desligamento &&
+    new Date(c.data_desligamento).getFullYear() === ano);
   const [detalhe, setDetalhe] = useState(null);
   const [kmMap, setKmMap] = useState({});
   useEffect(() => {
@@ -383,7 +387,7 @@ function AbaGeral({ loading, stats, colaboradores, ano }) {
       </div>
 
       {/* Ranking de desligamentos por setor / tipo / motivo */}
-      <DesligamentosRanking colaboradores={colaboradores} />
+      <DesligamentosRanking colaboradores={colaboradores} ano={ano} />
 
       {/* Tabelas mensais (formato planilha): admissoes e desligamentos por cargo / mes */}
       <div className="space-y-4 mb-4">

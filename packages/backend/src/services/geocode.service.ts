@@ -118,17 +118,20 @@ export class GeocodeService {
     if (!curIds.length && !lojaIds.length && !colabIds.length) return;
 
     (async () => {
-      const lotes: Array<{ tipo: 'curriculo' | 'empresa' | 'colaborador'; tabela: string; chaveCol: string; ids: number[] }> = [
-        { tipo: 'curriculo', tabela: 'curriculos', chaveCol: 'id', ids: curIds },
-        { tipo: 'empresa', tabela: 'rh_empresas', chaveCol: 'cod_loja', ids: lojaIds },
-        { tipo: 'colaborador', tabela: 'rh_colaboradores', chaveCol: 'id', ids: colabIds },
+      // ruaCol difere por tabela: curriculos/rh_empresas usam "rua", rh_colaboradores usa "endereco".
+      // Aliasar pra "rua" (o que coordsParaEndereco lê). Sem isso o SELECT estoura ("column rua
+      // does not exist") e o lote de colaborador é pulado inteiro -> KM sempre "—".
+      const lotes: Array<{ tipo: 'curriculo' | 'empresa' | 'colaborador'; tabela: string; chaveCol: string; ruaCol: string; ids: number[] }> = [
+        { tipo: 'curriculo', tabela: 'curriculos', chaveCol: 'id', ruaCol: 'rua', ids: curIds },
+        { tipo: 'empresa', tabela: 'rh_empresas', chaveCol: 'cod_loja', ruaCol: 'rua', ids: lojaIds },
+        { tipo: 'colaborador', tabela: 'rh_colaboradores', chaveCol: 'id', ruaCol: 'endereco', ids: colabIds },
       ];
       for (const lote of lotes) {
         if (!lote.ids.length) continue;
         let rows: any[] = [];
         try {
           rows = await AppDataSource.query(
-            `SELECT ${lote.chaveCol} AS chave, cep, rua, cidade, estado FROM ${lote.tabela} WHERE ${lote.chaveCol} = ANY($1)`,
+            `SELECT ${lote.chaveCol} AS chave, cep, ${lote.ruaCol} AS rua, cidade, estado FROM ${lote.tabela} WHERE ${lote.chaveCol} = ANY($1)`,
             [lote.ids]
           );
         } catch { continue; }

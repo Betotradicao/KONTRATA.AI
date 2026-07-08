@@ -1,5 +1,12 @@
 # 🚧 Trabalho em Andamento
 
+## 📄 (08/07) — Performance por Setor: botão PDF + 2 fixes nos Indicadores RH — LOCAL, uncommitado
+Trabalhando em `RhPerformanceSetor.jsx` e `RhIndicadores.jsx`. Backend tsc=0, front build=0. **NÃO commitado / NÃO deployado.**
+1. ✅ **Botão 📄 PDF** na tela Performance por Setor (`RhPerformanceSetor.jsx`): jsPDF+autoTable (padrão do RhIndicadores), A4 paisagem, cabeçalho roxo. **Só inclui os meses COM venda lançada** (senão 24 colunas ficam ilegíveis); se nenhum mês tiver dado, cai pro ano inteiro. Total no rodapé.
+2. ✅ **Fix — desligado de 2025 aparecia no filtro 2026** (`RhIndicadores.jsx`, `DesligamentosRanking`): filtrava só `status==='desligado'` SEM ano. Agora recebe `ano` e exige `data_desligamento` no ano-base. Cadeia: AbaColaboradores→AbaGeral→DesligamentosRanking.
+3. ✅ **Fix — KM da Loja vinha "—" pra todos:** causa-raiz em `geocode.service.ts` `warmInBackground` (SELECT hardcoded `rua`, mas `rh_colaboradores` usa `endereco` → query estourava, `catch{}` engolia, colaborador nunca geocodado). Aliasado `ruaCol` por tabela. Detalhes: [[bugs-resolvidos/2026-07-08-km-desligados-coluna-rua-vs-endereco]].
+- ⏳ PRÓXIMO: usuário testa LOCAL (PDF sai OK? KM aparece após uns refreshes — é self-heal). Se aprovar → commit+push+deploy Tradição (build --no-cache --no-deps front+back; o KM precisa do BACKEND rebuildado, não só front).
+
 ## 🏖️ (07/07) — Férias: modo Via Relógio de Ponto — ✅ DEPLOYADO Tradição (cfe1db9)
 Tela Controle de Férias com 2 modos (Manual + Via Relógio). Endpoint `/rh/ferias/deteccao-ponto` varre apuração RHiD da admissão→hoje, agrupa férias em períodos, compara com registros manuais (bate/só-ponto/só-sistema), só exibe (Confirmar grava). Cards KPI do topo trocados pro estilo "cor só na ponta". Detalhes: [[bugs-resolvidos/2026-07-07-feature-ferias-via-relogio-ponto]].
 - ⏳ PRÓXIMO: usuário roda o Escanear no Tradição (1ª vez demora, cache 6h) e compara relógio × sistema; ajustar detecção se precisar (tolerância de gap, etc.).

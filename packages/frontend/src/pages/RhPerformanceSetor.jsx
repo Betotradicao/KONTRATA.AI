@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const fmtMoeda = (v) => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -125,6 +127,105 @@ export default function RhPerformanceSetor({ user }) {
   const totalVendaMes = (mes) => setores.reduce((a, s) => a + vendaDoMes(s, mes), 0);
   const totalColab = meta.total_colaboradores || 0;
 
+  // Exporta a tabela pra PDF (A4 paisagem). Só inclui os meses COM venda lançada pra caber
+  // e ficar legível; se nenhum mês tiver dado, cai pro ano inteiro (template em branco).
+  const exportarPDF = () => {
+    if (setores.length === 0) { toast.error('Nada pra exportar — cadastre setores primeiro'); return; }
+    try {
+      const lojaLabel = lojaSel?.label || (filtroLoja ? `Loja ${filtroLoja}` : 'Loja');
+      const comDados = MESES.map((nome, i) => ({ nome, mes: i + 1 })).filter(({ mes }) => totalVendaMes(mes) > 0);
+      const cols = comDados.length ? comDados : MESES.map((nome, i) => ({ nome, mes: i + 1 }));
+
+      const doc = new jsPDF({ orientation: 'landscape', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const dataGer = new Date().toLocaleString('pt-BR');
+
+      // Cabeçalho roxo (igual à tela)
+      doc.setFillColor(109, 40, 217); // purple-700
+      doc.rect(0, 0, pageW, 18, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text('Performance por Setor', 10, 11);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text(`${lojaLabel}  |  Ano: ${ano}  |  Gerado: ${dataGer}`, 10, 16);
+
+      const head = [
+        [
+          { content: 'Setor da Loja', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+          { content: 'Setor do Colaborador', rowSpan: 2, styles: { halign: 'left', valign: 'middle' } },
+          { content: 'CLT', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Apr.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Qtd', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          ...cols.map(c => ({ content: c.nome, colSpan: 2, styles: { halign: 'center', fillColor: [5, 150, 105] } })),
+        ],
+        cols.flatMap(() => [
+          { content: 'Venda', styles: { halign: 'center', fillColor: [209, 250, 229], textColor: [6, 95, 70], fontSize: 6.5 } },
+          { content: 'Perf.', styles: { halign: 'center', fillColor: [209, 250, 229], textColor: [6, 95, 70], fontSize: 6.5 } },
+        ]),
+      ];
+
+      const body = setores.map(s => {
+        const row = [
+          s.nome_setor_loja,
+          s.departamento_nome || '—',
+          String(s.qtd_clt || 0),
+          String(s.qtd_aprendiz || 0),
+          String(s.qtd_colaboradores || 0),
+        ];
+        cols.forEach(({ mes }) => {
+          const v = vendaDoMes(s, mes);
+          row.push(v > 0 ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—');
+          row.push(temPerf(s, mes) ? fmtMoeda(perfRow(s, mes)) : '—');
+        });
+        return row;
+      });
+
+      // Linha TOTAL
+      const totalRow = [
+        { content: 'TOTAL', styles: { fontStyle: 'bold' } }, '',
+        String(meta.total_clt || 0), String(meta.total_aprendiz || 0), String(totalColab),
+      ];
+      cols.forEach(({ mes }) => {
+        const tv = totalVendaMes(mes);
+        totalRow.push(tv > 0 ? tv.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—');
+        totalRow.push(tv > 0 && totalColab > 0 ? fmtMoeda(tv / totalColab) : '—');
+      });
+      body.push(totalRow);
+
+      autoTable(doc, {
+        startY: 22,
+        head, body,
+        theme: 'grid',
+        styles: { fontSize: 6.5, cellPadding: 1.5, overflow: 'linebreak' },
+        headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+        columnStyles: {
+          0: { halign: 'left', fontStyle: 'bold', cellWidth: 30 },
+          1: { halign: 'left', cellWidth: 28 },
+          2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' },
+        },
+        // Números (venda/perf) alinhados à direita — colunas 5 em diante
+        didParseCell: (d) => {
+          if (d.column.index >= 5) d.cell.styles.halign = 'right';
+          if (d.row.index === body.length - 1) d.cell.styles.fillColor = [226, 232, 240]; // TOTAL cinza
+        },
+        margin: { left: 8, right: 8 },
+      });
+
+      if (!comDados.length) {
+        const y = doc.lastAutoTable.finalY + 6;
+        doc.setTextColor(120); doc.setFontSize(8);
+        doc.text('Nenhuma venda lançada neste ano — tabela em branco.', 10, y);
+      }
+
+      const slug = lojaLabel.replace(/[^\w]+/g, '-').replace(/^-|-$/g, '');
+      doc.save(`Performance-Setor-${slug}-${ano}.pdf`);
+      toast.success('PDF gerado');
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao gerar PDF');
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       <Sidebar user={user} />
@@ -163,8 +264,13 @@ export default function RhPerformanceSetor({ user }) {
             Somar médias dos Setores
             <span className="text-emerald-600" title="Setores com o mesmo 'Setor do Colaborador' compartilham as mesmas pessoas: soma as vendas deles e divide pela qtd do setor — a mesma média aparece em todas as linhas do grupo.">ⓘ</span>
           </label>
+          <button onClick={exportarPDF} disabled={!filtroLoja || setores.length === 0}
+            className="ml-auto px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1"
+            title="Exportar a tabela pra PDF (meses com venda lançada)">
+            📄 PDF
+          </button>
           <button onClick={() => setModal(true)} disabled={!filtroLoja}
-            className="ml-auto px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
+            className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
             ➕ Novo Setor
           </button>
         </div>
