@@ -2243,15 +2243,18 @@ export class RhController {
   // Endpoint PUBLICO - sem auth. Candidato/colaborador preenche pelo link direto.
   static async salvarDiscResultadoPublico(req: any, res: Response) {
     try {
-      const { nome, scores, perfil_primario, perfil_secundario, respostas, curriculo_id } = req.body;
+      const { nome, scores, perfil_primario, perfil_secundario, respostas, curriculo_id, colaborador_id } = req.body;
       if (!nome || !perfil_primario || !scores) {
         return res.status(400).json({ error: 'Dados incompletos' });
       }
       const cidNum = curriculo_id != null && curriculo_id !== '' ? Number(curriculo_id) : null;
+      // colaborador_id vem quando o link foi gerado no modo "Colaborador" (já contratado) — amarra o
+      // resultado ao cadastro pra aparecer no chip da lista + card do modal. Candidato = null.
+      const colabNum = colaborador_id != null && colaborador_id !== '' ? Number(colaborador_id) : null;
       const result = await AppDataSource.query(
         `INSERT INTO rh_disc_resultados (nome, colaborador_id, curriculo_id, score_d, score_i, score_s, score_c, perfil_primario, perfil_secundario, respostas, avaliador_id)
-         VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8, $9, NULL) RETURNING id, perfil_primario, perfil_secundario`,
-        [nome, cidNum, scores.D || 0, scores.I || 0, scores.S || 0, scores.C || 0, perfil_primario, perfil_secundario || null, JSON.stringify(respostas || {})]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NULL) RETURNING id, perfil_primario, perfil_secundario`,
+        [nome, colabNum, cidNum, scores.D || 0, scores.I || 0, scores.S || 0, scores.C || 0, perfil_primario, perfil_secundario || null, JSON.stringify(respostas || {})]
       );
       res.status(201).json({ success: true, resultado: result[0] });
     } catch (error: any) {
@@ -2291,6 +2294,28 @@ export class RhController {
     } catch (error) {
       console.error('List DISC results error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  /**
+   * GET /rh/disc/por-colaborador — mapa { [colaborador_id]: {perfil, scores} } com o DISC
+   * MAIS RECENTE de cada colaborador. Usado pelo chip da lista + card do cadastro (RhCadastroGeral).
+   */
+  static async discPorColaborador(_req: AuthRequest, res: Response) {
+    try {
+      const rows = await AppDataSource.query(
+        `SELECT DISTINCT ON (colaborador_id) colaborador_id, id, perfil_primario, perfil_secundario,
+                score_d, score_i, score_s, score_c, created_at
+         FROM rh_disc_resultados
+         WHERE colaborador_id IS NOT NULL
+         ORDER BY colaborador_id, created_at DESC`
+      );
+      const disc: Record<number, any> = {};
+      for (const r of rows) disc[r.colaborador_id] = r;
+      return res.json({ disc });
+    } catch (e: any) {
+      console.error('[RH] discPorColaborador:', e?.message);
+      return res.status(500).json({ error: 'Erro ao buscar DISC por colaborador' });
     }
   }
 

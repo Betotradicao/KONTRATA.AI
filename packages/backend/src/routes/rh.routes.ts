@@ -215,6 +215,7 @@ router.delete('/historico-alteracoes/:id', authenticateToken, RhController.delet
 // Endpoint PUBLICO do DISC (sem auth) — candidato/colaborador preenche via link direto
 router.post('/disc-publico/submit', RhController.salvarDiscResultadoPublico);
 
+router.get('/disc/por-colaborador', authenticateToken, RhController.discPorColaborador);
 router.get('/disc-results', authenticateToken, RhController.listarDiscResultados);
 router.get('/disc-results/:id', authenticateToken, RhController.getDiscResultado);
 router.post('/disc-results', authenticateToken, RhController.salvarDiscResultado);
@@ -262,6 +263,7 @@ router.get('/apontamentos', authenticateToken, RhApontamentosController.listar);
 router.get('/apontamentos/periodos', authenticateToken, RhApontamentosController.listarPeriodos);
 
 // Folha de Pagamento - resumo anual (pivot mes x lancamento)
+router.get('/folha/indicadores', authenticateToken, RhFolhaController.indicadores);
 router.get('/folha/resumo-anual', authenticateToken, RhFolhaController.resumoAnual);
 router.get('/folha/holerite', authenticateToken, RhFolhaController.holerite);
 router.post('/apontamentos/periodos/deletar', authenticateToken, RhApontamentosController.deletarPeriodo);
@@ -296,6 +298,7 @@ router.delete('/performance-setor/:id', authenticateToken, RhPerformanceControll
 router.post('/performance-setor/venda', authenticateToken, RhPerformanceController.salvarVenda);
 
 // Departamento Pessoal (docs da empresa)
+router.get('/dp/indicadores', authenticateToken, RhDpController.indicadores);
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);
 router.post('/dp/pastas', authenticateToken, RhDpController.criarPasta);
 router.post('/dp/pastas/reordenar', authenticateToken, RhDpController.reordenarPastas);

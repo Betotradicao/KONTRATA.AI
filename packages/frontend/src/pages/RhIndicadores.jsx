@@ -147,12 +147,12 @@ export default function RhIndicadores() {
           <div className="flex overflow-x-auto px-2">
             {ABAS.map(a => (
               <button key={a.id} onClick={() => setAba(a.id)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
+                className={`px-5 py-3.5 text-[15px] font-semibold whitespace-nowrap border-b-2 transition-colors flex items-center gap-2 ${
                   aba === a.id
                     ? 'border-rose-500 text-rose-600 bg-rose-50/50'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}>
-                <span>{a.icon}</span>
+                <span className="text-lg">{a.icon}</span>
                 <span>{a.label}</span>
               </button>
             ))}
@@ -185,8 +185,14 @@ export default function RhIndicadores() {
           {/* Aba Pesquisa de Clima — funcional (pesquisa_* + NR-1) */}
           {aba === 'pesquisa-clima' && <AbaPesquisaClima ano={ano} />}
 
+          {/* Aba Departamento Pessoal — funcional (ASO + documentos obrigatórios + dp_documentos) */}
+          {aba === 'dp' && <AbaDepartamentoPessoal ano={ano} empresaId={empresaId} />}
+
+          {/* Aba Financeiro RH — funcional (folha: salário + apontamentos + encargos estimados) */}
+          {aba === 'financeiro' && <AbaFinanceiroRH ano={ano} empresaId={empresaId} />}
+
           {/* Outras abas — esqueleto que vai ser conectado conforme cada tela origem fica pronta */}
-          {aba !== 'colaboradores' && aba !== 'ponto-ausencias' && aba !== 'recrutamento' && aba !== 'pesquisa-clima' && <Esqueleto aba={aba} ano={ano} />}
+          {aba !== 'colaboradores' && aba !== 'ponto-ausencias' && aba !== 'recrutamento' && aba !== 'pesquisa-clima' && aba !== 'dp' && aba !== 'financeiro' && <Esqueleto aba={aba} ano={ano} />}
         </div>
       </div>
     </div>
@@ -1839,6 +1845,210 @@ function Tabela({ titulo, cor, linhas }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// Aba Financeiro RH — folha (salário base + apontamentos) + encargos ESTIMADOS.
+// Fonte: GET /rh/folha/indicadores. Encargos e provisões são estimativa por %.
+function AbaFinanceiroRH({ ano, empresaId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const qs = new URLSearchParams({ ano: String(ano) });
+    if (empresaId) qs.set('company_id', empresaId);
+    api.get(`/rh/folha/indicadores?${qs.toString()}`)
+      .then(r => setData(r.data))
+      .catch(() => toast.error('Erro ao carregar Financeiro RH'))
+      .finally(() => setLoading(false));
+  }, [ano, empresaId]);
+
+  if (loading) return <div className="flex justify-center py-20"><RadarLoading size="sm" message="" /></div>;
+  if (!data) return <div className="text-center text-gray-400 py-16">Sem dados.</div>;
+
+  const MESES_L = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const brl = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const brlK = (v) => {
+    const n = Number(v) || 0;
+    if (Math.abs(n) >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' mi';
+    if (Math.abs(n) >= 1e3) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mil';
+    return brl(n);
+  };
+  const tipMoeda = { callbacks: { label: (c) => `${c.dataset.label || c.label}: ${brl(c.parsed.y ?? c.parsed)}` } };
+
+  const k = data.kpis || {};
+  const ev = data.evolucao_mensal || {};
+  const evChart = {
+    labels: MESES_L,
+    datasets: [
+      { label: 'Folha Bruta', data: ev.bruto || [], borderColor: '#6366f1', backgroundColor: '#6366f133', tension: 0.3, fill: true },
+      { label: 'Custo Total (c/ encargos)', data: ev.custo_total || [], borderColor: '#f43f5e', backgroundColor: 'transparent', tension: 0.3 },
+    ],
+  };
+  const evOpt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: tipMoeda, datalabels: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => brlK(v) } } } };
+
+  const setores = data.custo_por_setor || [];
+  const PALETA = ['#6366f1', '#f43f5e', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#eab308', '#64748b'];
+  const setorChart = { labels: setores.map(s => s.setor), datasets: [{ data: setores.map(s => s.valor), backgroundColor: setores.map((_, i) => PALETA[i % PALETA.length]) }] };
+  const setorOpt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }, tooltip: { callbacks: { label: c => `${c.label}: ${brl(c.parsed)}` } }, datalabels: { display: false } } };
+
+  const comp = data.composicao || {};
+  const compChart = { labels: ['Salário', 'Encargos (est.)', 'Benefícios'], datasets: [{ data: [comp.salario || 0, comp.encargos || 0, comp.beneficios || 0], backgroundColor: ['#6366f1', '#f43f5e', '#10b981'] }] };
+  const compOpt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `${c.label}: ${brl(c.parsed)}` } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v, ctx) => { const t = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1; return Math.round((v / t) * 100) + '%'; } } } };
+
+  const ed = data.encargos_detalhados || {};
+  const edChart = { labels: ['FGTS', 'INSS', 'Férias', '13º'], datasets: [{ label: 'Encargos (ano)', data: [ed.fgts || 0, ed.inss || 0, ed.ferias || 0, ed.decimo_terceiro || 0], backgroundColor: ['#3b82f6', '#f43f5e', '#10b981', '#f59e0b'], borderRadius: 4 }] };
+  const edOpt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: tipMoeda, datalabels: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => brlK(v) } } } };
+
+  const pv = data.provisoes_mensais || [];
+  const pvChart = { labels: MESES_L, datasets: [
+    { label: 'Provisão 13º', data: pv.map(x => x.decimo_terceiro), backgroundColor: '#f59e0b', borderRadius: 3 },
+    { label: 'Provisão Férias', data: pv.map(x => x.ferias), backgroundColor: '#10b981', borderRadius: 3 },
+  ] };
+  const pvOpt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: tipMoeda, datalabels: { display: false } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => brlK(v) } } } };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <CardDoc label="Folha do Mês" valor={brlK(k.folha_mes)} cor="blue" icone="💰" />
+        <CardDoc label="Folha Acumulada (ano)" valor={brlK(k.folha_ano)} cor="indigo" icone="📈" />
+        <CardDoc label="Custo Médio / Colaborador" valor={brlK(k.custo_medio)} cor="emerald" icone="👤" />
+        <CardDoc label="Total de Encargos (ano)" valor={brlK(k.encargos_ano)} cor="rose" icone="🏦" />
+      </div>
+      <p className="text-xs text-gray-400 -mt-2">💵 Folha = salário base + proventos − descontos ({k.ativos ?? 0} ativos). <b>Encargos e provisões são estimativa</b> (FGTS 8% · INSS patronal 20% · 13º 8,33% · Férias+⅓ 11,11%), não valores fechados de contador.</p>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Painel titulo="Evolução Mensal da Folha" hint={`Ano-base ${ano} · bruta × custo total`}>
+          <div style={{ height: 260 }}><Line data={evChart} options={evOpt} /></div>
+        </Painel>
+        <Painel titulo="Custo por Setor" hint="custo mensal estimado (salário + encargos)">
+          {setores.length ? <div style={{ height: 260 }}><Doughnut data={setorChart} options={setorOpt} /></div>
+            : <p className="text-gray-400 text-sm text-center pt-16">Sem colaboradores com setor</p>}
+        </Painel>
+        <Painel titulo="Composição: Salário vs Encargos vs Benefícios" hint="mês atual">
+          <div style={{ height: 260 }}><Doughnut data={compChart} options={compOpt} plugins={[ChartDataLabels]} /></div>
+        </Painel>
+        <Painel titulo="Encargos Detalhados (FGTS, INSS, Férias, 13º)" hint={`estimativa acumulada ${ano}`}>
+          <div style={{ height: 260 }}><Bar data={edChart} options={edOpt} /></div>
+        </Painel>
+        <Painel titulo="Provisões Mensais (13º e Férias)" hint="estimativa por mês" className="lg:col-span-2">
+          <div style={{ height: 240 }}><Bar data={pvChart} options={pvOpt} /></div>
+        </Painel>
+      </div>
+    </div>
+  );
+}
+
+// Aba Departamento Pessoal — ASO (vencido/a-vencer) + documentos obrigatórios
+// (faltantes/conformidade) + documentos da empresa. Fonte: GET /rh/dp/indicadores.
+function AbaDepartamentoPessoal({ ano, empresaId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const qs = new URLSearchParams({ ano: String(ano) });
+    if (empresaId) qs.set('company_id', empresaId);
+    api.get(`/rh/dp/indicadores?${qs.toString()}`)
+      .then(r => setData(r.data))
+      .catch(() => toast.error('Erro ao carregar Departamento Pessoal'))
+      .finally(() => setLoading(false));
+  }, [ano, empresaId]);
+
+  if (loading) return <div className="flex justify-center py-20"><RadarLoading size="sm" message="" /></div>;
+  if (!data) return <div className="text-center text-gray-400 py-16">Sem dados.</div>;
+
+  const k = data.kpis || {};
+  const MESES_L = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  // Formata DATE do Postgres sem passar pelo fuso (evita voltar 1 dia).
+  const fmtVenc = (d) => {
+    if (!d) return '—';
+    const m = String(d).match(/(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : new Date(d).toLocaleDateString('pt-BR');
+  };
+
+  const asoChart = {
+    labels: MESES_L,
+    datasets: [
+      { label: 'Emitidos', data: data.aso_mensal?.emissoes || [], backgroundColor: '#10b981', borderRadius: 4 },
+      { label: 'Vencendo', data: data.aso_mensal?.vencimentos || [], backgroundColor: '#f43f5e', borderRadius: 4 },
+    ],
+  };
+  const asoOpt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } };
+
+  const lojas = data.conformidade_por_loja || [];
+  const confChart = {
+    labels: lojas.map(l => l.loja),
+    datasets: [{ label: 'Conformidade %', data: lojas.map(l => l.pct), backgroundColor: lojas.map(l => l.pct >= 80 ? '#10b981' : l.pct >= 50 ? '#f59e0b' : '#f43f5e'), borderRadius: 4 }],
+  };
+  const confOpt = { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', formatter: v => v + '%', color: '#374151', font: { weight: 'bold' } } }, scales: { x: { beginAtZero: true, max: 100 } } };
+
+  const pastas = data.pastas_top || [];
+  const maxPasta = Math.max(...pastas.map(p => p.qtd), 1);
+  const vencidos = data.vencidos_detalhe || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <CardDoc label="Documentos Vencidos" valor={k.vencidos ?? 0} cor="rose" icone="⛔" />
+        <CardDoc label="Vencendo em 30 dias" valor={k.a_vencer ?? 0} cor="amber" icone="⏳" />
+        <CardDoc label="Documentos Faltantes" valor={k.faltantes ?? 0} cor={k.faltantes > 0 ? 'rose' : 'emerald'} icone="📌" />
+        <CardDoc label="Taxa de Conformidade" valor={(k.conformidade ?? 0) + '%'} cor={k.conformidade >= 80 ? 'emerald' : k.conformidade >= 50 ? 'amber' : 'rose'} icone="✅" />
+      </div>
+      <p className="text-xs text-gray-400 -mt-2">📄 {k.total_documentos ?? 0} documentos arquivados · <b>Faltantes</b> = documento obrigatório do colaborador não enviado · <b>Vencidos/A vencer</b> = ASO + documentos da empresa.</p>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Painel titulo="ASOs — Emissão e Vencimento Mensal" hint={`Ano-base ${ano}`}>
+          <div style={{ height: 260 }}><Bar data={asoChart} options={asoOpt} /></div>
+        </Painel>
+        <Painel titulo="Conformidade por Empresa/Loja" hint="% de documentos obrigatórios em dia">
+          {lojas.length
+            ? <div style={{ height: 260 }}><Bar data={confChart} options={confOpt} plugins={[ChartDataLabels]} /></div>
+            : <p className="text-gray-400 text-sm text-center pt-16">Sem dados de conformidade</p>}
+        </Painel>
+        <Painel titulo="Pastas com mais Documentos" hint="ranking por arquivos enviados">
+          {pastas.length ? (
+            <div className="space-y-2">
+              {pastas.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 w-4">{i + 1}</span>
+                  <span className="text-sm text-gray-700 w-40 truncate" title={p.nome}>{p.nome}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
+                    <div className="h-full bg-indigo-400" style={{ width: `${(p.qtd / maxPasta) * 100}%` }} />
+                  </div>
+                  <span className="text-sm font-bold text-gray-600 w-8 text-right">{p.qtd}</span>
+                </div>
+              ))}
+            </div>
+          ) : <p className="text-gray-400 text-sm text-center py-10">Nenhum documento enviado</p>}
+        </Painel>
+        <Painel titulo="Documentos Vencidos Detalhados" hint={`${vencidos.length} item(ns)`}>
+          {vencidos.length ? (
+            <div className="overflow-auto max-h-64">
+              <table className="min-w-full text-sm">
+                <thead className="text-left text-[11px] uppercase text-gray-500 border-b sticky top-0 bg-white">
+                  <tr><th className="px-2 py-1">Documento</th><th className="px-2 py-1">Colaborador</th><th className="px-2 py-1">Loja</th><th className="px-2 py-1 text-center">Venceu em</th></tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {vencidos.map((v, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="px-2 py-1 whitespace-nowrap">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold mr-1 ${v.tipo === 'ASO' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{v.tipo}</span>
+                        {v.descricao}
+                      </td>
+                      <td className="px-2 py-1 whitespace-nowrap text-gray-600">{v.colaborador}</td>
+                      <td className="px-2 py-1 whitespace-nowrap text-gray-500">{v.loja}</td>
+                      <td className="px-2 py-1 whitespace-nowrap text-center text-rose-600 font-semibold">{fmtVenc(v.data_vencimento)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className="text-gray-400 text-sm text-center py-10">🎉 Nenhum documento vencido</p>}
+        </Painel>
+      </div>
     </div>
   );
 }

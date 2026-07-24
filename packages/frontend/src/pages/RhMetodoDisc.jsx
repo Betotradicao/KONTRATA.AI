@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -199,13 +199,43 @@ export default function RhMetodoDisc() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [step, setStep] = useState('info'); // 'info' | 'quiz' | 'results'
   const [nome, setNome] = useState('');
+  // Modo de aplicação: 'candidato' (link público genérico) ou 'colaborador' (já contratado, seletor)
+  const [modo, setModo] = useState('candidato');
+  const [colaboradores, setColaboradores] = useState([]);
+  const [colabId, setColabId] = useState('');
   const [currentGroup, setCurrentGroup] = useState(0);
   const [answers, setAnswers] = useState({}); // { groupId: { mais: optionIndex, menos: optionIndex } }
   const [scores, setScores] = useState(null);
   const [saving, setSaving] = useState(false);
   const resultsRef = useRef(null);
 
+  // Carrega colaboradores ATIVOS pro seletor do modo Colaborador.
+  // Filtra no backend (status=ativo) E no cliente — dupla garantia de não vir desligado.
+  useEffect(() => {
+    api.get('/rh/colaboradores?status=ativo&limit=1000')
+      .then(r => {
+        const lista = r.data?.data || r.data?.colaboradores || r.data || [];
+        setColaboradores(lista.filter(c => c.status === 'ativo'));
+      })
+      .catch(() => {});
+  }, []);
+
+  const selecionarColab = (id) => {
+    setColabId(id);
+    const c = colaboradores.find(x => String(x.id) === String(id));
+    setNome(c ? (c.nome || '') : '');
+  };
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const linkColab = colabId && nome.trim()
+    ? `${origin}/disc?nome=${encodeURIComponent(nome.trim())}&colaborador_id=${colabId}`
+    : '';
+
   const handleStart = () => {
+    if (modo === 'colaborador' && !colabId) {
+      toast.error('Selecione o colaborador na lista');
+      return;
+    }
     if (!nome.trim()) {
       toast.error('Por favor, informe o nome do colaborador/candidato');
       return;
@@ -299,6 +329,7 @@ export default function RhMetodoDisc() {
       setSaving(true);
       await api.post('/rh/disc-results', {
         nome: nome.trim(),
+        colaborador_id: modo === 'colaborador' && colabId ? Number(colabId) : null,
         scores: scores.raw,
         perfil_primario: primary,
         perfil_secundario: secondary,
@@ -316,9 +347,16 @@ export default function RhMetodoDisc() {
   const handleNewAssessment = () => {
     setStep('info');
     setNome('');
+    setColabId('');
     setCurrentGroup(0);
     setAnswers({});
     setScores(null);
+  };
+
+  const copiarLink = (url, msg) => {
+    navigator.clipboard.writeText(url)
+      .then(() => toast.success(msg))
+      .catch(() => toast.error('Não foi possível copiar — selecione e copie manualmente.'));
   };
 
   const handlePrint = () => {
@@ -339,28 +377,61 @@ export default function RhMetodoDisc() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Metodo DISC - Perfil Comportamental</h2>
           <p className="text-gray-500 text-sm">Avaliacao baseada na metodologia DISC de William Marston</p>
 
-          {/* Link publico para candidato responder */}
-          <div className="mt-5 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-left">
-                <div className="text-xs uppercase font-bold text-purple-700 mb-0.5">🔗 Link público pro candidato</div>
-                <div className="text-sm text-gray-700">Envie esse link por WhatsApp pra ele responder sozinho (não precisa login):</div>
-                <div className="font-mono text-xs text-purple-900 bg-white px-2 py-1 rounded border mt-1 inline-block select-all">
-                  {typeof window !== 'undefined' ? `${window.location.origin}/disc` : '/disc'}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  const url = `${window.location.origin}/disc`;
-                  navigator.clipboard.writeText(url)
-                    .then(() => toast.success('Link copiado! Cole no WhatsApp do candidato.'))
-                    .catch(() => toast.error('Não foi possível copiar — selecione e copie manualmente.'));
-                }}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold shadow">
-                📋 Copiar Link
-              </button>
-            </div>
+          {/* Toggle de modo: Candidato (link público) x Colaborador (já contratado) */}
+          <div className="mt-5 flex gap-2 justify-center flex-wrap">
+            <button type="button"
+              onClick={() => { setModo('candidato'); setColabId(''); setNome(''); }}
+              className={`px-4 py-2 rounded-lg text-sm font-bold border-2 transition ${modo === 'candidato' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-300 hover:border-orange-300'}`}>
+              🔗 Candidato (link público)
+            </button>
+            <button type="button"
+              onClick={() => { setModo('colaborador'); setNome(''); }}
+              className={`px-4 py-2 rounded-lg text-sm font-bold border-2 transition ${modo === 'colaborador' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-300 hover:border-orange-300'}`}>
+              👥 Colaborador (já na empresa)
+            </button>
           </div>
+
+          {/* MODO CANDIDATO: link público genérico */}
+          {modo === 'candidato' && (
+            <div className="mt-4 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="text-left">
+                  <div className="text-xs uppercase font-bold text-purple-700 mb-0.5">🔗 Link público pro candidato</div>
+                  <div className="text-sm text-gray-700">Envie esse link por WhatsApp pra ele responder sozinho (não precisa login):</div>
+                  <div className="font-mono text-xs text-purple-900 bg-white px-2 py-1 rounded border mt-1 inline-block select-all">
+                    {origin ? `${origin}/disc` : '/disc'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => copiarLink(`${origin}/disc`, 'Link copiado! Cole no WhatsApp do candidato.')}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold shadow">
+                  📋 Copiar Link
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* MODO COLABORADOR: link personalizado (aparece após escolher o colaborador abaixo) */}
+          {modo === 'colaborador' && (
+            <div className="mt-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg p-4 text-left">
+              <div className="text-xs uppercase font-bold text-emerald-700 mb-0.5">👥 Link do colaborador</div>
+              {linkColab ? (
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="text-sm text-gray-700">Mande no WhatsApp do <strong>{nome}</strong> — o resultado cai direto no cadastro dele:</div>
+                    <div className="font-mono text-xs text-emerald-900 bg-white px-2 py-1 rounded border mt-1 inline-block select-all break-all">{linkColab}</div>
+                  </div>
+                  <button
+                    onClick={() => copiarLink(linkColab, 'Link copiado! Cole no WhatsApp do colaborador.')}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow">
+                    📋 Copiar Link
+                  </button>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">Selecione o colaborador abaixo pra gerar o link personalizado (ou aplique na hora com “Iniciar Avaliação”).</div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bg-gray-50 rounded-lg p-6 mb-8">
@@ -386,19 +457,39 @@ export default function RhMetodoDisc() {
           </ul>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nome do colaborador / candidato
-          </label>
-          <input
-            type="text"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Digite o nome completo..."
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-700"
-            onKeyDown={(e) => e.key === 'Enter' && handleStart()}
-          />
-        </div>
+        {modo === 'colaborador' ? (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Colaborador ativo
+            </label>
+            <select
+              value={colabId}
+              onChange={(e) => selecionarColab(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-700 bg-white">
+              <option value="">— selecione o colaborador —</option>
+              {colaboradores.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.matricula ? `${c.matricula} · ` : ''}{c.nome}{c.cargo_nome ? ` (${c.cargo_nome})` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">{colaboradores.length} colaboradores ativos. O resultado fica amarrado ao cadastro dele.</p>
+          </div>
+        ) : (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nome do candidato
+            </label>
+            <input
+              type="text"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Digite o nome completo..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-700"
+              onKeyDown={(e) => e.key === 'Enter' && handleStart()}
+            />
+          </div>
+        )}
 
         <button
           onClick={handleStart}

@@ -6,6 +6,141 @@ import { minioService } from '../services/minio.service';
 
 /** Departamento Pessoal: documentos da EMPRESA (nao por colaborador) */
 export class RhDpController {
+  /**
+   * GET /rh/dp/indicadores?ano=&company_id= — dashboard do Departamento Pessoal.
+   * Consolida 3 fontes: ASO (rh_asos, vencimento real por colaborador), documentos
+   * obrigatórios por colaborador (faltantes + conformidade) e documentos da empresa
+   * (dp_documentos, com data_vencimento). Retorna kpis + charts + tabela de vencidos.
+   */
+  static async indicadores(req: AuthRequest, res: Response) {
+    try {
+      const ano = parseInt((req.query.ano as string) || '') || new Date().getFullYear();
+      const companyId = (req.query.company_id as string) || null;
+      // Filtro de loja (via rh_colaboradores.company_id -> companies). $1 sempre é companyId.
+      const colabFiltro = companyId ? ' AND c.company_id = $1' : '';
+      const p = companyId ? [companyId] : [];
+
+      // 1) ASO vigente por colaborador ativo não dispensado (periódico > admissional, mais recente).
+      const asoVig = await AppDataSource.query(
+        `SELECT DISTINCT ON (a.colaborador_id)
+           a.colaborador_id, a.tipo, a.data_exame, a.data_vencimento,
+           c.nome AS colaborador_nome,
+           COALESCE(comp.apelido, comp.nome_fantasia) AS loja, comp.cod_loja
+         FROM rh_asos a
+         JOIN rh_colaboradores c ON c.id = a.colaborador_id
+         LEFT JOIN companies comp ON comp.id = c.company_id
+         WHERE c.status = 'ativo' AND COALESCE(c.aso_dispensado, false) = false
+           AND a.tipo IN ('admissional','periodico')${colabFiltro}
+         ORDER BY a.colaborador_id,
+           CASE WHEN a.tipo = 'periodico' THEN 0 ELSE 1 END, a.data_exame DESC`, p);
+
+      const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+      const em30 = new Date(hoje); em30.setDate(em30.getDate() + 30);
+      const vencidos: any[] = [];
+      let asoVencidos = 0, asoAVencer = 0;
+      for (const r of asoVig) {
+        if (!r.data_vencimento) continue;
+        const dv = new Date(r.data_vencimento); dv.setHours(0, 0, 0, 0);
+        if (dv < hoje) {
+          asoVencidos++;
+          vencidos.push({ tipo: 'ASO', descricao: `ASO ${r.tipo}`, colaborador: r.colaborador_nome, loja: r.loja, data_vencimento: r.data_vencimento });
+        } else if (dv <= em30) asoAVencer++;
+      }
+
+      // 2) Documentos da empresa (dp_documentos) com vencimento.
+      let dpVencidos = 0, dpAVencer = 0;
+      try {
+        const dpDocs = await AppDataSource.query(
+          `SELECT nome, data_vencimento FROM dp_documentos WHERE data_vencimento IS NOT NULL`);
+        for (const d of dpDocs) {
+          const dv = new Date(d.data_vencimento); dv.setHours(0, 0, 0, 0);
+          if (dv < hoje) { dpVencidos++; vencidos.push({ tipo: 'Empresa', descricao: d.nome, colaborador: '—', loja: '—', data_vencimento: d.data_vencimento }); }
+          else if (dv <= em30) dpAVencer++;
+        }
+      } catch { /* dp_documentos pode não existir em base antiga */ }
+
+      // 3) Obrigatórios por colaborador (faltantes + conformidade), agrupável por loja.
+      const conf = await AppDataSource.query(
+        `SELECT c.id, COALESCE(comp.apelido, comp.nome_fantasia) AS loja, comp.cod_loja,
+           COUNT(s.id) FILTER (WHERE s.obrigatorio) AS obrig,
+           COUNT(s.id) FILTER (WHERE s.obrigatorio AND NOT EXISTS (
+             SELECT 1 FROM rh_documentos d WHERE d.subpasta_id = s.id)) AS pend
+         FROM rh_colaboradores c
+         LEFT JOIN companies comp ON comp.id = c.company_id
+         LEFT JOIN rh_documento_pastas pa ON pa.colaborador_id = c.id
+         LEFT JOIN rh_documento_subpastas s ON s.pasta_id = pa.id
+         WHERE c.status = 'ativo'${colabFiltro}
+         GROUP BY c.id, comp.apelido, comp.nome_fantasia, comp.cod_loja`, p);
+      let obrigTotal = 0, faltantes = 0;
+      const porLoja: Record<string, { loja: string; obrig: number; pend: number }> = {};
+      for (const r of conf) {
+        const ob = Number(r.obrig) || 0, pe = Number(r.pend) || 0;
+        obrigTotal += ob; faltantes += pe;
+        const key = r.loja || 'Sem loja';
+        (porLoja[key] ||= { loja: key, obrig: 0, pend: 0 });
+        porLoja[key].obrig += ob; porLoja[key].pend += pe;
+      }
+      const conformidade = obrigTotal > 0 ? Math.round(((obrigTotal - faltantes) / obrigTotal) * 100) : 100;
+      const conformidadePorLoja = Object.values(porLoja)
+        .map(l => ({ loja: l.loja, pct: l.obrig > 0 ? Math.round(((l.obrig - l.pend) / l.obrig) * 100) : 100, obrig: l.obrig, pend: l.pend }))
+        .sort((a, b) => a.pct - b.pct);
+
+      // 4) Total de documentos + pastas com mais documentos.
+      const totRes = await AppDataSource.query(
+        `SELECT COUNT(d.id)::int AS total
+         FROM rh_documentos d
+         JOIN rh_documento_pastas pa ON pa.id = d.pasta_id
+         JOIN rh_colaboradores c ON c.id = pa.colaborador_id
+         WHERE c.status = 'ativo'${colabFiltro}`, p);
+      const totalDocumentos = totRes[0]?.total || 0;
+
+      const pastas = await AppDataSource.query(
+        `SELECT pa.nome, COUNT(d.id)::int AS qtd
+         FROM rh_documentos d
+         JOIN rh_documento_pastas pa ON pa.id = d.pasta_id
+         JOIN rh_colaboradores c ON c.id = pa.colaborador_id
+         WHERE c.status = 'ativo'${colabFiltro}
+         GROUP BY pa.nome ORDER BY qtd DESC LIMIT 10`, p);
+
+      // 5) ASO mensal (emissão x vencimento) no ano-base.
+      const anoFiltro = companyId ? ' AND c.company_id = $2' : '';
+      const pAno = companyId ? [ano, companyId] : [ano];
+      const mensal = await AppDataSource.query(
+        `SELECT EXTRACT(MONTH FROM a.data_exame)::int AS mes, 'emissao' AS k, COUNT(*)::int AS qtd
+           FROM rh_asos a JOIN rh_colaboradores c ON c.id = a.colaborador_id
+           WHERE EXTRACT(YEAR FROM a.data_exame) = $1${anoFiltro} GROUP BY 1
+         UNION ALL
+         SELECT EXTRACT(MONTH FROM a.data_vencimento)::int, 'vencimento', COUNT(*)::int
+           FROM rh_asos a JOIN rh_colaboradores c ON c.id = a.colaborador_id
+           WHERE a.data_vencimento IS NOT NULL AND EXTRACT(YEAR FROM a.data_vencimento) = $1${anoFiltro} GROUP BY 1`, pAno);
+      const emissoes = Array(12).fill(0), vencimentos = Array(12).fill(0);
+      for (const r of mensal) {
+        const i = (r.mes || 1) - 1;
+        if (i < 0 || i > 11) continue;
+        if (r.k === 'emissao') emissoes[i] = r.qtd; else vencimentos[i] = r.qtd;
+      }
+
+      vencidos.sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
+
+      return res.json({
+        kpis: {
+          vencidos: asoVencidos + dpVencidos,
+          a_vencer: asoAVencer + dpAVencer,
+          faltantes,
+          conformidade,
+          total_documentos: totalDocumentos,
+        },
+        aso_mensal: { emissoes, vencimentos },
+        pastas_top: pastas,
+        conformidade_por_loja: conformidadePorLoja,
+        vencidos_detalhe: vencidos.slice(0, 100),
+      });
+    } catch (e: any) {
+      console.error('[RH-DP] indicadores:', e?.message);
+      return res.status(500).json({ error: e?.message || 'Erro ao carregar indicadores DP' });
+    }
+  }
+
   // --- PASTAS ---
   static async listarPastas(req: AuthRequest, res: Response) {
     try {

@@ -6,6 +6,10 @@ import { api } from '../utils/api';
 import toast from 'react-hot-toast';
 import RadarLoading from '../components/RadarLoading';
 
+// Cores dos 4 perfis DISC (chip da lista + card do cadastro)
+const DISC_COR = { D: 'bg-red-500', I: 'bg-yellow-400', S: 'bg-emerald-500', C: 'bg-blue-500' };
+const DISC_NOME = { D: 'Dominante', I: 'Influente', S: 'Estável', C: 'Conforme' };
+
 export default function RhCadastroGeral() {
   const { user, logout } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,6 +17,8 @@ export default function RhCadastroGeral() {
 
   // Lista e paginacao
   const [colaboradores, setColaboradores] = useState([]);
+  // Mapa { [colaborador_id]: {perfil_primario, perfil_secundario, score_*} } — DISC mais recente
+  const [discMap, setDiscMap] = useState({});
   const [filtro, setFiltro] = useState('');
   const [filtroDebounced, setFiltroDebounced] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('ativo');
@@ -438,6 +444,13 @@ export default function RhCadastroGeral() {
     }
   };
 
+  // Carrega o DISC mais recente de cada colaborador (chip na lista + card do modal)
+  useEffect(() => {
+    api.get('/rh/disc/por-colaborador')
+      .then(r => setDiscMap(r.data?.disc || {}))
+      .catch(() => {});
+  }, []);
+
   const abrirModal = async (colaborador = null) => {
     if (colaborador) {
       // Busca a versão completa do colaborador (com dependentes + campos novos
@@ -719,6 +732,7 @@ export default function RhCadastroGeral() {
     { id: 'pessoais', label: 'Dados Pessoais', icon: '👤' },
     { id: 'endereco', label: 'Endereco', icon: '🏠' },
     { id: 'profissionais', label: 'Profissionais', icon: '💼' },
+    { id: 'disc', label: 'Perfil DISC', icon: '🧠' },
     { id: 'documentos', label: 'Documentos', icon: '📄' },
     { id: 'familia', label: 'Família', icon: '👨‍👩‍👧' },
     { id: 'banco', label: 'Banco', icon: '🏦' },
@@ -959,6 +973,7 @@ export default function RhCadastroGeral() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Foto</th>
                       <th onClick={() => toggleSort('matricula')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Matricula{sortIcon('matricula')}</th>
                       <th onClick={() => toggleSort('nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Nome{sortIcon('nome')}</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap">DISC</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider whitespace-nowrap">Relógio de Ponto</th>
                       <th onClick={() => toggleSort('data_nascimento')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Idade{sortIcon('data_nascimento')}</th>
                       <th onClick={() => toggleSort('cpf')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">CPF{sortIcon('cpf')}</th>
@@ -1008,6 +1023,21 @@ export default function RhCadastroGeral() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {colab.nome}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-center">
+                            {(() => {
+                              const d = discMap[colab.id];
+                              if (!d) return <span className="text-gray-300" title="Sem avaliação DISC">—</span>;
+                              const sec = d.perfil_secundario && d.perfil_secundario !== d.perfil_primario ? d.perfil_secundario : null;
+                              return (
+                                <button type="button" onClick={() => abrirModal(colab)}
+                                  title={`DISC: ${d.perfil_primario}${sec ? ' · ' + sec : ''} — clique pra ver`}
+                                  className="inline-flex items-center gap-1 align-middle">
+                                  <span className={`w-6 h-6 rounded-full ${DISC_COR[d.perfil_primario] || 'bg-gray-400'} text-white text-xs font-bold flex items-center justify-center shadow-sm`}>{d.perfil_primario}</span>
+                                  {sec && <span className={`w-5 h-5 rounded-full ${DISC_COR[sec] || 'bg-gray-300'} text-white text-[10px] font-bold flex items-center justify-center opacity-80`}>{sec}</span>}
+                                </button>
+                              );
+                            })()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
                             {(() => {
@@ -1577,6 +1607,62 @@ export default function RhCadastroGeral() {
                     </div>
                   </div>
                 )}
+
+                {/* ===== ABA: Perfil DISC (só leitura — vem do Método DISC) ===== */}
+                {abaAtiva === 'disc' && (() => {
+                  const d = editando ? discMap[editando.id] : null;
+                  const sec = d?.perfil_secundario && d.perfil_secundario !== d.perfil_primario ? d.perfil_secundario : null;
+                  if (!editando) {
+                    return <div className="text-center text-gray-400 py-12">Salve o colaborador primeiro pra aplicar o DISC.</div>;
+                  }
+                  if (!d) {
+                    return (
+                      <div className="text-center py-12">
+                        <div className="text-5xl mb-3">🧠</div>
+                        <p className="text-gray-600 font-medium">Nenhuma avaliação DISC pra {(editando.nome || '').split(' ')[0]} ainda.</p>
+                        <p className="text-sm text-gray-400 mt-2 max-w-md mx-auto">
+                          Vá em <strong>Recrutamento › Método DISC</strong>, escolha o modo <strong>👥 Colaborador</strong>,
+                          selecione essa pessoa e gere o link (ou aplique na hora). O resultado aparece aqui.
+                        </p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-5">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-16 h-16 rounded-full ${DISC_COR[d.perfil_primario] || 'bg-gray-400'} flex items-center justify-center shadow`}>
+                          <span className="text-2xl font-bold text-white">{d.perfil_primario}</span>
+                        </div>
+                        <div>
+                          <div className="text-lg font-bold text-gray-800">Perfil {DISC_NOME[d.perfil_primario] || d.perfil_primario}</div>
+                          {sec && <div className="text-sm text-gray-500">Secundário: {DISC_NOME[sec] || sec} ({sec})</div>}
+                          <div className="text-xs text-gray-400 mt-0.5">Avaliado em {formatarDataBR(d.created_at)}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        {['D', 'I', 'S', 'C'].map((k) => {
+                          const val = { D: d.score_d, I: d.score_i, S: d.score_s, C: d.score_c }[k] || 0;
+                          const max = Math.max(Math.abs(d.score_d || 0), Math.abs(d.score_i || 0), Math.abs(d.score_s || 0), Math.abs(d.score_c || 0), 1);
+                          const pct = Math.round((Math.abs(val) / max) * 100);
+                          return (
+                            <div key={k}>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="font-medium text-gray-700"><span className="font-bold">{k}</span> · {DISC_NOME[k]}</span>
+                                <span className="text-gray-500">{val}</span>
+                              </div>
+                              <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                                <div className={`h-full ${DISC_COR[k]}`} style={{ width: `${Math.max(pct, 3)}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-gray-400 border-t pt-3">
+                        💡 Resultado do Método DISC (auto-conhecimento / desenvolvimento). Não é critério eliminatório.
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* ===== ABA: Documentos ===== */}
                 {abaAtiva === 'documentos' && (

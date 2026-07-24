@@ -16,6 +16,8 @@ export default function DiscPublico() {
   const [nome, setNome] = useState('');
   // Amarra o resultado do DISC ao curriculo de origem (quando vem do fluxo do curriculo)
   const [curriculoId, setCurriculoId] = useState(null);
+  // Amarra ao COLABORADOR já contratado (quando o link foi gerado no modo Colaborador)
+  const [colaboradorId, setColaboradorId] = useState(null);
   const [currentGroup, setCurrentGroup] = useState(0);
   const [answers, setAnswers] = useState({});
   const [scores, setScores] = useState(null);
@@ -28,6 +30,8 @@ export default function DiscPublico() {
     if (nomeParam) setNome(nomeParam.toUpperCase());
     const cidParam = params.get('curriculo_id');
     if (cidParam) setCurriculoId(Number(cidParam) || null);
+    const colabParam = params.get('colaborador_id');
+    if (colabParam) setColaboradorId(Number(colabParam) || null);
   }, []);
 
   const handleStart = () => {
@@ -78,6 +82,7 @@ export default function DiscPublico() {
         perfil_secundario,
         respostas: answers,
         curriculo_id: curriculoId || null,
+        colaborador_id: colaboradorId || null,
       });
       setStep('results');
     } catch (err) {

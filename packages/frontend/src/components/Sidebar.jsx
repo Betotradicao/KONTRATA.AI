@@ -388,8 +388,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           expandable: true,
           subItems: [
             { id: 'rh-espelho-ponto', submenuId: 'rh-ponto', title: 'ESPELHO DE PONTO', path: '/rh/espelho-ponto' },
-            { id: 'rh-ferias', submenuId: 'rh-ferias', title: 'CONTROLE DE FÉRIAS', path: '/rh/ferias' },
-            { id: 'rh-absenteismo', submenuId: 'rh-absenteismo', title: 'ANÁLISE ABSENTEÍSMO', path: '/rh/absenteismo' }
+            { id: 'rh-ferias', submenuId: 'rh-ferias', title: 'CONTROLE DE FÉRIAS', path: '/rh/ferias' }
           ]
         },
         {
