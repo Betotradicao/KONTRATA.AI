@@ -1,5 +1,25 @@
 # 🚧 Trabalho em Andamento
 
+## 💵 (08/07) — Indicadores RH: aba Financeiro RH plugada — LOCAL, uncommitado
+- **Backend:** `RhFolhaController.indicadores` + rota `GET /rh/folha/indicadores?ano=&company_id=`. Folha = `rh_colaboradores.salario` (base) + proventos − descontos. ⚠️ **R$ dos lançamentos vive em `rh_apontamentos.campos_extras->>'<chave>_valor'`** (as colunas numéricas são qtd/horas!). Chaves: 9 proventos + 8 descontos hardcoded (reusa PROVENTOS/DESCONTOS do controller) + extras de `rh_apontamento_campos`. **Encargos NÃO existem no banco → ESTIMADOS** (FGTS 8% + INSS patronal 20% + 13º 8,33% + férias+⅓ 11,11% ≈ 47% do bruto). Setor via `sector_id → sectors.name`. Benefícios via `rh_beneficios` + `beneficios_ids`. Queries com try/catch (campos_extras/beneficios_ids sem migration garantida).
+- **Frontend:** `AbaFinanceiroRH` (RhIndicadores.jsx): 4 KPIs (Folha mês/ano/Custo médio/Encargos) + Line evolução (bruta×custo total) + Doughnut custo por setor + Doughnut composição (salário/encargos/benefícios) + Bar encargos detalhados + Bar stacked provisões (13º/férias). Rótulo deixa claro que encargos são estimativa.
+- ⚠️ Limitação honesta: usa salário/quadro ATUAL pra todos os meses (sem histórico salarial). Documentado no rodapé.
+- ✅ backend tsc=0, front build=0. ✅ **COMMITADO `c63d925`** (KONTRATAAI, NÃO pushado). ⏳ Testar LOCAL → push → deploy. Abas do topo voltaram pro tamanho ~original (px-5 py-3.5 text-[15px]).
+
+## 📂 (08/07) — Indicadores RH: aba Departamento Pessoal plugada + abas maiores — LOCAL, uncommitado
+- **Backend:** `RhDpController.indicadores` + rota `GET /rh/dp/indicadores?ano=&company_id=`. Consolida 3 fontes: **ASO** (`rh_asos`, ASO vigente = periódico>admissional mais recente, DISTINCT ON; vencido/a-vencer 30d), **obrigatórios por colaborador** (`rh_documento_subpastas.obrigatorio` sem arquivo em `rh_documentos.subpasta_id` = FALTANTE; conformidade %), **docs da empresa** (`dp_documentos.data_vencimento`). Loja via `rh_colaboradores.company_id → companies` (COALESCE apelido/nome_fantasia). ⚠️ dp_documentos usa eixo `rh_empresas` (diferente), por isso entram sem filtro de loja.
+- **Frontend:** `AbaDepartamentoPessoal` (RhIndicadores.jsx): 4 KPIs (Vencidos/A vencer 30d/Faltantes/Conformidade) + Bar ASO mensal (emitidos×vencendo) + ranking Pastas + Bar horizontal Conformidade por loja + tabela Vencidos Detalhados (ASO+empresa). Reusa CardDoc/Painel/chart.js já no arquivo. `fmtVenc` evita -1 dia no DATE.
+- **Abas do topo maiores** (pedido): `px-8 py-6 text-lg font-bold`, ícone `text-3xl`, border-b-4.
+- ✅ backend tsc=0, front build=0. ✅ **COMMITADO `c63d925`** (KONTRATAAI, NÃO pushado). ⏳ Testar LOCAL (`/rh/indicadores` → aba Departamento Pessoal).
+
+## 🧠 (08/07) — DISC amarrado ao COLABADOR já contratado — LOCAL, uncommitado
+Objetivo: aplicar DISC em colaborador ativo (não candidato), resultado amarrado ao cadastro. ⚠️ Base legal: DISC em CANDIDATO é risco alto (ver [[LEGALIDADE JURIDICA/disc-em-candidatos]]); colaborador já contratado (desenvolvimento, não seleção) = risco menor. Por isso só fizemos p/ colaborador. Card diz "não é critério eliminatório".
+- **Backend:** `salvarDiscResultadoPublico` agora aceita `colaborador_id` (antes forçava NULL). Novo endpoint `GET /rh/disc/por-colaborador` → mapa {colab_id: DISC mais recente} (`DISTINCT ON`). Tabela `rh_disc_resultados` JÁ tinha `colaborador_id` (sem migration).
+- **RhMetodoDisc.jsx:** toggle **Candidato (link público)** × **Colaborador (já na empresa)**. Modo colaborador: `<select>` de ativos (`/rh/colaboradores?limit=1000` filtrado status=ativo) → gera link personalizado `/disc?nome=&colaborador_id=X` (ou aplica inline). handleSave manda colaborador_id.
+- **DiscPublico.jsx:** lê `?colaborador_id=` e envia no submit.
+- **RhCadastroGeral.jsx:** coluna **DISC** (chip colorido do perfil primário+secundário, clica → abre cadastro) + aba **🧠 Perfil DISC** no modal (perfil + barras D/I/S/C + data). `discMap` via `/rh/disc/por-colaborador`.
+- ✅ backend tsc=0, front build=0. ✅ **COMMITADO `c63d925`** (KONTRATAAI, NÃO pushado). ⏳ Testar LOCAL → push → deploy (precisa BACKEND rebuildado). Também: removi item "ANÁLISE ABSENTEÍSMO" do menu (Sidebar) — no mesmo commit.
+
 ## 📄 (08/07) — Performance por Setor: botão PDF + 2 fixes nos Indicadores RH — ✅ DEPLOYADO Tradição (8cfa071)
 `RhPerformanceSetor.jsx` + `RhIndicadores.jsx` + `geocode.service.ts`. Commit `8cfa071` (push KONTRATAAI). **DEPLOYADO VPS 46 kontrata-tradicao (08/07):** repo→8cfa071, build --no-cache back+front, up --no-deps, backend healthy, dist tem `ruaCol`×5, bundle novo `index-Mt7bIxjR` serve `Performance-Setor`, HTTP 200. ⏳ Falta deploy nos outros clientes kontrata. ⏳ Usuário testar: PDF sai OK? KM aparece após uns refreshes (self-heal, precisa CEP no colab+loja).
 1. ✅ **Botão 📄 PDF** na tela Performance por Setor (`RhPerformanceSetor.jsx`): jsPDF+autoTable (padrão do RhIndicadores), A4 paisagem, cabeçalho roxo. **Só inclui os meses COM venda lançada** (senão 24 colunas ficam ilegíveis); se nenhum mês tiver dado, cai pro ano inteiro. Total no rodapé.

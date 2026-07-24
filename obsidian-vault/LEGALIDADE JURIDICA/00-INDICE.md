@@ -17,6 +17,8 @@ eSocial, LGPD, documentos trabalhistas, etc).
 |---|---|
 | [[assinatura-eletronica-rh]] | Até onde dá pra ir com assinatura eletrônica **não-ICP** nos documentos de RH/contratação. Mapa documento-a-documento + requisitos de validade. |
 | [[fontes-e-jurisprudencia]] | Leis, portarias e decisões (STJ/TST/TRT) com links — a base de tudo. |
+| [[disc-em-candidatos]] | ⚠️ **RISCO ALTO:** CFP trata DISC como teste psicológico privativo de psicólogo. Aplicar via RH em candidato = risco de exercício ilegal + LGPD + Lei 9.029. Como mitigar. |
+| [[consulta-processual-feature]] | 💼 Vender consulta processual (modelo processoweb) na Kontrata: fontes/provedores, arquitetura legal (público+agregador+**opt-out**), o que o modelo B2B precisa a mais, esqueleto de ToS/Política. |
 
 ## 🔗 Temas relacionados (fora desta pasta)
 - eSocial / plataforma contábil: ver memória `project_kontrata_contabilidade_plataforma`
