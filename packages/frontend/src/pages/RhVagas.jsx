@@ -671,6 +671,10 @@ export default function RhVagas() {
       case 'num': return Number(c.curriculo_id) || 0;
       case 'nome': return c.nome || '';
       case 'km': return c.distancia_m == null ? Number.POSITIVE_INFINITY : Number(c.distancia_m);
+      // sem idade vai pro fim da lista crescente (mesmo criterio do km)
+      case 'idade': return c.idade == null ? Number.POSITIVE_INFINITY : Number(c.idade);
+      // quem TEM anexo primeiro no crescente (0 antes de 1)
+      case 'doc': return c.curriculo_pdf_url ? 0 : 1;
       case 'whatsapp': return c.whatsapp || '';
       case 'cidade': return c.cidade || '';
       case 'recebido': return c.created_at || '';
@@ -678,7 +682,7 @@ export default function RhVagas() {
       default: return '';
     }
   };
-  const cNumericos = ['num', 'km'];
+  const cNumericos = ['num', 'km', 'idade', 'doc'];
   const ordenarVisiveis = (lista) => {
     if (!cSort.field) return lista;
     const mult = cSort.dir === 'asc' ? 1 : -1;
@@ -1186,6 +1190,8 @@ export default function RhVagas() {
                                             <th onClick={() => toggleCSort('num')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'num' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">Nº</th>
                                             <th onClick={() => toggleCSort('nome')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'nome' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">Nome</th>
                                             <th onClick={() => toggleCSort('km')} className={`px-2 py-1.5 text-left whitespace-nowrap cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'km' ? 'bg-rose-200' : ''}`} title="Ordenar por distância">📍 KM Residência</th>
+                                            <th onClick={() => toggleCSort('idade')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'idade' ? 'bg-rose-200' : ''}`} title="Ordenar por idade">Idade</th>
+                                            <th onClick={() => toggleCSort('doc')} className={`px-1 py-1.5 text-center cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'doc' ? 'bg-rose-200' : ''}`} title="Currículo anexado pelo candidato — clique pra ordenar (quem tem anexo primeiro)">Doc</th>
                                             <th onClick={() => toggleCSort('whatsapp')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'whatsapp' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">WhatsApp</th>
                                             <th onClick={() => toggleCSort('cidade')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'cidade' ? 'bg-rose-200' : ''}`} title="Ordenar A-Z">Cidade</th>
                                             <th onClick={() => toggleCSort('recebido')} className={`px-2 py-1.5 text-left cursor-pointer select-none hover:bg-rose-200 ${cSort.field === 'recebido' ? 'bg-rose-200' : ''}`} title="Ordenar por data">Recebido em</th>
@@ -1245,6 +1251,25 @@ export default function RhVagas() {
                                                       </span>
                                                     ) : (
                                                       <span className="text-gray-300" title="Sem CEP do candidato/loja ou ainda calculando — atualize em alguns segundos">—</span>
+                                                    )}
+                                                  </td>
+                                                  <td className="px-2 py-1.5 whitespace-nowrap">
+                                                    {c.idade != null ? (
+                                                      <span className="font-semibold text-gray-700">{c.idade} anos</span>
+                                                    ) : (
+                                                      <span className="text-gray-300" title="Candidato sem data de nascimento no currículo">—</span>
+                                                    )}
+                                                  </td>
+                                                  <td className="px-1 py-1.5 text-center">
+                                                    {c.curriculo_pdf_url ? (
+                                                      <a href={c.curriculo_pdf_url} target="_blank" rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="text-base hover:scale-125 inline-block transition"
+                                                        title={`Abrir currículo anexado pelo candidato${c.curriculo_pdf_nome ? `: ${c.curriculo_pdf_nome}` : ''}`}>
+                                                        📄
+                                                      </a>
+                                                    ) : (
+                                                      <span className="text-gray-300" title="Candidato não anexou currículo">—</span>
                                                     )}
                                                   </td>
                                                   <td className="px-2 py-1.5 text-gray-700">
@@ -1385,7 +1410,7 @@ export default function RhVagas() {
                                                 </tr>
                                                 {isCandExpanded && sel && selIdx >= 0 && (
                                                   <tr key={`row-${c.curriculo_id}-${i}-expand`} className="bg-blue-50 border-t border-blue-200">
-                                                    <td colSpan={17} className="px-3 py-3">
+                                                    <td colSpan={19} className="px-3 py-3">
                                                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                                                         {/* ENTREVISTA */}
                                                         <div className="border border-gray-200 rounded p-2 bg-white">

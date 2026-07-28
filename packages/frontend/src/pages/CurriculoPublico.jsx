@@ -39,6 +39,10 @@ export default function CurriculoPublico() {
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const fotoInputRef = useRef(null);
   const continuarVagasRef = useRef(null);          // card "Continuar cadastro" — rola até ele ao marcar vaga
+  const resumoRef = useRef(null);                  // campo obrigatório "Resumo Pessoal e Profissional" — rola até ele se vier vazio
+  // Anexo opcional do PDF do currículo (pós-envio). Mora aqui e não no componente
+  // porque a pergunta aparece em 2 telas — respondeu numa, não pergunta na outra.
+  const [pdfCurriculo, setPdfCurriculo] = useState({ status: null, nome: '' });
   const [destaqueContinuar, setDestaqueContinuar] = useState(false);
 
   // Ao MARCAR uma vaga: rola suave até o card "Continuar cadastro" e dá um destaque
@@ -312,6 +316,14 @@ export default function CurriculoPublico() {
     setErro('');
     if (!form.nome.trim()) { setErro('Informe seu nome completo.'); return; }
     if (!form.data_nascimento) { setErro('Informe sua data de nascimento.'); window.scrollTo(0, 0); return; }
+    // Resumo e obrigatorio: e o texto que o RH le primeiro na triagem. Como o campo fica no
+    // meio do formulario, rola ate ele em vez de mandar o candidato pro topo procurar o erro.
+    if (!form.resumo.trim()) {
+      setErro('Preencha o Resumo Pessoal e Profissional.');
+      resumoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      resumoRef.current?.focus({ preventScroll: true });
+      return;
+    }
     if (!form.interesse_vaga) { setErro('Selecione o interesse de vaga.'); window.scrollTo(0, 0); return; }
     // Vagas que exigem experiencia: o tempo informado na funcao precisa
     // atingir o minimo exigido pela vaga (experiencia_meses_minimo).
@@ -997,6 +1009,8 @@ export default function CurriculoPublico() {
                 </p>
               </div>
 
+              <AnexarCurriculoPdf curriculoId={curriculoId} estado={pdfCurriculo} onEstado={setPdfCurriculo} />
+
               <div className="border-t border-gray-200 pt-4">
                 <p className="text-center text-purple-900 font-bold mb-3">🎯 Quer aumentar suas chances?</p>
                 <p className="text-gray-800 leading-relaxed">
@@ -1054,12 +1068,17 @@ export default function CurriculoPublico() {
     // ============ TELA FINAL ============
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-100 via-teal-100 to-green-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-10 text-center max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md">
           <div className="text-6xl mb-3">🎉</div>
           <h1 className="text-2xl font-bold text-emerald-700 mb-2">Currículo enviado!</h1>
           <p className="text-sm text-gray-600">
             Recebemos seus dados. Se houver uma vaga compatível, nossa equipe de RH entrará em contato pelo WhatsApp ou e-mail.
           </p>
+
+          <div className="mt-5 text-left">
+            <AnexarCurriculoPdf curriculoId={curriculoId} estado={pdfCurriculo} onEstado={setPdfCurriculo} />
+          </div>
+
           <p className="text-xs text-gray-400 mt-4">Você já pode fechar esta página.</p>
         </div>
       </div>
@@ -1169,11 +1188,12 @@ export default function CurriculoPublico() {
 
           {/* ===== RESUMO / SOBRE ===== */}
           <section>
-            <h2 className="text-sm font-bold text-gray-800 mb-1">🧾 Resumo profissional</h2>
+            <h2 className="text-sm font-bold text-gray-800 mb-1">🧾 Resumo Pessoal e Profissional <span className="text-red-500">*</span></h2>
             <p className="text-xs text-gray-500 mb-2">Fale brevemente sobre você, sua experiência e o que busca.</p>
-            <textarea value={form.resumo} onChange={e => setForm({ ...form, resumo: e.target.value.toUpperCase() })} rows={3}
+            <textarea ref={resumoRef} value={form.resumo} onChange={e => setForm({ ...form, resumo: e.target.value.toUpperCase() })} rows={3}
               placeholder="EX: SOU ORGANIZADO, COM 4 ANOS DE EXPERIÊNCIA EM ATENDIMENTO E CAIXA. BUSCO UMA VAGA ONDE POSSA CRESCER NA ÁREA DE REPOSIÇÃO."
               style={{ textTransform: 'uppercase' }}
+              required
               className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-400" />
           </section>
 
@@ -1786,6 +1806,123 @@ function FieldReq({ label, value, onChange, type = 'text', placeholder, caseSens
         placeholder={placeholder} required
         style={shouldUpper ? { textTransform: 'uppercase' } : undefined}
         className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-rose-400" />
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE: oferece anexar o PDF do currículo (opcional), após o envio
+// ----------------------------------------------------------------------------
+// O estado mora no componente PAI (CurriculoPublico) porque essa pergunta aparece
+// em DUAS telas pós-envio (convite do DISC e tela final) — assim, se o candidato
+// responder numa, não é perguntado de novo na outra.
+// ============================================================================
+// Mesmo teto do backend (curriculos.routes.ts). Cabe 4 páginas bem elaboradas em
+// qualquer formato — inclusive PDF escaneado ou foto de celular.
+const MAX_ARQUIVO_BYTES = 8 * 1024 * 1024;
+
+function AnexarCurriculoPdf({ curriculoId, estado, onEstado }) {
+  const [enviando, setEnviando] = useState(false);
+  const [erroPdf, setErroPdf] = useState('');
+  const inputRef = useRef(null);
+
+  // Sem id do currículo não há onde anexar (não deve acontecer, mas evita botão morto)
+  if (!curriculoId) return null;
+
+  const escolherSim = () => {
+    setErroPdf('');
+    // Abre direto o seletor de arquivos — "Arquivos/Documentos" no celular,
+    // Explorer/Finder no computador. SEM `capture`, senão o Android abre a câmera.
+    inputRef.current?.click();
+  };
+
+  const subir = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Barra o arquivo grande AQUI, antes de subir: no 4G do candidato, descobrir o
+    // limite só depois do upload inteiro seria péssimo. O backend também valida.
+    if (file.size > MAX_ARQUIVO_BYTES) {
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      setErroPdf(`Esse arquivo tem ${mb} MB e o limite é 8 MB. Tente salvar o currículo em PDF ou reduzir a qualidade da foto.`);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    setEnviando(true);
+    setErroPdf('');
+    try {
+      const fd = new FormData();
+      fd.append('arquivo', file);
+      fd.append('curriculo_id', String(curriculoId));
+      await api.post('/curriculos/publico/upload-pdf', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onEstado({ status: 'enviado', nome: file.name });
+    } catch (err) {
+      setErroPdf(err?.response?.data?.error || 'Não conseguimos enviar o arquivo. Tente novamente.');
+    } finally {
+      setEnviando(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  // ---- Já anexou: confirma e deixa trocar ----
+  if (estado.status === 'enviado') {
+    return (
+      <div className="bg-sky-50 border-2 border-sky-300 rounded-lg p-3 text-center">
+        <p className="font-bold text-sky-800 text-sm">📎 Currículo em PDF recebido!</p>
+        {estado.nome && <p className="text-xs text-sky-700 mt-0.5 break-all">{estado.nome}</p>}
+        <input ref={inputRef} type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.jpg,.jpeg,.png,.heic,.heif,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" onChange={subir} className="hidden" />
+        <button type="button" onClick={escolherSim} disabled={enviando}
+          className="mt-2 text-xs text-sky-700 underline hover:text-sky-900 disabled:opacity-50">
+          {enviando ? 'Enviando...' : 'Trocar arquivo'}
+        </button>
+      </div>
+    );
+  }
+
+  // ---- Dispensou ----
+  if (estado.status === 'nao') {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+        <p className="text-sm text-gray-600">Tudo certo — seu currículo digital já foi recebido. 👍</p>
+        <button type="button" onClick={() => onEstado({ status: null, nome: '' })}
+          className="mt-1 text-xs text-gray-500 underline hover:text-gray-700">
+          Mudei de ideia, quero anexar o PDF
+        </button>
+      </div>
+    );
+  }
+
+  // ---- Pergunta ----
+  return (
+    <div className="bg-sky-50 border-2 border-sky-200 rounded-lg p-4">
+      <p className="font-bold text-sky-900 text-sm text-center">📎 Quer deixar também o seu currículo em PDF?</p>
+      <p className="text-xs text-sky-700 text-center mt-1">
+        Se você já tem um currículo pronto no celular ou no computador, pode anexar aqui.
+        Vale até <strong>foto do currículo impresso</strong>. É opcional.
+      </p>
+
+      <input ref={inputRef} type="file" accept=".pdf,.doc,.docx,.odt,.rtf,.jpg,.jpeg,.png,.heic,.heif,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" onChange={subir} className="hidden" />
+
+      <div className="mt-3 space-y-2">
+        <button type="button" onClick={escolherSim} disabled={enviando}
+          className="w-full flex items-center gap-2 px-3 py-2.5 bg-white border-2 border-sky-300 rounded-lg text-left hover:bg-sky-100 disabled:opacity-60">
+          <span className="w-4 h-4 rounded-full border-2 border-sky-500 shrink-0" />
+          <span className="text-sm font-semibold text-sky-900">
+            {enviando ? 'Enviando arquivo...' : 'Sim, quero anexar meu PDF'}
+          </span>
+        </button>
+        <button type="button" onClick={() => onEstado({ status: 'nao', nome: '' })} disabled={enviando}
+          className="w-full flex items-center gap-2 px-3 py-2.5 bg-white border-2 border-gray-200 rounded-lg text-left hover:bg-gray-50 disabled:opacity-60">
+          <span className="w-4 h-4 rounded-full border-2 border-gray-400 shrink-0" />
+          <span className="text-sm font-semibold text-gray-700">Não, digital já basta</span>
+        </button>
+      </div>
+
+      {erroPdf && <p className="text-xs text-red-600 text-center mt-2">{erroPdf}</p>}
+      <p className="text-[11px] text-gray-500 text-center mt-2">
+        Aceita PDF, Word, ODT, RTF ou foto (JPG/PNG) — até 8 MB.
+      </p>
     </div>
   );
 }

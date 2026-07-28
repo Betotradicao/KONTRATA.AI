@@ -965,6 +965,17 @@ export function DetalheCV({
                 )}
               </div>
 
+              {/* PDF que o proprio candidato anexou na tela de sucesso (opcional) */}
+              {cv.curriculo_pdf_url && (
+                <section>
+                  <h3 className="text-base font-bold uppercase tracking-wider text-rose-700 border-b-2 border-rose-200 pb-2 mb-3">Currículo em PDF</h3>
+                  <a href={cv.curriculo_pdf_url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-sky-50 border-2 border-sky-300 rounded-lg text-sky-800 font-semibold hover:bg-sky-100">
+                    📎 <span className="break-all">{cv.curriculo_pdf_nome || 'Abrir arquivo enviado pelo candidato'}</span>
+                  </a>
+                </section>
+              )}
+
               {/* Resumo */}
               {cv.resumo && (
                 <section>

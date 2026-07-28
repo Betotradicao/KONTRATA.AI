@@ -73,6 +73,14 @@ export class Curriculo {
   @Column({ type: 'text', nullable: true })
   resumo: string | null;
 
+  // PDF do curriculo que o proprio candidato anexa na tela de sucesso (opcional).
+  // Preenchido por POST /curriculos/publico/upload-pdf, depois do INSERT.
+  @Column({ type: 'text', nullable: true })
+  curriculo_pdf_url: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  curriculo_pdf_nome: string | null;
+
   // Tipo de vaga que o candidato quer (slug em curriculo_tipos_vaga)
   // Obrigatorio ao enviar. Padroes: 'clt', 'aprendiz' — admin pode criar mais
   @Column({ type: 'varchar', length: 50, nullable: true })

@@ -1437,6 +1437,14 @@ export class RhController {
                     END,
                     'status_global', c.status,
                     'foto_url', c.foto_url,
+                    -- Idade calculada no POSTGRES (age() sobre a coluna DATE): evita o
+                    -- classico "volta 1 dia" de fazer new Date('YYYY-MM-DD') no browser.
+                    'data_nascimento', c.data_nascimento,
+                    'idade', CASE WHEN c.data_nascimento IS NULL THEN NULL
+                                  ELSE EXTRACT(YEAR FROM age(c.data_nascimento))::int END,
+                    -- Arquivo do curriculo anexado pelo proprio candidato (coluna DOC)
+                    'curriculo_pdf_url', c.curriculo_pdf_url,
+                    'curriculo_pdf_nome', c.curriculo_pdf_nome,
                     -- CEP + coords pra calcular distancia residencia -> loja da vaga
                     'cep', c.cep,
                     'latitude', c.latitude,

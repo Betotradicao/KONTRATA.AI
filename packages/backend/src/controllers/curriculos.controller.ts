@@ -331,6 +331,60 @@ export class CurriculosController {
     }
   }
 
+  /**
+   * Upload publico do PDF do curriculo do proprio candidato.
+   * Roda DEPOIS do envio (tela de sucesso pergunta "quer deixar tambem em PDF?"),
+   * por isso recebe o curriculo_id e faz UPDATE em vez de vir no payload do envio.
+   * Aceita PDF e Word (candidato as vezes so tem o .docx).
+   */
+  static async uploadCurriculoPdfPublico(req: Request, res: Response) {
+    try {
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ success: false, error: 'Arquivo obrigatorio' });
+
+      const curriculoId = Number(req.body?.curriculo_id);
+      if (!curriculoId || Number.isNaN(curriculoId)) {
+        return res.status(400).json({ success: false, error: 'curriculo_id obrigatorio' });
+      }
+
+      // Formatos aceitos. Alem de PDF/Word, entram FOTOS: no publico de supermercado
+      // e comum o candidato fotografar o curriculo impresso com o celular (HEIC = padrao
+      // do iPhone). Recusar imagem aqui significaria perder curriculo de verdade.
+      const PERMITIDOS = [
+        'application/pdf',
+        'application/msword',                                                        // .doc
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',   // .docx
+        'application/vnd.oasis.opendocument.text',                                   // .odt (LibreOffice/Google Docs)
+        'application/rtf', 'text/rtf',                                               // .rtf
+        'image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp',
+      ];
+      const EXT_PERMITIDAS = ['pdf', 'doc', 'docx', 'odt', 'rtf', 'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'];
+      const mime = file.mimetype || '';
+      const ext = String(file.originalname || '').split('.').pop()?.toLowerCase() || '';
+      // Celular as vezes manda mimetype generico (application/octet-stream) — por isso
+      // basta bater UM dos dois criterios (mimetype OU extensao).
+      if (!PERMITIDOS.includes(mime) && !EXT_PERMITIDAS.includes(ext)) {
+        return res.status(400).json({ success: false, error: 'Formato não aceito. Envie PDF, Word, ODT, RTF ou uma foto do currículo (JPG/PNG).' });
+      }
+
+      const repo = AppDataSource.getRepository(Curriculo);
+      const curriculo = await repo.findOne({ where: { id: curriculoId } });
+      if (!curriculo) return res.status(404).json({ success: false, error: 'Curriculo nao encontrado' });
+
+      const objectName = `curriculos/pdf/${curriculoId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext || 'pdf'}`;
+      const url = await minioService.uploadFile(objectName, file.buffer, mime || 'application/pdf');
+
+      curriculo.curriculo_pdf_url = url;
+      curriculo.curriculo_pdf_nome = String(file.originalname || '').slice(0, 255) || null;
+      await repo.save(curriculo);
+
+      res.json({ success: true, url });
+    } catch (e: any) {
+      console.error('[Curriculos] uploadCurriculoPdfPublico:', e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
   /** Recebe o currículo enviado pelo candidato (publico, sem auth) */
   static async enviarCurriculoPublico(req: Request, res: Response) {
     try {
