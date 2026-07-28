@@ -930,7 +930,9 @@
       "Bash(powershell -Command \"& { ssh vps2-hostinger 'bash /root/deploy-tradicao-lancamentos.sh 2>&1' | Out-String }\")",
       "Bash(powershell -Command '& { ssh vps2-hostinger '\\\\''docker exec kontrata-tradicao-postgres sh -c \"psql -U $POSTGRES_USER -d $POSTGRES_DB -tc \\\\\"SELECT column_name FROM information_schema.columns WHERE table_name=char\\(114\\)||char\\(104\\)||char\\(95\\)||char\\(97\\)||char\\(112\\)||char\\(111\\)||char\\(110\\)||char\\(116\\)||char\\(97\\)||char\\(109\\)||char\\(101\\)||char\\(110\\)||char\\(116\\)||char\\(111\\)||char\\(95\\)||char\\(99\\)||char\\(97\\)||char\\(109\\)||char\\(112\\)||char\\(111\\)||char\\(115\\) AND column_name LIKE char\\(37\\)||char\\(109\\)||char\\(111\\)||char\\(115\\)||char\\(116\\)||char\\(114\\)||char\\(97\\)||char\\(37\\);\\\\\"\" '\\\\'' | Out-String }')",
       "Bash(echo \"---exit: $?---\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(grep -n 'read -\\\\|/dev/tty\\\\|CLIENTE=\\\\|\\\\$1\\\\|DOMINIO=\\\\|^main\\\\|main \"\\\\$@\"\\\\|main$' InstaladorVPS/install-kontrata.sh)",
+      "PowerShell(cd d:\\\\kontrata.ai\\\\packages\\\\backend; npx tsc --noEmit; echo \"TSC_EXIT=$LASTEXITCODE\")"
     ],
     "deny": [],
     "ask": [],
