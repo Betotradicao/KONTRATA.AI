@@ -1,6 +1,27 @@
 # 🚧 Trabalho em Andamento
 
-## 📎 (28/07) — Currículo público: Resumo obrigatório + anexo PDF + coluna Idade — LOCAL, uncommitado
+## 📱 (29/07) — Currículo público: fix "tela flutuando" no celular (zoom iOS) — DEPLOYANDO Tradição
+Candidato reportou (print via WhatsApp Business) que a tela de preenchimento do currículo
+"flutuava" ao clicar em qualquer campo. Causa: inputs em `text-sm` (14px) disparam zoom
+automático do iOS ao focar (só evita com fonte ≥16px). Fix: `useEffect` em
+`CurriculoPublico.jsx` injeta `<style>` forçando `font-size:16px` em input/select/textarea
+só em mobile (`max-width:767px`). Detalhes: [[bugs-resolvidos/2026-07-29-curriculo-publico-ios-zoom-flutuando]].
+- ✅ Testado LOCAL pelo usuário (front 10.6.1.171:3004), aprovado.
+- ⏳ Commitando + push + deploy Tradição agora. **Falta propagar pros outros 8 clientes kontrata** depois de validado em prod.
+
+## ✅ (28/07) — TODOS os 9 clientes kontrata nivelados em a852803 — CONCLUÍDO
+Todos os 9 clientes kontrata vivem na **VPS 46** (a 31 não tem nenhum — confirmado). Ninguém grava "número de versão": todos buildam do mesmo `/root/kontrata-repo`, então **versão do cliente = data de build da IMAGEM dele**. Pra traduzir em "o que ele tem", grepar marcadores de feature no bundle servido (`docker exec <fe> cat /usr/share/nginx/html/assets/index-*.js`).
+- ⚠️ **Achado grave do inventário:** nos 7 atrasados o **backend era ~3 semanas MAIS VELHO que o frontend** (19-20/06 vs 07/07) — front chamando endpoint que o back não tem. Não era só "falta feature nova".
+- **5 migrations pendentes** nesses 7: `1786000000000` (mostra_horas), `1786500000000` (nao_bate_ponto), `1786600000000` (performance setor), `1786700000000` (geo coords), `1786800000000` (curriculo pdf). Rodam sozinhas no boot (`migrationsRun: true`).
+- ✅✅ **OS 9 EM a852803 (28/07), verificados um a um:** tradicao, puma, damata, guibox, novacentral, pontocerto, fratelli, cidade, mameva. Todos com backend `healthy`, as 5 migrations aplicadas, colunas/tabelas criadas, bundle com os 5 marcadores, site 200 e `/curriculos/publico/upload-pdf` → 400. Nenhum erro real de log em nenhum. Postgres/MinIO intactos em todos (`up --no-deps`).
+- 💡 **Domínio/portas de cada cliente:** ler `/root/clientes-kontrata/kontrata-clientes.json` (subdomain + frontend_port + backend_port + postgres_port). Muito mais confiável que grepar nginx — os vhosts se chamam `kontrata-<cliente>` e o `proxy_pass` usa a porta, então grepar pelo nome do cliente na porta não acha nada.
+- 🔧 Script de verificação pós-deploy: `verifica-cliente.sh <cliente>` em `/root` da VPS 46 (containers + migrations + colunas + marcadores no bundle).
+- ⚠️ **Pegadinha do check:** o frontend kontrata escuta **3004 DENTRO do container** (não 80) — `wget localhost/` dá "connection refused" e NÃO significa que caiu. Checar por `curl 127.0.0.1:<porta publicada>` ou pelo domínio. O `unhealthy`/`health: starting` do frontend também é falso-positivo conhecido (wget do BusyBox).
+
+## 📎 (28/07) — Currículo público: Resumo obrigatório + anexo PDF + colunas Idade/Doc — ✅ DEPLOYADO Tradição (3a9cc27)
+**Commits `3a9cc27` + `a852803`, push KONTRATAAI (a852803). DEPLOYADO VPS 46 kontrata-tradicao 28/07 + VERIFICADO:** repo→a852803, build `--no-cache` back+front, `up --no-deps`, backend `healthy`, migration `AddCurriculoPdfCurriculos1786800000000` = última aplicada, colunas `curriculo_pdf_url(text)`/`curriculo_pdf_nome(varchar)` existem, rota `/curriculos/publico/upload-pdf` → 400 (existe), site 200, bundle novo `index-6cWbd_-O` com "Resumo Pessoal e Profissional", "digital já basta", `curriculo_pdf_url`(2), "Ordenar por idade". ⏳ Falta deploy nos OUTROS clientes kontrata.
+⚠️ Ao fazer push o GitHub avisou que o repo virou `KONTRATA.AI` (maiúsculo) — funciona por redirect, mas vale `git remote set-url`.
+
 Três pedidos do usuário na mesma leva. Rodando LOCAL (front 10.6.1.171:3004 + back 3010).
 1. **Resumo virou obrigatório** (`CurriculoPublico.jsx`): título "Resumo profissional" → **"Resumo Pessoal e Profissional"** + `*` vermelho, `required` no textarea e check no `enviar()`. ⚠️ Diferente das outras validações (que fazem `scrollTo(0,0)`), essa rola até o **próprio campo** via `resumoRef` — o campo fica no MEIO do form, mandar pro topo faria o candidato caçar o erro.
 2. **Anexo do PDF do currículo (opcional, pós-envio):** componente `AnexarCurriculoPdf` com "Sim, quero anexar meu PDF" × "Não, digital já basta". Sim → `inputRef.click()` abre o seletor de arquivos. ⚠️ **SEM atributo `capture`** — com ele o Android abre a CÂMERA em vez de Documentos.

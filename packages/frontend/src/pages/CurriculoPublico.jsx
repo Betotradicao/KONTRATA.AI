@@ -85,6 +85,16 @@ export default function CurriculoPublico() {
     disponibilidade_turnos: [],
   });
 
+  // iOS dá zoom automático ao focar um campo com fonte <16px — é isso que fazia a
+  // tela "flutuar"/deslizar ao clicar em qualquer input (relatado pelo candidato
+  // dentro do navegador do WhatsApp). Forçar 16px nos campos evita o zoom.
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = '@media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }';
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
   // Quando o candidato escolhe a loja, carrega as vagas abertas
   useEffect(() => {
     if (lojaEscolhidaId == null) { setVagasAbertas([]); setViuVagas(false); setVagasInteresse([]); return; }
