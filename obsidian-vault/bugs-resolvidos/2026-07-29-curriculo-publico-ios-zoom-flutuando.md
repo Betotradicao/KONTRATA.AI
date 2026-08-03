@@ -40,7 +40,7 @@ celular = **fonte ≥ 16px**, sempre. Vale conferir os outros formulários públ
 (`DiscPublico.jsx`, pré-entrevista) se reclamação parecida aparecer.
 
 ## Alcance
-Commit local `CurriculoPublico.jsx`, branch KONTRATAAI. Deploy: só frontend
-(`build --no-cache frontend` + `up -d --no-deps frontend`). ⏳ Deployado só no
-**Tradição** por ora — falta propagar pros outros 8 clientes kontrata (ver
+Commit `e2d2fe7`, branch KONTRATAAI. Deploy: só frontend (`build --no-cache frontend`
++ `up -d --no-deps frontend`). ✅ **Deployado e validado em produção no Tradição (29/07)**
+— usuário confirmou no celular. ⏳ Falta propagar pros outros 8 clientes kontrata (ver
 [[feedback_deploy_um_cliente_por_vez]]).

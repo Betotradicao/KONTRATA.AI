@@ -1,13 +1,21 @@
 # 🚧 Trabalho em Andamento
 
-## 📱 (29/07) — Currículo público: fix "tela flutuando" no celular (zoom iOS) — DEPLOYANDO Tradição
+## 📞 (31/07) — Currículo público: WhatsApp virou obrigatório — LOCAL, subindo Tradição
+`CurriculoPublico.jsx`: campo WhatsApp trocado de `Field` (opcional) pra `FieldReq`
+(asterisco + `required` HTML) + checagem em `enviar()` (`!form.whatsapp.trim()`, mesmo
+padrão de nome/data_nascimento — `scrollTo(0,0)`). Motivo: RH precisa de um jeito de
+contato garantido pra chamar o candidato (e-mail/Instagram continuam opcionais).
+- ✅ Testado LOCAL (front 3004 + back 3010). ⏳ Commit+push+deploy Tradição agora.
+
+## 📱 (29/07) — Currículo público: fix "tela flutuando" no celular (zoom iOS) — ✅ DEPLOYADO E VALIDADO Tradição (e2d2fe7)
 Candidato reportou (print via WhatsApp Business) que a tela de preenchimento do currículo
 "flutuava" ao clicar em qualquer campo. Causa: inputs em `text-sm` (14px) disparam zoom
 automático do iOS ao focar (só evita com fonte ≥16px). Fix: `useEffect` em
 `CurriculoPublico.jsx` injeta `<style>` forçando `font-size:16px` em input/select/textarea
 só em mobile (`max-width:767px`). Detalhes: [[bugs-resolvidos/2026-07-29-curriculo-publico-ios-zoom-flutuando]].
-- ✅ Testado LOCAL pelo usuário (front 10.6.1.171:3004), aprovado.
-- ⏳ Commitando + push + deploy Tradição agora. **Falta propagar pros outros 8 clientes kontrata** depois de validado em prod.
+- ✅ Testado LOCAL, commit+push `e2d2fe7`, deploy Tradição (build --no-cache frontend, up --no-deps, bundle `index-Crr7kW5A` confirmado, marcador `16px !important` presente).
+- ✅ **Usuário validou em produção no celular (29/07): funcionou.**
+- ⏳ **PRÓXIMO:** propagar pros outros 8 clientes kontrata (puma, damata, guibox, novacentral, pontocerto, fratelli, cidade, mameva) — um de cada vez, só quando o usuário pedir.
 
 ## ✅ (28/07) — TODOS os 9 clientes kontrata nivelados em a852803 — CONCLUÍDO
 Todos os 9 clientes kontrata vivem na **VPS 46** (a 31 não tem nenhum — confirmado). Ninguém grava "número de versão": todos buildam do mesmo `/root/kontrata-repo`, então **versão do cliente = data de build da IMAGEM dele**. Pra traduzir em "o que ele tem", grepar marcadores de feature no bundle servido (`docker exec <fe> cat /usr/share/nginx/html/assets/index-*.js`).

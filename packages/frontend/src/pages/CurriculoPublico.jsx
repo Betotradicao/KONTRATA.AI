@@ -326,6 +326,7 @@ export default function CurriculoPublico() {
     setErro('');
     if (!form.nome.trim()) { setErro('Informe seu nome completo.'); return; }
     if (!form.data_nascimento) { setErro('Informe sua data de nascimento.'); window.scrollTo(0, 0); return; }
+    if (!form.whatsapp.trim()) { setErro('Informe seu WhatsApp.'); window.scrollTo(0, 0); return; }
     // Resumo e obrigatorio: e o texto que o RH le primeiro na triagem. Como o campo fica no
     // meio do formulario, rola ate ele em vez de mandar o candidato pro topo procurar o erro.
     if (!form.resumo.trim()) {
@@ -1189,7 +1190,7 @@ export default function CurriculoPublico() {
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
                 <FieldReq label="Nome completo" value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
                 <Field label="Data de nascimento *" type="date" value={form.data_nascimento} onChange={v => setForm({ ...form, data_nascimento: v })} />
-                <Field label="WhatsApp" placeholder="(00) 00000-0000" value={form.whatsapp} onChange={v => setForm({ ...form, whatsapp: v })} caseSensitive />
+                <FieldReq label="WhatsApp" placeholder="(00) 00000-0000" value={form.whatsapp} onChange={v => setForm({ ...form, whatsapp: v })} caseSensitive />
                 <Field label="E-mail" type="email" value={form.email} onChange={v => setForm({ ...form, email: v })} caseSensitive />
                 <Field label="Instagram (@)" value={form.instagram} onChange={v => setForm({ ...form, instagram: v })} caseSensitive />
               </div>
