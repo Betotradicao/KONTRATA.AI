@@ -76,6 +76,7 @@ export default function CurriculoPublico() {
     estado: '',
     // Checkboxes (apenas pra filtro rapido no banco)
     cargos: [],
+    cargos_interesse: [], // areas sem experiencia mas com interesse em vaga futura
     habilidades: [],
     // Lista dinamica com detalhes completos
     experiencias_detalhadas: [],
@@ -120,6 +121,10 @@ export default function CurriculoPublico() {
     const cargosObrig = [...new Set(
       sel.filter(v => v.experiencia_obrigatoria && v.cargo_nome).map(v => String(v.cargo_nome).toUpperCase())
     )];
+    // Cargo de QUALQUER vaga marcada (com ou sem experiencia exigida) vira
+    // interesse automatico em "Cargos de Interesse" — o candidato ja demonstrou
+    // isso ao se candidatar, nao faz sentido deixar ele tirar depois.
+    const cargosInteresse = [...new Set(sel.filter(v => v.cargo_nome).map(v => String(v.cargo_nome).toUpperCase()))];
     setForm(f => {
       const next = { ...f };
       if (tipos.length === 1) next.interesse_vaga = tipos[0];
@@ -135,6 +140,11 @@ export default function CurriculoPublico() {
         });
         next.cargos = cargosArr;
         next.experiencias_detalhadas = novasExp;
+      }
+      if (cargosInteresse.length > 0) {
+        const interesseArr = [...f.cargos_interesse];
+        cargosInteresse.forEach(cg => { if (!interesseArr.includes(cg)) interesseArr.push(cg); });
+        next.cargos_interesse = interesseArr;
       }
       return next;
     });
@@ -1110,6 +1120,12 @@ export default function CurriculoPublico() {
     minExpPorCargo[cg] = Math.max(minExpPorCargo[cg] || 0, Number(v.experiencia_meses_minimo) || 0);
   });
   const cargosObrigatorios = Object.keys(minExpPorCargo);
+  // Cargo(s) da(s) vaga(s) que o candidato ja marcou interesse: em "Cargos de
+  // Interesse" (Alem das vagas disponiveis) eles vem sempre pre-marcados e
+  // travados (nao da pra tirar) — ele ja demonstrou interesse ao se candidatar.
+  const cargosInteresseTravados = [...new Set(
+    vagasSelLock.filter(v => v.cargo_nome).map(v => String(v.cargo_nome).toUpperCase())
+  )];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 py-6 px-4 overflow-x-hidden">
@@ -1361,6 +1377,25 @@ export default function CurriculoPublico() {
               </button>
             </section>
           )}
+
+          {/* ===== CARGOS DE INTERESSE (vagas futuras, sem experiência exigida) ===== */}
+          <section>
+            <h2 className="text-sm font-bold text-gray-800 mb-1">🔭 Além das vagas disponíveis</h2>
+            <p className="text-xs text-gray-500 mb-2">Caso tenha interesse em vagas futuras para outras áreas, abaixo pode selecionar.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {cargos.map(c => {
+                const travado = cargosInteresseTravados.includes(c);
+                return (
+                <label key={c} className={`flex items-center gap-2 p-2 border-2 rounded-lg text-xs ${travado ? 'cursor-default border-amber-400 bg-amber-50' : 'cursor-pointer'} ${!travado && (form.cargos_interesse.includes(c) ? 'border-sky-400 bg-sky-50' : 'border-gray-200 hover:border-sky-200')}`}>
+                  <input type="checkbox" checked={form.cargos_interesse.includes(c)} disabled={travado} onChange={() => toggleItem('cargos_interesse', c)}
+                    className="w-4 h-4 accent-sky-500" />
+                  <span className="text-gray-700 font-semibold">{c}</span>
+                  {travado && <span className="ml-auto text-[11px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold whitespace-nowrap">JÁ CANDIDATADO</span>}
+                </label>
+                );
+              })}
+            </div>
+          </section>
 
           {/* ===== HABILIDADES ===== */}
           <section>

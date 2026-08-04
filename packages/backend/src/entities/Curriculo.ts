@@ -64,6 +64,19 @@ export class Curriculo {
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   cargos: string[];
 
+  // Cargos que o candidato NAO tem experiencia mas tem interesse em vagas
+  // futuras (secao "Alem das vagas disponiveis" no formulario publico).
+  // Inclui TANTO o cargo da vaga que ele se candidatou (auto, travado na tela
+  // publica) QUANTO extras que ele marcou por conta propria — a distincao de
+  // origem e resolvida em runtime via vagas_interesse_ids (ver listarCurriculos).
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  cargos_interesse: string[];
+
+  // Ids das vagas (rh_vagas) que o candidato marcou interesse ao se candidatar.
+  // Coluna ja existia (migration 1784770000000), so nao estava mapeada na entity.
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  vagas_interesse_ids: number[];
+
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   habilidades: string[];
 

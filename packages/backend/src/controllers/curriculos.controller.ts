@@ -391,7 +391,7 @@ export class CurriculosController {
       const {
         nome, data_nascimento, whatsapp, email, instagram,
         cep, rua, numero, complemento, bairro, cidade, estado,
-        cargos, habilidades, experiencia_texto, disponibilidade_turnos,
+        cargos, cargos_interesse, habilidades, experiencia_texto, disponibilidade_turnos,
         foto_url, resumo, experiencias_detalhadas, formacoes, cursos_adicionais,
         interesse_vaga, cod_loja, vagas_interesse_ids,
       } = req.body;
@@ -427,6 +427,7 @@ export class CurriculosController {
         cidade: cidade || null,
         estado: estado || null,
         cargos: Array.isArray(cargos) ? cargos : [],
+        cargos_interesse: Array.isArray(cargos_interesse) ? cargos_interesse : [],
         habilidades: Array.isArray(habilidades) ? habilidades : [],
         experiencia_texto: experiencia_texto || null,
         disponibilidade_turnos: Array.isArray(disponibilidade_turnos) ? disponibilidade_turnos : [],
@@ -467,7 +468,7 @@ export class CurriculosController {
 
   static async listarCurriculos(req: Request, res: Response) {
     try {
-      const { cidade, bairro, cargo, habilidade, status, dataDe, dataAte, q, interesse_vaga, cod_loja } = req.query as any;
+      const { cidade, bairro, cargo, cargo_interesse, habilidade, status, dataDe, dataAte, q, interesse_vaga, cod_loja } = req.query as any;
       const qb = AppDataSource.getRepository(Curriculo).createQueryBuilder('c').orderBy('c.created_at', 'DESC');
       if (cod_loja != null && cod_loja !== '') {
         const clNum = parseInt(cod_loja as string);
@@ -487,6 +488,7 @@ export class CurriculosController {
         { bairro, acentos: ACENTOS, sem: SEM_ACENTOS }
       );
       if (cargo) qb.andWhere(`c.cargos @> :cargo::jsonb`, { cargo: JSON.stringify([cargo]) });
+      if (cargo_interesse) qb.andWhere(`c.cargos_interesse @> :cargoInteresse::jsonb`, { cargoInteresse: JSON.stringify([cargo_interesse]) });
       if (habilidade) qb.andWhere(`c.habilidades @> :habilidade::jsonb`, { habilidade: JSON.stringify([habilidade]) });
       if (status) qb.andWhere('c.status = :status', { status });
       if (interesse_vaga) qb.andWhere('c.interesse_vaga = :interesse', { interesse: interesse_vaga });
@@ -521,6 +523,19 @@ export class CurriculosController {
         ).catch(() => []);
         entRows.forEach(e => { entrevistaMap[e.curriculo_id] = e; });
       }
+      // Cargo(s) da(s) vaga(s) que o candidato se candidatou (vagas_interesse_ids ->
+      // rh_vagas.cargo_nome) — usado no front pra separar "Cargo se Candidatado"
+      // (automatico, travado) de "Cargos de Interesse" (voluntario) dentro do
+      // mesmo array cargos_interesse.
+      const todosVagaIds = [...new Set(lista.flatMap(c => Array.isArray(c.vagas_interesse_ids) ? c.vagas_interesse_ids : []))];
+      const cargoPorVagaId: Record<number, string> = {};
+      if (todosVagaIds.length > 0) {
+        const vagaRows: any[] = await AppDataSource.query(
+          `SELECT v.id, ca.nome AS cargo_nome FROM rh_vagas v LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id WHERE v.id = ANY($1::int[])`,
+          [todosVagaIds]
+        ).catch(() => []);
+        vagaRows.forEach(v => { if (v.cargo_nome) cargoPorVagaId[v.id] = String(v.cargo_nome).toUpperCase(); });
+      }
       const listaEnriq = lista.map(cv => ({
         ...cv,
         disc: discMap[cv.id] ? {
@@ -534,6 +549,10 @@ export class CurriculosController {
           status: entrevistaMap[cv.id].status,
           tem_relatorio: !!entrevistaMap[cv.id].tem_relatorio,
         } : null,
+        cargos_vaga_aplicada: [...new Set(
+          (Array.isArray(cv.vagas_interesse_ids) ? cv.vagas_interesse_ids : [])
+            .map((vid: number) => cargoPorVagaId[vid]).filter(Boolean)
+        )],
       }));
       // Resumo pra cards
       const resumo = {
@@ -556,7 +575,17 @@ export class CurriculosController {
       const id = parseInt(req.params.id);
       const cv = await AppDataSource.getRepository(Curriculo).findOne({ where: { id } });
       if (!cv) return res.status(404).json({ success: false, error: 'Curriculo nao encontrado' });
-      res.json({ success: true, curriculo: cv });
+      // Mesmo enriquecimento de listarCurriculos (ver comentario la) — mantem a
+      // separacao "Cargo se Candidatado" x "Cargos de Interesse" apos refresh.
+      let cargosVagaAplicada: string[] = [];
+      if (Array.isArray(cv.vagas_interesse_ids) && cv.vagas_interesse_ids.length > 0) {
+        const vagaRows: any[] = await AppDataSource.query(
+          `SELECT ca.nome AS cargo_nome FROM rh_vagas v LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id WHERE v.id = ANY($1::int[]) AND ca.nome IS NOT NULL`,
+          [cv.vagas_interesse_ids]
+        ).catch(() => []);
+        cargosVagaAplicada = [...new Set(vagaRows.map(v => String(v.cargo_nome).toUpperCase()))];
+      }
+      res.json({ success: true, curriculo: { ...cv, cargos_vaga_aplicada: cargosVagaAplicada } });
     } catch (e: any) {
       console.error('[Curriculos] obterCurriculo:', e);
       res.status(500).json({ success: false, error: e.message });
@@ -566,7 +595,7 @@ export class CurriculosController {
   static async atualizarCurriculo(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const { status, avaliacao_rh, observacao_rh, cod_loja } = req.body;
+      const { status, avaliacao_rh, observacao_rh, cod_loja, cargos_interesse } = req.body;
       const repo = AppDataSource.getRepository(Curriculo);
       const cv = await repo.findOne({ where: { id } });
       if (!cv) return res.status(404).json({ success: false, error: 'Curriculo nao encontrado' });
@@ -585,6 +614,7 @@ export class CurriculosController {
         cv.avaliacao_rh = isNaN(n) ? null : Math.max(0, Math.min(5, n));
       }
       if (observacao_rh !== undefined) cv.observacao_rh = observacao_rh || null;
+      if (cargos_interesse !== undefined) cv.cargos_interesse = Array.isArray(cargos_interesse) ? cargos_interesse : [];
       // Migrar curriculo de loja (botao "Migrar Loja" no modal de detalhe)
       if (cod_loja !== undefined) {
         cv.cod_loja = cod_loja != null && cod_loja !== '' ? Number(cod_loja) : null;

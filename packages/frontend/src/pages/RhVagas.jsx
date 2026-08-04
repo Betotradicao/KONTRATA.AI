@@ -2358,6 +2358,12 @@ export default function RhVagas() {
                 setCurriculoVisualizar(prev => prev ? { ...prev, avaliacao_rh } : prev);
               } catch { toast.error('Erro ao salvar avaliação'); }
             }}
+            onAtualizarCargosInteresse={async (cargos_interesse) => {
+              try {
+                await api.put(`/curriculos/${curriculoVisualizar.id}`, { cargos_interesse });
+                setCurriculoVisualizar(prev => prev ? { ...prev, cargos_interesse } : prev);
+              } catch { toast.error('Erro ao salvar cargos de interesse'); }
+            }}
             onExcluir={async () => {
               if (!window.confirm(`Excluir o currículo de "${curriculoVisualizar.nome}"?`)) return;
               try {

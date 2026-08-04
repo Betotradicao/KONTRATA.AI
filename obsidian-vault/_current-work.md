@@ -1,6 +1,21 @@
 # 🚧 Trabalho em Andamento
 
-## 🔢 (04/08) — Banco de Currículos: card "Total" travava em 500 — LOCAL, testando
+## 🔭 (04/08) — Currículo público: novos "Cargos de Interesse" (vagas futuras) — LOCAL, testando
+Pedido: além de "Experiências como" (cargos que o candidato já trabalhou), criar uma
+2ª seleção de cargos/setores em que ele NÃO tem experiência mas tem interesse pra
+vaga futura — pra RH achar no Banco de Currículos quando abrir vaga nessas áreas.
+- **Migration** `1786900000000-AddCargosInteresseCurriculos.ts`: coluna `cargos_interesse jsonb default '[]'` em `curriculos`. Rodou sozinha local (`migrationsRun: true`).
+- **Entity** `Curriculo.ts`: campo `cargos_interesse: string[]`.
+- **Backend** `enviarCurriculoPublico`: aceita `cargos_interesse` no payload (mesmo array de strings do catálogo de cargos da empresa).
+- **Frontend público** `CurriculoPublico.jsx`: nova seção "🔭 Além das vagas disponíveis" logo depois de "Detalhes das experiências" e antes de "Pontos Fortes" — reusa o MESMO catálogo de cargos (`cargos.map`) só que com checkbox independente (`toggleItem('cargos_interesse', c)`), cor azul-céu pra diferenciar visualmente do rosa das experiências.
+- **Frontend RH** `BancoCurriculos.jsx`: nova coluna "Cargos de Interesse" logo após "Cargos com Experiência" (mesmo estilo de badges, cor azul-céu), ordenável + novo filtro "Cargos de Interesse" no topo (mesmo catálogo, ao lado de "Cargos com Experiência"). Backend: `cargo_interesse` na query (`cv.cargos_interesse @> jsonb`).
+- **Trava automática:** cargo da(s) vaga(s) que o candidato já marcou interesse (`vagasInteresse`) vem SEMPRE pré-marcado e travado (disabled + badge "JÁ CANDIDATADO") em "Cargos de Interesse" — não dá pra tirar, ele já demonstrou isso ao se candidatar. Diferente do `cargosObrigatorios` (que só trava em "Experiências como" quando a vaga tem `experiencia_obrigatoria`), esse trava **sempre**, pra QUALQUER vaga marcada. Candidato pode livremente marcar cargos extras (ex: candidatou-se pra Açougue, mas quer marcar Reposição também).
+- **Modal de detalhe do candidato** (`DetalheCV`, componente compartilhado por Banco de Currículos E RhVagas): nova seção "Cargos de Interesse" com botão "✏️ Editar" que abre popup com checkboxes de TODOS os cargos cadastrados (busca `/curriculos/cargos` só quando abre) — RH pode marcar/desmarcar livremente e salvar. Backend `PUT /curriculos/:id` aceita `cargos_interesse` agora. Prop `onAtualizarCargosInteresse` wireada nos DOIS lugares que usam `DetalheCV` (BancoCurriculos.jsx reusa `salvarStatus` genérico; RhVagas.jsx tem sua própria implementação local, mesmo padrão dos outros campos).
+- **Split visual "Cargo se Candidatado" (amarelo) x "Cargos de Interesse" (azul):** ambos vêm do MESMO array `cargos_interesse`, mas o front separa por origem — `cargos_vaga_aplicada` (novo, calculado em runtime no backend a partir de `vagas_interesse_ids` cruzado com `rh_vagas.cargo_nome`) marca quais entradas vieram de uma vaga que o candidato de fato se candidatou. Precisou mapear `vagas_interesse_ids` na entity `Curriculo.ts` (coluna já existia desde 1784770000000, só não estava mapeada no TypeORM) + enriquecer `listarCurriculos` E `obterCurriculo` com esse cálculo (senão o refresh depois de editar perderia a separação).
+  - 🐛 **Bug achado+corrigido (mesma sessão):** `cargo_nome` NÃO é coluna de `rh_vagas` — é alias de JOIN (`ca.nome AS cargo_nome`, `LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id`, ver `rh.controller.ts:1298/1302`). Minha 1ª versão fazia `SELECT id, cargo_nome FROM rh_vagas` direto → Postgres deu erro (coluna não existe) → `.catch(() => [])` engoliu silenciosamente → `cargos_vaga_aplicada` sempre vazio → nenhum cargo aparecia amarelo mesmo candidato vindo de vaga real. Corrigido com o JOIN certo nas duas queries (listarCurriculos + obterCurriculo).
+- ✅ backend `tsc --noEmit` = 0, front `vite build` = 0. ⏳ Testando LOCAL → commit+push → deploy (pendente pedir cliente).
+
+## 🔢 (04/08) — Banco de Currículos: card "Total" travava em 500 — ✅ DEPLOYADO Novacentral (fba8eaf), ⏳ aguardando validação visual
 Cliente Novacentral já tem currículo #663, mas o card TOTAL do Banco de Currículos
 mostrava 500 preso. Causa: `curriculos.controller.ts` `listarCurriculos` tinha
 `.take(500)` na query — cortava a LISTA em 500 registros, e o `resumo` (cards
@@ -9,8 +24,9 @@ Total/Novo/Selecionado/etc) era calculado em cima dessa MESMA lista já cortada
 sempre refletia o corte, não o banco. Fix: removido o `.take(500)` (sem paginação
 no frontend hoje — tabela carrega tudo de uma vez, então sem cap client-side pra
 compensar).
-- ✅ backend `tsc --noEmit` = 0. ⏳ Testando LOCAL → commit+push → deploy Novacentral (pendente pedir).
-- ⚠️ Esse bug vale pra **TODOS os clientes kontrata** com >500 currículos, não só Novacentral — mas só a Novacentral bateu o teto até agora.
+- ✅ backend `tsc --noEmit` = 0, commit+push `fba8eaf`, deploy Novacentral (build --no-cache backend, up --no-deps, container healthy, log limpo — verificação técnica só).
+- ⏳ **Falta usuário confirmar visualmente** na tela Banco de Currículos do Novacentral que o card Total bate com o real.
+- ⚠️ Esse bug vale pra **TODOS os clientes kontrata** com >500 currículos, não só Novacentral. Propagar pros outros 7 (tradicao, puma, damata, guibox, pontocerto, fratelli, cidade, mameva) só depois de confirmado — um de cada vez.
 
 ## 📞 (03/08) — Currículo público: WhatsApp virou obrigatório — ✅ DEPLOYADO Tradição + Ponto Certo (d685286)
 `CurriculoPublico.jsx`: campo WhatsApp trocado de `Field` (opcional) pra `FieldReq`

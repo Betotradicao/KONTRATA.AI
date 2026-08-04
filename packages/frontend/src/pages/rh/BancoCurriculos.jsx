@@ -93,7 +93,7 @@ export default function BancoCurriculos() {
   const [msgWhatsAppAtivo, setMsgWhatsAppAtivo] = useState(true);
 
   const [filtros, setFiltros] = useState({
-    cidade: '', bairro: '', cargo: '', habilidade: '', status: '', dataDe: '', dataAte: '', q: '', interesse_vaga: '', loja: '',
+    cidade: '', bairro: '', cargo: '', cargo_interesse: '', habilidade: '', status: '', dataDe: '', dataAte: '', q: '', interesse_vaga: '', loja: '',
   });
 
   const [selecionado, setSelecionado] = useState(null);
@@ -119,6 +119,7 @@ export default function BancoCurriculos() {
     switch (campo) {
       case 'id': return cv.id ?? 0;
       case 'nome': return (cv.nome || '').toUpperCase();
+      case 'curriculo_pdf': return cv.curriculo_pdf_url ? 0 : 1;
       case 'idade': return idadeDe(cv);
       case 'status': return (STATUS_LABEL[cv.status]?.label || '').toUpperCase();
       case 'interesse_vaga': return (tipoVagaNome(cv.interesse_vaga) || '').toUpperCase();
@@ -127,6 +128,7 @@ export default function BancoCurriculos() {
       case 'email': return (cv.email || '').toUpperCase();
       case 'localizacao': return [cv.bairro, cv.cidade].filter(Boolean).join(' ').toUpperCase();
       case 'cargos': return ((cv.cargos && cv.cargos[0]) || '').toUpperCase();
+      case 'cargos_interesse': return ((cv.cargos_interesse && cv.cargos_interesse[0]) || '').toUpperCase();
       case 'disponibilidade': return ((cv.disponibilidade_turnos && cv.disponibilidade_turnos[0]) || '').toUpperCase();
       case 'data': return cv.created_at ? new Date(cv.created_at).getTime() : 0;
       default: return '';
@@ -341,6 +343,10 @@ export default function BancoCurriculos() {
                 <option value="">Todos</option>
                 {cargos.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
               </FiltroSelect>
+              <FiltroSelect label="Cargos de Interesse" value={filtros.cargo_interesse} onChange={v => setFiltros({ ...filtros, cargo_interesse: v })}>
+                <option value="">Todos</option>
+                {cargos.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+              </FiltroSelect>
               <FiltroSelect label="Habilidade" value={filtros.habilidade} onChange={v => setFiltros({ ...filtros, habilidade: v })}>
                 <option value="">Todas</option>
                 {habilidades.map(h => <option key={h.id} value={h.nome}>{h.nome}</option>)}
@@ -349,7 +355,7 @@ export default function BancoCurriculos() {
               <FiltroInput label="Até" type="date" value={filtros.dataAte} onChange={v => setFiltros({ ...filtros, dataAte: v })} />
               <div className="flex items-end">
                 <button
-                  onClick={() => setFiltros({ cidade: '', bairro: '', cargo: '', habilidade: '', status: '', dataDe: '', dataAte: '', q: '', interesse_vaga: '', loja: '' })}
+                  onClick={() => setFiltros({ cidade: '', bairro: '', cargo: '', cargo_interesse: '', habilidade: '', status: '', dataDe: '', dataAte: '', q: '', interesse_vaga: '', loja: '' })}
                   className="w-full text-sm px-3 py-1.5 bg-red-500 text-white rounded font-semibold hover:bg-red-600 transition">
                   🧹 Limpar filtros
                 </button>
@@ -383,6 +389,7 @@ export default function BancoCurriculos() {
                     <tr>
                       <ThSort label="Nº" campo="id" align="text-left" ord={ordenacao} onSort={ordenarPor} />
                       <ThSort label="Candidato" campo="nome" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Currículo PDF" campo="curriculo_pdf" align="text-center" ord={ordenacao} onSort={ordenarPor} />
                       <ThSort label="Idade" campo="idade" align="text-center" ord={ordenacao} onSort={ordenarPor} />
                       <ThSort label="Status" campo="status" align="text-left" ord={ordenacao} onSort={ordenarPor} />
                       <ThSort label="Vaga" campo="interesse_vaga" align="text-left" ord={ordenacao} onSort={ordenarPor} />
@@ -391,6 +398,7 @@ export default function BancoCurriculos() {
                       <ThSort label="Email" campo="email" align="text-left" ord={ordenacao} onSort={ordenarPor} />
                       <ThSort label="Localização" campo="localizacao" align="text-left" ord={ordenacao} onSort={ordenarPor} />
                       <ThSort label="Cargos com Experiência" campo="cargos" align="text-left" ord={ordenacao} onSort={ordenarPor} />
+                      <ThSort label="Cargos de Interesse" campo="cargos_interesse" align="text-left" ord={ordenacao} onSort={ordenarPor} />
                       <ThSort label="Disponibilidade" campo="disponibilidade" align="text-left" ord={ordenacao} onSort={ordenarPor} />
                       <th className="px-2 py-1.5 text-left font-semibold">Experiências</th>
                       <th className="px-2 py-1.5 text-left font-semibold">Perfil Primário</th>
@@ -434,6 +442,19 @@ export default function BancoCurriculos() {
                                 )}
                               </div>
                             </div>
+                          </td>
+                          {/* Currículo PDF (anexo opcional pós-envio) */}
+                          <td className="px-1 py-1.5 text-center">
+                            {cv.curriculo_pdf_url ? (
+                              <a href={cv.curriculo_pdf_url} target="_blank" rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                className="text-base hover:scale-125 inline-block transition"
+                                title={`Abrir currículo anexado pelo candidato${cv.curriculo_pdf_nome ? `: ${cv.curriculo_pdf_nome}` : ''}`}>
+                                📄
+                              </a>
+                            ) : (
+                              <span className="text-gray-300" title="Candidato não anexou currículo">—</span>
+                            )}
                           </td>
                           {/* Idade */}
                           <td className="px-2 py-1.5 text-center whitespace-nowrap">
@@ -511,6 +532,18 @@ export default function BancoCurriculos() {
                                 <span className="text-xs text-gray-400 self-center font-semibold">+{cv.cargos.length - 3}</span>
                               )}
                               {(!cv.cargos || cv.cargos.length === 0) && <span className="text-gray-300">—</span>}
+                            </div>
+                          </td>
+                          {/* Cargos de Interesse (vagas futuras, sem experiencia exigida) */}
+                          <td className="px-2 py-1.5">
+                            <div className="flex flex-wrap gap-1">
+                              {(cv.cargos_interesse || []).slice(0, 3).map((c, i) => (
+                                <span key={i} className="text-xs px-2 py-0.5 bg-sky-50 border border-sky-200 text-sky-700 rounded-full whitespace-nowrap font-semibold">{c}</span>
+                              ))}
+                              {cv.cargos_interesse?.length > 3 && (
+                                <span className="text-xs text-gray-400 self-center font-semibold">+{cv.cargos_interesse.length - 3}</span>
+                              )}
+                              {(!cv.cargos_interesse || cv.cargos_interesse.length === 0) && <span className="text-gray-300">—</span>}
                             </div>
                           </td>
                           {/* Disponibilidade de Horario */}
@@ -634,6 +667,7 @@ export default function BancoCurriculos() {
           onAtualizarStatus={(status) => salvarStatus(selecionado.id, 'status', status)}
           onAtualizarObs={(obs) => salvarStatus(selecionado.id, 'observacao_rh', obs)}
           onAtualizarAvaliacao={(n) => salvarStatus(selecionado.id, 'avaliacao_rh', n)}
+          onAtualizarCargosInteresse={(cargos_interesse) => salvarStatus(selecionado.id, 'cargos_interesse', cargos_interesse)}
           onExcluir={() => excluirCV(selecionado)}
         />
       )}
@@ -695,7 +729,7 @@ export function DetalheCV({
   // Quando o componente e usado fora do BancoCurriculos (ex: RhVagas), essas
   // props podem nao vir — defaults garantem que o link funciona sem texto.
   msgWhatsApp = '', msgWhatsAppAtivo = false, supermercadoNome = '', recrutadoraNome = '',
-  onFechar, onAtualizarStatus, onAtualizarObs, onAtualizarAvaliacao, onExcluir,
+  onFechar, onAtualizarStatus, onAtualizarObs, onAtualizarAvaliacao, onExcluir, onAtualizarCargosInteresse,
 }) {
   const tipoVagaNome = (slug) => {
     if (!slug) return '';
@@ -747,6 +781,35 @@ export function DetalheCV({
       })
       .catch(() => {});
   }, [showMigrarLoja]);
+
+  // === Editar Cargos de Interesse ===
+  const [showEditarInteresse, setShowEditarInteresse] = useState(false);
+  const [cargosCatalogo, setCargosCatalogo] = useState([]);
+  const [interesseTemp, setInteresseTemp] = useState([]);
+  const [salvandoInteresse, setSalvandoInteresse] = useState(false);
+
+  useEffect(() => {
+    if (!showEditarInteresse) return;
+    setInteresseTemp(cv.cargos_interesse || []);
+    api.get('/curriculos/cargos')
+      .then(r => setCargosCatalogo(Array.isArray(r.data?.cargos) ? r.data.cargos : []))
+      .catch(() => {});
+    // eslint-disable-next-line
+  }, [showEditarInteresse]);
+
+  const toggleInteresseTemp = (nome) => {
+    setInteresseTemp(arr => arr.includes(nome) ? arr.filter(x => x !== nome) : [...arr, nome]);
+  };
+
+  const salvarInteresse = async () => {
+    setSalvandoInteresse(true);
+    try {
+      await onAtualizarCargosInteresse?.(interesseTemp);
+      setShowEditarInteresse(false);
+    } finally {
+      setSalvandoInteresse(false);
+    }
+  };
 
   const migrarLoja = async () => {
     if (!lojaDestino) { alert('Selecione uma loja de destino'); return; }
@@ -1022,6 +1085,44 @@ export function DetalheCV({
                 </section>
               )}
 
+              {/* Cargo se Candidatado (auto, da vaga que ele se candidatou) + Cargos de Interesse (voluntario) */}
+              {(() => {
+                const vagaAplicada = cv.cargos_vaga_aplicada || [];
+                const interesseTodos = cv.cargos_interesse || [];
+                const interesseVoluntario = interesseTodos.filter(c => !vagaAplicada.includes(c));
+                return (
+                <>
+                  {vagaAplicada.length > 0 && (
+                    <section>
+                      <h3 className="text-base font-bold uppercase tracking-wider text-amber-700 border-b-2 border-amber-200 pb-2 mb-3">Cargo se Candidatado</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {vagaAplicada.map((c, i) => (
+                          <span key={i} className="text-sm px-3 py-1 bg-amber-100 border border-amber-300 text-amber-800 rounded-full font-semibold">{c}</span>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  <section>
+                    <div className="flex items-center justify-between border-b-2 border-sky-200 pb-2 mb-3">
+                      <h3 className="text-base font-bold uppercase tracking-wider text-sky-700">Outros Cargos de Interesse</h3>
+                      {onAtualizarCargosInteresse && (
+                        <button onClick={() => setShowEditarInteresse(true)}
+                          className="text-xs px-3 py-1 bg-sky-100 text-sky-700 rounded-full font-bold hover:bg-sky-200">
+                          ✏️ Editar
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {interesseVoluntario.map((c, i) => (
+                        <span key={i} className="text-sm px-3 py-1 bg-sky-100 border border-sky-300 text-sky-800 rounded-full font-semibold">{c}</span>
+                      ))}
+                      {interesseVoluntario.length === 0 && <span className="text-gray-400 text-sm">Nenhum</span>}
+                    </div>
+                  </section>
+                </>
+                );
+              })()}
+
               {/* Endereço completo */}
               {(cv.rua || cv.cidade) && (
                 <section>
@@ -1237,6 +1338,37 @@ export function DetalheCV({
                   {migrando ? '⏳ Migrando...' : '🚀 Confirmar migração'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Cargos de Interesse */}
+      {showEditarInteresse && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={() => !salvandoInteresse && setShowEditarInteresse(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-sky-600 to-blue-600 text-white p-4 rounded-t-xl">
+              <h3 className="font-bold text-lg">🔭 Cargos de Interesse</h3>
+              <p className="text-xs opacity-90 mt-0.5">{cv.nome} · marque ou tire as áreas de interesse</p>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-2">
+                {cargosCatalogo.map(c => (
+                  <label key={c.id} className={`flex items-center gap-2 p-2 border-2 rounded-lg cursor-pointer text-sm ${interesseTemp.includes(c.nome) ? 'border-sky-400 bg-sky-50' : 'border-gray-200 hover:border-sky-200'}`}>
+                    <input type="checkbox" checked={interesseTemp.includes(c.nome)} onChange={() => toggleInteresseTemp(c.nome)}
+                      className="w-4 h-4 accent-sky-500" />
+                    <span className="text-gray-700 font-semibold">{c.nome}</span>
+                  </label>
+                ))}
+                {cargosCatalogo.length === 0 && <div className="text-sm text-gray-400 col-span-2">Carregando cargos…</div>}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t bg-gray-50 rounded-b-xl">
+              <button onClick={() => setShowEditarInteresse(false)} disabled={salvandoInteresse} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded font-semibold">Cancelar</button>
+              <button onClick={salvarInteresse} disabled={salvandoInteresse}
+                className="px-5 py-2 text-sm font-bold bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 disabled:opacity-50 text-white rounded-lg shadow">
+                {salvandoInteresse ? '⏳ Salvando...' : '💾 Salvar'}
+              </button>
             </div>
           </div>
         </div>
