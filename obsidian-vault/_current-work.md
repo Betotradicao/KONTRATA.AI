@@ -1,11 +1,25 @@
 # 🚧 Trabalho em Andamento
 
-## 📞 (31/07) — Currículo público: WhatsApp virou obrigatório — LOCAL, subindo Tradição
+## 🔢 (04/08) — Banco de Currículos: card "Total" travava em 500 — LOCAL, testando
+Cliente Novacentral já tem currículo #663, mas o card TOTAL do Banco de Currículos
+mostrava 500 preso. Causa: `curriculos.controller.ts` `listarCurriculos` tinha
+`.take(500)` na query — cortava a LISTA em 500 registros, e o `resumo` (cards
+Total/Novo/Selecionado/etc) era calculado em cima dessa MESMA lista já cortada
+(`total: lista.length`), então nem existia uma contagem real por trás — o card
+sempre refletia o corte, não o banco. Fix: removido o `.take(500)` (sem paginação
+no frontend hoje — tabela carrega tudo de uma vez, então sem cap client-side pra
+compensar).
+- ✅ backend `tsc --noEmit` = 0. ⏳ Testando LOCAL → commit+push → deploy Novacentral (pendente pedir).
+- ⚠️ Esse bug vale pra **TODOS os clientes kontrata** com >500 currículos, não só Novacentral — mas só a Novacentral bateu o teto até agora.
+
+## 📞 (03/08) — Currículo público: WhatsApp virou obrigatório — ✅ DEPLOYADO Tradição + Ponto Certo (d685286)
 `CurriculoPublico.jsx`: campo WhatsApp trocado de `Field` (opcional) pra `FieldReq`
 (asterisco + `required` HTML) + checagem em `enviar()` (`!form.whatsapp.trim()`, mesmo
 padrão de nome/data_nascimento — `scrollTo(0,0)`). Motivo: RH precisa de um jeito de
 contato garantido pra chamar o candidato (e-mail/Instagram continuam opcionais).
-- ✅ Testado LOCAL (front 3004 + back 3010). ⏳ Commit+push+deploy Tradição agora.
+- ✅ Testado LOCAL, commit+push `d685286`.
+- ✅ **Deployado Tradição** (bundle `index-CgTdKkY1`) e **Ponto Certo** (bundle `index-DdpIpaP8`) — marcador "Informe seu WhatsApp" confirmado nos dois, sites 200.
+- ⏳ **Falta propagar pros outros 6 clientes kontrata** (puma, damata, guibox, novacentral, fratelli, cidade, mameva) — um de cada vez, só quando o usuário pedir.
 
 ## 📱 (29/07) — Currículo público: fix "tela flutuando" no celular (zoom iOS) — ✅ DEPLOYADO E VALIDADO Tradição (e2d2fe7)
 Candidato reportou (print via WhatsApp Business) que a tela de preenchimento do currículo

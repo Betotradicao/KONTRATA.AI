@@ -468,7 +468,7 @@ export class CurriculosController {
   static async listarCurriculos(req: Request, res: Response) {
     try {
       const { cidade, bairro, cargo, habilidade, status, dataDe, dataAte, q, interesse_vaga, cod_loja } = req.query as any;
-      const qb = AppDataSource.getRepository(Curriculo).createQueryBuilder('c').orderBy('c.created_at', 'DESC').take(500);
+      const qb = AppDataSource.getRepository(Curriculo).createQueryBuilder('c').orderBy('c.created_at', 'DESC');
       if (cod_loja != null && cod_loja !== '') {
         const clNum = parseInt(cod_loja as string);
         if (!isNaN(clNum)) qb.andWhere('c.cod_loja = :codLoja', { codLoja: clNum });
