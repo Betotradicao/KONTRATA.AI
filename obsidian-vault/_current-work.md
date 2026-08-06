@@ -1,6 +1,24 @@
 # 🚧 Trabalho em Andamento
 
-## 🔭 (04/08) — Currículo público: novos "Cargos de Interesse" (vagas futuras) — LOCAL, testando
+## 📅 (06/08) — DP: definir validade de documento JÁ enviado — LOCAL, aguardando teste do usuário
+Antes só dava pra marcar "Este documento tem validade?" **no momento do upload**. Se o usuário
+não marcasse, não existia caminho pra corrigir depois — tinha que excluir e reenviar o arquivo.
+- **Backend:** NADA a fazer — `PUT /rh/dp/documentos/:id/datas` (`RhDpController.atualizarDatasDocumento`)
+  já existia e aceita `data_vencimento`/`data_alerta` (inclusive `null` pra limpar).
+- **Frontend** `RhDepartamentoPessoal.jsx`:
+  - Badge **🕓 SEM VALIDADE** (cinza, hover âmbar) na linha de todo documento sem `data_vencimento`
+    — tanto nos docs dentro de sub-pasta quanto nos "Arquivos soltos".
+  - Quem JÁ tem validade: o texto "📅 Vence: dd/mm/aaaa" virou **botão** (sublinhado pontilhado)
+    que abre o mesmo modal pra alterar/remover.
+  - Modal novo com o MESMO layout do bloco de validade do upload (checkbox + 2 datas em caixa âmbar)
+    + botão "🗑️ Remover validade" (só aparece se o doc já tinha).
+  - Marcar o checkbox pré-preenche vencimento = **hoje + 1 ano** e alerta = 30 dias antes.
+  - Salvar sem data de alerta → assume **30 dias antes**. ⚠️ Sem isso o doc nunca entraria em
+    "VENCE EM BREVE" (`statusVencimento` exige `data_alerta`) — pularia de EM DIA direto pra VENCIDO.
+  - Salvar atualiza o estado local (`setDocumentos(...map)`) em vez de `abrirPasta()` — sem re-fetch.
+- ✅ `vite build` = 0 erros. ⏳ Usuário testar LOCAL em http://10.6.1.171:3004 → Departamento Pessoal.
+
+## 🔭 (04/08) — Currículo público: novos "Cargos de Interesse" (vagas futuras) — ✅ DEPLOYADO Tradição + Ponto Certo (bdab4a3)
 Pedido: além de "Experiências como" (cargos que o candidato já trabalhou), criar uma
 2ª seleção de cargos/setores em que ele NÃO tem experiência mas tem interesse pra
 vaga futura — pra RH achar no Banco de Currículos quando abrir vaga nessas áreas.
@@ -13,7 +31,7 @@ vaga futura — pra RH achar no Banco de Currículos quando abrir vaga nessas á
 - **Modal de detalhe do candidato** (`DetalheCV`, componente compartilhado por Banco de Currículos E RhVagas): nova seção "Cargos de Interesse" com botão "✏️ Editar" que abre popup com checkboxes de TODOS os cargos cadastrados (busca `/curriculos/cargos` só quando abre) — RH pode marcar/desmarcar livremente e salvar. Backend `PUT /curriculos/:id` aceita `cargos_interesse` agora. Prop `onAtualizarCargosInteresse` wireada nos DOIS lugares que usam `DetalheCV` (BancoCurriculos.jsx reusa `salvarStatus` genérico; RhVagas.jsx tem sua própria implementação local, mesmo padrão dos outros campos).
 - **Split visual "Cargo se Candidatado" (amarelo) x "Cargos de Interesse" (azul):** ambos vêm do MESMO array `cargos_interesse`, mas o front separa por origem — `cargos_vaga_aplicada` (novo, calculado em runtime no backend a partir de `vagas_interesse_ids` cruzado com `rh_vagas.cargo_nome`) marca quais entradas vieram de uma vaga que o candidato de fato se candidatou. Precisou mapear `vagas_interesse_ids` na entity `Curriculo.ts` (coluna já existia desde 1784770000000, só não estava mapeada no TypeORM) + enriquecer `listarCurriculos` E `obterCurriculo` com esse cálculo (senão o refresh depois de editar perderia a separação).
   - 🐛 **Bug achado+corrigido (mesma sessão):** `cargo_nome` NÃO é coluna de `rh_vagas` — é alias de JOIN (`ca.nome AS cargo_nome`, `LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id`, ver `rh.controller.ts:1298/1302`). Minha 1ª versão fazia `SELECT id, cargo_nome FROM rh_vagas` direto → Postgres deu erro (coluna não existe) → `.catch(() => [])` engoliu silenciosamente → `cargos_vaga_aplicada` sempre vazio → nenhum cargo aparecia amarelo mesmo candidato vindo de vaga real. Corrigido com o JOIN certo nas duas queries (listarCurriculos + obterCurriculo).
-- ✅ backend `tsc --noEmit` = 0, front `vite build` = 0. ⏳ Testando LOCAL → commit+push → deploy (pendente pedir cliente).
+- ✅ backend `tsc --noEmit` = 0, front `vite build` = 0. ✅ Testado LOCAL (usuário validou "Cargo se Candidatado" separado corretamente). ✅ Commit+push `bdab4a3` + deploy **Tradição** e **Ponto Certo** (build --no-cache front+back, up --no-deps, backends healthy, bundles com marcadores confirmados). ⏳ Falta propagar pros outros 6 clientes kontrata (puma, damata, guibox, novacentral, fratelli, cidade, mameva).
 
 ## 🔢 (04/08) — Banco de Currículos: card "Total" travava em 500 — ✅ DEPLOYADO Novacentral (fba8eaf), ⏳ aguardando validação visual
 Cliente Novacentral já tem currículo #663, mas o card TOTAL do Banco de Currículos

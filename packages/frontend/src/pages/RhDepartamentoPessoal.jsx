@@ -37,6 +37,12 @@ export default function RhDepartamentoPessoal() {
 
   const [visualizarDoc, setVisualizarDoc] = useState(null);
 
+  // Editar validade de um documento JÁ enviado (antes só dava pra definir no upload)
+  const [editarValidade, setEditarValidade] = useState(null); // { doc }
+  const [editVencimento, setEditVencimento] = useState('');
+  const [editAlerta, setEditAlerta] = useState('');
+  const [salvandoValidade, setSalvandoValidade] = useState(false);
+
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
 
@@ -238,6 +244,45 @@ export default function RhDepartamentoPessoal() {
     if (venc < hoje) return { cor: 'red', label: 'VENCIDO', icone: '⛔' };
     if (alerta && alerta <= hoje) return { cor: 'amber', label: 'VENCE EM BREVE', icone: '⚠️' };
     return { cor: 'emerald', label: 'EM DIA', icone: '✅' };
+  };
+
+  // 'YYYY-MM-DD' N dias antes (usado pra sugerir a data de alerta sozinha)
+  const isoMenosDias = (iso, dias) => {
+    const d = parseDataDoc(iso);
+    if (!d) return '';
+    d.setDate(d.getDate() - dias);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
+
+  const abrirEditarValidade = (doc) => {
+    setEditarValidade(doc);
+    setEditVencimento(String(doc.data_vencimento || '').slice(0, 10));
+    setEditAlerta(String(doc.data_alerta || '').slice(0, 10));
+  };
+
+  const aplicarValidade = async (venc, alerta) => {
+    if (!editarValidade) return;
+    setSalvandoValidade(true);
+    try {
+      await api.put(`/rh/dp/documentos/${editarValidade.id}/datas`, {
+        data_vencimento: venc || null,
+        data_alerta: alerta || null,
+      });
+      setDocumentos(ds => ds.map(d => d.id === editarValidade.id
+        ? { ...d, data_vencimento: venc || null, data_alerta: alerta || null }
+        : d));
+      toast.success(venc ? 'Validade salva' : 'Validade removida');
+      setEditarValidade(null);
+      setEditVencimento(''); setEditAlerta('');
+    } catch (err) { toast.error(err?.response?.data?.error || 'Erro ao salvar validade'); }
+    finally { setSalvandoValidade(false); }
+  };
+
+  const salvarValidade = () => {
+    if (!editVencimento) { toast.error('Informe a data de vencimento'); return; }
+    // Sem data de alerta o documento nunca avisaria "vence em breve" — assume 30 dias antes
+    aplicarValidade(editVencimento, editAlerta || isoMenosDias(editVencimento, 30));
   };
 
   const excluirDocumento = async (doc) => {
@@ -478,10 +523,16 @@ export default function RhDepartamentoPessoal() {
                                           {st.icone} {st.label}
                                         </span>
                                       )}
-                                      {doc.data_vencimento && (
-                                        <span className="text-xs text-gray-700 whitespace-nowrap">
+                                      {doc.data_vencimento ? (
+                                        <button onClick={() => abrirEditarValidade(doc)} title="Alterar/remover a validade"
+                                          className="text-xs text-gray-700 whitespace-nowrap hover:text-purple-700 underline decoration-dotted underline-offset-2">
                                           📅 Vence: <strong>{fmtDataDoc(doc.data_vencimento)}</strong>
-                                        </span>
+                                        </button>
+                                      ) : (
+                                        <button onClick={() => abrirEditarValidade(doc)} title="Definir uma data de validade pra este documento"
+                                          className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-300 bg-gray-100 text-gray-500 hover:bg-amber-100 hover:border-amber-400 hover:text-amber-800 whitespace-nowrap transition">
+                                          🕓 SEM VALIDADE
+                                        </button>
                                       )}
                                       <span className="text-sm text-gray-500 whitespace-nowrap">{fmtTamanho(doc.tamanho_bytes)}</span>
                                       <button onClick={() => setVisualizarDoc(doc)} className="text-purple-600 hover:text-purple-800 font-bold text-sm" title="Visualizar sem baixar">
@@ -512,6 +563,17 @@ export default function RhDepartamentoPessoal() {
                               <div className="text-sm font-semibold text-gray-800 truncate">{doc.nome}</div>
                               <div className="text-xs text-gray-500">{fmtTamanho(doc.tamanho_bytes)} · {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</div>
                             </div>
+                            {doc.data_vencimento ? (
+                              <button onClick={() => abrirEditarValidade(doc)} title="Alterar/remover a validade"
+                                className="text-xs text-gray-700 whitespace-nowrap hover:text-purple-700 underline decoration-dotted underline-offset-2">
+                                📅 Vence: <strong>{fmtDataDoc(doc.data_vencimento)}</strong>
+                              </button>
+                            ) : (
+                              <button onClick={() => abrirEditarValidade(doc)} title="Definir uma data de validade pra este documento"
+                                className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-300 bg-gray-100 text-gray-500 hover:bg-amber-100 hover:border-amber-400 hover:text-amber-800 whitespace-nowrap transition">
+                                🕓 SEM VALIDADE
+                              </button>
+                            )}
                             <button onClick={() => setVisualizarDoc(doc)} className="text-purple-600 hover:text-purple-800 font-semibold text-sm" title="Visualizar sem baixar">👁️ Visualizar</button>
                             <a href={doc.arquivo_url} target="_blank" rel="noreferrer" className="text-blue-600 font-semibold text-sm">⬇️ Baixar</a>
                             <button onClick={() => excluirDocumento(doc)} className="text-red-500 hover:text-red-700">🗑️</button>
@@ -638,6 +700,77 @@ export default function RhDepartamentoPessoal() {
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold disabled:bg-gray-300">
                 {uploadingFile ? 'Enviando...' : '📤 Enviar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Validade do Documento */}
+      {editarValidade && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditarValidade(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">📅 Validade do documento</h3>
+              <p className="text-xs text-gray-500 truncate">{editarValidade.nome}</p>
+            </div>
+            <div className="p-4 space-y-3">
+              <label className="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-gray-50 border border-gray-200">
+                <input type="checkbox" checked={!!editVencimento} className="mt-0.5"
+                  onChange={e => {
+                    if (e.target.checked) {
+                      const hoje = new Date();
+                      const p = (n) => String(n).padStart(2, '0');
+                      const umAno = `${hoje.getFullYear() + 1}-${p(hoje.getMonth() + 1)}-${p(hoje.getDate())}`;
+                      setEditVencimento(umAno);
+                      setEditAlerta(isoMenosDias(umAno, 30));
+                    } else { setEditVencimento(''); setEditAlerta(''); }
+                  }} />
+                <div>
+                  <div className="text-sm font-semibold text-gray-800">Este documento tem validade?</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Marque pra registrar o vencimento e receber alerta antes.</div>
+                </div>
+              </label>
+
+              {!!editVencimento && (
+                <div className="border-2 border-amber-200 bg-amber-50 rounded-lg p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-gray-600">Data de vencimento</label>
+                      <input type="date" value={editVencimento}
+                        onChange={e => {
+                          setEditVencimento(e.target.value);
+                          if (!editAlerta && e.target.value) setEditAlerta(isoMenosDias(e.target.value, 30));
+                        }}
+                        className="w-full mt-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-gray-600">Data de alerta</label>
+                      <input type="date" value={editAlerta}
+                        onChange={e => setEditAlerta(e.target.value)}
+                        className="w-full mt-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-amber-700">A partir da data de alerta o sistema sinaliza o vencimento próximo. Em branco = 30 dias antes.</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-between gap-2">
+              {editarValidade.data_vencimento ? (
+                <button onClick={() => aplicarValidade(null, null)} disabled={salvandoValidade}
+                  className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-semibold disabled:text-gray-400">
+                  🗑️ Remover validade
+                </button>
+              ) : <span />}
+              <div className="flex gap-2">
+                <button onClick={() => setEditarValidade(null)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold">
+                  Cancelar
+                </button>
+                <button onClick={salvarValidade} disabled={salvandoValidade || !editVencimento}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold disabled:bg-gray-300">
+                  {salvandoValidade ? 'Salvando...' : '✔ Salvar'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
