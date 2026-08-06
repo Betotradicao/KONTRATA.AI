@@ -1,6 +1,19 @@
 # 🚧 Trabalho em Andamento
 
-## 📂 (06/08) — Documentação Padronizada não replicava em colaborador novo — LOCAL, aguardando deploy
+## 🧹 (06/08) — Tradição: exclusão em lote das subpastas "TERMO BANCO DE HORAS" — ✅ FEITO
+Pedido do usuário: remover a subpasta de todos os colaboradores. Levantamento antes:
+**73 subpastas / 73 colaboradores / 0 arquivos dentro / já removida do template**
+(por isso não volta na próxima contratação).
+- Executado dentro de `BEGIN/COMMIT` com `ON_ERROR_STOP=1`. Backup em
+  **`_bkp_subpastas_banco_horas`** (tabela no próprio `kontrata_tradicao`, com
+  `colaborador_id` e `apagado_em`) → dá pra recriar se precisar.
+- `DELETE` com trava `NOT EXISTS (SELECT 1 FROM rh_documentos WHERE subpasta_id = s.id)`
+  — nunca apaga subpasta que tenha arquivo, mesmo que o levantamento diga 0.
+- Resultado: 73 apagadas, 0 restantes.
+- 💡 Padrão pra rodar SQL na VPS sem apanhar de aspas do PowerShell:
+  `Get-Content x.sql | ssh vps2-hostinger "docker exec -i kontrata-<cli>-postgres psql -U postgres -d kontrata_<cli>"`.
+
+## 📂 (06/08) — Documentação Padronizada não replicava em colaborador novo — ✅ DEPLOYADO Tradição (9741b1a)
 Colaborador criado pela **Ficha de Admissão** nascia sem pasta nenhuma. Investigação
 achou **2 bugs**, um deles pré-existente e silencioso. Causa-raiz completa:
 [[bugs-resolvidos/2026-08-06-template-documentacao-nao-replicava]].
@@ -12,8 +25,12 @@ achou **2 bugs**, um deles pré-existente e silencioso. Causa-raiz completa:
   isso sempre funcionou).
 - ✅ Testado no banco dev com script descartável: 1ª chamada = 9 pastas + 10 subpastas,
   2ª chamada = 0 novas (idempotente). `tsc --noEmit` = 0.
-- ⏳ Deploy Tradição precisa de **rebuild do BACKEND** (mudança é só backend).
-- 💡 Remediar quem já está sem pasta: botão "🔄 Sincronizar tudo nos colaboradores".
+- ✅✅ **DEPLOYADO kontrata-tradicao 06/08:** `build --no-cache backend` + `up -d --no-deps backend`,
+  container `healthy`, log limpo ("Seed completo", "Server is running on port 3010"). Frontend/postgres/minio
+  intocados. Mudança é **só backend** — não precisou rebuildar front.
+- ✅ Usuário rodou o "🔄 Sincronizar tudo nos colaboradores" em prod: pastas 314→369, sub-pastas
+  obrigatórias 360→423. Os colaboradores que estavam vazios foram normalizados.
+- ⏳ Falta propagar pros outros 8 clientes kontrata — um de cada vez.
 
 ## 📅 (06/08) — DP: definir validade de documento JÁ enviado — ✅ DEPLOYADO Tradição (f719264)
 Antes só dava pra marcar "Este documento tem validade?" **no momento do upload**. Se o usuário
