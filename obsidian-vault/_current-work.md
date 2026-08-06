@@ -1,5 +1,20 @@
 # 🚧 Trabalho em Andamento
 
+## 📂 (06/08) — Documentação Padronizada não replicava em colaborador novo — LOCAL, aguardando deploy
+Colaborador criado pela **Ficha de Admissão** nascia sem pasta nenhuma. Investigação
+achou **2 bugs**, um deles pré-existente e silencioso. Causa-raiz completa:
+[[bugs-resolvidos/2026-08-06-template-documentacao-nao-replicava]].
+- Bug 1: `rh-fichas-admissao.controller.ts` nunca chamava a replicação (só o Cadastro Geral chamava).
+- Bug 2 (pior): `ON CONFLICT (pasta_id, nome)` sem UNIQUE na tabela → exceção engolida por
+  `catch`+`console.warn` → **nenhuma subpasta obrigatória era criada, nem no Cadastro Geral**.
+- Fix: novo `services/doc-template.service.ts` → `replicarTemplateNoColaborador()`, chamado
+  pelos DOIS caminhos; anti-duplicata por `NOT EXISTS` (igual ao `sincronizarTudo`, que por
+  isso sempre funcionou).
+- ✅ Testado no banco dev com script descartável: 1ª chamada = 9 pastas + 10 subpastas,
+  2ª chamada = 0 novas (idempotente). `tsc --noEmit` = 0.
+- ⏳ Deploy Tradição precisa de **rebuild do BACKEND** (mudança é só backend).
+- 💡 Remediar quem já está sem pasta: botão "🔄 Sincronizar tudo nos colaboradores".
+
 ## 📅 (06/08) — DP: definir validade de documento JÁ enviado — ✅ DEPLOYADO Tradição (f719264)
 Antes só dava pra marcar "Este documento tem validade?" **no momento do upload**. Se o usuário
 não marcasse, não existia caminho pra corrigir depois — tinha que excluir e reenviar o arquivo.

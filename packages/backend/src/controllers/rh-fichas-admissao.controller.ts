@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
+import { replicarTemplateNoColaborador } from '../services/doc-template.service';
 
 /**
  * Ficha de Admissão — RH preenche dados de contratação na 1ª fase, gera link
@@ -428,6 +429,16 @@ export class RhFichasAdmissaoController {
         }
       } catch (extraErr) {
         console.error('[criarColaborador] falha ao gravar campos extras/dependentes:', extraErr);
+      }
+
+      // Cria as pastas/subpastas da "Documentacao Padronizada" pra esse colaborador.
+      // ⚠️ Sem isto o colaborador vindo da Ficha nascia SEM pasta nenhuma — o
+      // Cadastro Geral manual sempre replicou, esse caminho nao (bug 06/08/2026).
+      // Nao pode derrubar a criacao do colaborador: a ficha ja foi convertida.
+      try {
+        await replicarTemplateNoColaborador(novo.id);
+      } catch (tplErr) {
+        console.error('[criarColaborador] falha ao replicar template de documentacao:', tplErr);
       }
 
       await AppDataSource.query(

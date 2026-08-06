@@ -4,6 +4,7 @@ import { AppDataSource } from '../config/database';
 import { minioService } from '../services/minio.service';
 import { GeocodeService } from '../services/geocode.service';
 import { limparCacheIndicadores } from './rh-ponto.controller';
+import { replicarTemplateNoColaborador } from '../services/doc-template.service';
 
 // ============================================================
 // Helpers pra gravar os campos "extras" do colaborador (alinhados à Ficha
@@ -290,47 +291,13 @@ export class RhController {
         ]
       );
 
-      // Cria automaticamente as pastas/subpastas padronizadas pra esse colaborador,
-      // baseadas no TEMPLATE centralizado (rh_documento_pastas_template /
-      // rh_documento_subpastas_template). Configurado em
-      // "Configuracoes RH -> Documentacao Padronizada".
-      // Pastas protegidas no template ficam protegidas no colaborador.
+      // Cria automaticamente as pastas/subpastas padronizadas pra esse colaborador
+      // ("Configuracoes RH -> Documentacao Padronizada"). Mesma chamada existe na
+      // Ficha de Admissao — se mudar aqui, ver `replicarTemplateNoColaborador`.
       const novoColabId = result[0]?.id;
       limparCacheIndicadores();   // novo colaborador afeta os indicadores de ponto
       if (novoColabId) {
-        const pastasTemplate = await AppDataSource.query(
-          `SELECT id, nome, ordem, protegida FROM rh_documento_pastas_template
-            WHERE obrigatoria = true
-            ORDER BY ordem, nome`
-        );
-        for (const pt of pastasTemplate) {
-          try {
-            const [pastaCriada] = await AppDataSource.query(
-              `INSERT INTO rh_documento_pastas (colaborador_id, nome, ordem, protegida)
-               VALUES ($1::int, $2::text, $3::int, $4::boolean)
-               ON CONFLICT (colaborador_id, nome) DO UPDATE SET protegida = EXCLUDED.protegida, ordem = EXCLUDED.ordem
-               RETURNING id`,
-              [novoColabId, pt.nome, pt.ordem, pt.protegida]
-            );
-            // Cria subpastas obrigatorias do template pra esta pasta
-            const subs = await AppDataSource.query(
-              `SELECT nome, ordem, obrigatoria FROM rh_documento_subpastas_template
-                WHERE pasta_template_id = $1 AND obrigatoria = true
-                ORDER BY ordem, nome`,
-              [pt.id]
-            );
-            for (const sub of subs) {
-              await AppDataSource.query(
-                `INSERT INTO rh_documento_subpastas (pasta_id, nome, ordem, obrigatorio)
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT (pasta_id, nome) DO NOTHING`,
-                [pastaCriada.id, sub.nome, sub.ordem, sub.obrigatoria]
-              );
-            }
-          } catch (e) {
-            console.warn(`[colab ${novoColabId}] falha ao criar pasta template ${pt.nome}:`, (e as Error).message);
-          }
-        }
+        await replicarTemplateNoColaborador(novoColabId);
       }
 
       // Grava campos extras (RG completo, CTPS UF/emissão, Título zona/seção,

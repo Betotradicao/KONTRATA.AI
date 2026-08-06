@@ -65,6 +65,9 @@ Atalho: **Ctrl + G** ou clica no ícone de 3 bolinhas ligadas na barra lateral e
 
 ## 🐛 Bugs Resolvidos / Features Recentes
 
+### Agosto 2026
+- [[bugs-resolvidos/2026-08-06-template-documentacao-nao-replicava|Documentação Padronizada não replicava no colaborador novo (2 bugs)]]
+
 ### Abril 2026
 - [[bugs-resolvidos/2026-04-15-tiposSaida-gestao|NF Transferência contaminando Gestão Inteligente]]
 - [[bugs-resolvidos/2026-04-15-dif-anual-itens|Dif Anual em branco nos itens Compra x Venda]]
