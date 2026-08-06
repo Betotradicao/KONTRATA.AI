@@ -1,6 +1,6 @@
 # 🚧 Trabalho em Andamento
 
-## 📅 (06/08) — DP: definir validade de documento JÁ enviado — LOCAL, aguardando teste do usuário
+## 📅 (06/08) — DP: definir validade de documento JÁ enviado — ✅ DEPLOYADO Tradição (f719264)
 Antes só dava pra marcar "Este documento tem validade?" **no momento do upload**. Se o usuário
 não marcasse, não existia caminho pra corrigir depois — tinha que excluir e reenviar o arquivo.
 - **Backend:** NADA a fazer — `PUT /rh/dp/documentos/:id/datas` (`RhDpController.atualizarDatasDocumento`)
@@ -16,7 +16,14 @@ não marcasse, não existia caminho pra corrigir depois — tinha que excluir e 
   - Salvar sem data de alerta → assume **30 dias antes**. ⚠️ Sem isso o doc nunca entraria em
     "VENCE EM BREVE" (`statusVencimento` exige `data_alerta`) — pularia de EM DIA direto pra VENCIDO.
   - Salvar atualiza o estado local (`setDocumentos(...map)`) em vez de `abrirPasta()` — sem re-fetch.
-- ✅ `vite build` = 0 erros. ⏳ Usuário testar LOCAL em http://10.6.1.171:3004 → Departamento Pessoal.
+- ✅ `vite build` = 0. ✅ Usuário validou LOCAL. ✅ Commit+push `f719264`.
+- ✅✅ **DEPLOYADO kontrata-tradicao (VPS 46) 06/08 + VERIFICADO:** repo→f719264, `build --no-cache frontend`
+  (só o front mudou — backend não foi tocado), `up -d --no-deps frontend`. Bundle novo
+  `index-BXTo3l5y-1786043975186.js` com os 3 marcadores (`SEM VALIDADE`, `Remover validade`,
+  `Alterar/remover a validade`). `curl 127.0.0.1:7903` = 200 e `https://tradicao.kontrataai.com.br` = 200.
+  Backend `healthy` (Up 44h, intacto), postgres/minio `Up 4 weeks` (intactos).
+- ⏳ **Falta propagar pros outros 8 clientes kontrata** (puma, damata, guibox, novacentral, pontocerto,
+  fratelli, cidade, mameva) — um de cada vez, só quando o usuário pedir.
 
 ## 🔭 (04/08) — Currículo público: novos "Cargos de Interesse" (vagas futuras) — ✅ DEPLOYADO Tradição + Ponto Certo (bdab4a3)
 Pedido: além de "Experiências como" (cargos que o candidato já trabalhou), criar uma
