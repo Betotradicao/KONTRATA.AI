@@ -1,6 +1,6 @@
 # 🚧 Trabalho em Andamento
 
-## 🔒 (08/08) — MODO DEMONSTRAÇÃO LGPD (botão do master) — LOCAL, uncommitado
+## 🔒 (08/08) — MODO DEMONSTRAÇÃO LGPD (botão do master) — ✅ DEPLOYADO Tradição (e88a27a)
 Ideia do usuário: pra gravar vídeo de divulgação sem expor candidato real, um botão
 discreto no rodapé do menu lateral que mascara dado pessoal. Cobertura entregue:
 **Recrutamento + Indicadores RH + Colaboradores (3 submenus) + Ponto e Ausências (2 abas)**.
@@ -82,6 +82,20 @@ motivo de desligamento, empresa e CNPJ.
 - 🐛 **2º bug do mesmo teste:** a tarja não aparecia. Estava no `Layout.jsx`, mas
   **`RhVagas.jsx` (e várias outras) montam layout próprio e nunca passam pelo Layout**.
   Movida pro `App.jsx` (`LgpdDemoBanner`), que embrulha o sistema inteiro.
+- ✅✅ **COMMIT+PUSH `e88a27a`** (KONTRATAAI, 11 arquivos / 745 linhas).
+- ✅✅✅ **DEPLOYADO kontrata-tradicao (VPS 46) 08/08 + VERIFICADO:** repo→`e88a27a`,
+  `build --no-cache backend frontend` + `up -d --no-deps`. Backend `healthy`, log limpo
+  ("Seed completo", "Server is running on port 3010"), **0 erros**. `lgpd-demo.middleware.js`
+  presente em `/app/dist/middleware/`, `lgpdDemoMask` aparece **20×** no `rh.routes.js`
+  compilado e 1× no `curriculos.routes.js`. Bundle novo `index-DeW2yAoa-1786217681903.js`
+  com os 6 marcadores (`LGPD ativar/ativado`, `Modo demonstra`, `x-lgpd-demo`, `lgpd_demo`,
+  `Foto oculta`). `curl` 127.0.0.1:7903 = 200, domínio = 200, `GET /api/rh/vagas` sem token
+  = **401** (rota viva). Postgres/MinIO intactos (Up 4 weeks).
+- ⏳ **Falta propagar pros outros clientes kontrata** — um de cada vez, só quando pedir.
+- 💡 **Pegadinha nova (Windows):** script gerado pelo Write sai com **BOM UTF-8**; pipado via
+  `Get-Content -Raw | ssh ... bash -s`, o BOM **come a 1ª linha** (`C=tradicao` virou vazio →
+  `kontrata--backend: no such container`). Solução: 1ª linha em branco no script, ou gerar
+  o arquivo pelo Bash tool (Git Bash grava LF sem BOM).
 
 ## 🚀 (08/08) — NIVELAMENTO DA FROTA: 5 clientes subidos pro código do Tradição — ✅ CONCLUÍDO
 Pedido do usuário: "colocar todos na mesma versão do Tradição", **um a um**, exceto
