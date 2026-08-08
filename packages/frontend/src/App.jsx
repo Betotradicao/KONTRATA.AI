@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { LojaProvider } from './contexts/LojaContext';
 import ProtectedRoute, { RedirectToFirstAllowed } from './components/ProtectedRoute';
+import LgpdDemoBanner from './components/LgpdDemoBanner';
 
 // Auth / Core
 import Login from './pages/Login';
@@ -82,6 +83,9 @@ function App() {
     <Router>
       <AuthProvider>
         <LojaProvider>
+            {/* Tarja do modo demonstracao LGPD — aqui no App pra alcancar
+                TODA tela (varias montam layout proprio, sem o Layout.jsx) */}
+            <LgpdDemoBanner />
             <Routes>
               {/* Public Routes (sem auth) */}
               <Route path="/admin-setup/:token" element={<AdminSetup />} />

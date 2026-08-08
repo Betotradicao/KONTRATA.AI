@@ -18,6 +18,7 @@ import { RhEmailDocController } from '../controllers/rh-email-doc.controller';
 import { RhPontoController } from '../controllers/rh-ponto.controller';
 import { RhPerformanceController } from '../controllers/rh-performance.controller';
 import { authenticateToken } from '../middleware/auth';
+import { lgpdDemoMask, lgpdDemoReadOnly } from '../middleware/lgpd-demo.middleware';
 
 const router: Router = Router();
 const uploadDoc = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
@@ -26,13 +27,14 @@ const uploadDoc = multer({ storage: multer.memoryStorage(), limits: { fileSize: 
 router.post('/enviar-documento-email', authenticateToken, RhEmailDocController.enviarDocumento);
 router.post('/email-empresa/testar', authenticateToken, RhEmailDocController.testarEmailEmpresa);
 
-router.get('/colaboradores', authenticateToken, RhController.listColaboradores);
-router.get('/colaboradores/km', authenticateToken, RhController.kmDesligados);
-router.get('/colaboradores/stats', authenticateToken, RhController.getStats);
-router.get('/colaboradores/:id', authenticateToken, RhController.getColaboradorById);
-router.post('/colaboradores', authenticateToken, RhController.createColaborador);
-router.put('/colaboradores/:id', authenticateToken, RhController.updateColaborador);
-router.delete('/colaboradores/:id', authenticateToken, RhController.deleteColaborador);
+// Colaboradores — expoem nome/CPF/endereco: entram no modo demonstracao LGPD
+router.get('/colaboradores', authenticateToken, lgpdDemoMask, RhController.listColaboradores);
+router.get('/colaboradores/km', authenticateToken, lgpdDemoMask, RhController.kmDesligados);
+router.get('/colaboradores/stats', authenticateToken, lgpdDemoMask, RhController.getStats);
+router.get('/colaboradores/:id', authenticateToken, lgpdDemoMask, RhController.getColaboradorById);
+router.post('/colaboradores', authenticateToken, lgpdDemoReadOnly, RhController.createColaborador);
+router.put('/colaboradores/:id', authenticateToken, lgpdDemoReadOnly, RhController.updateColaborador);
+router.delete('/colaboradores/:id', authenticateToken, lgpdDemoReadOnly, RhController.deleteColaborador);
 
 // Configuracoes - Cargos
 router.get('/configuracoes/cargos', authenticateToken, RhController.listarCargos);
@@ -177,18 +179,18 @@ router.delete('/treinamentos-materiais/:id', authenticateToken, RhController.del
 // Aniversariantes do mes
 router.get('/aniversariantes', authenticateToken, RhController.listarAniversariantes);
 
-// Vagas (Recrutamento)
-router.get('/vagas/indicadores', authenticateToken, RhController.indicadoresRecrutamento);
-router.get('/vagas', authenticateToken, RhController.listarVagas);
-router.post('/vagas', authenticateToken, RhController.criarVaga);
-router.put('/vagas/:id', authenticateToken, RhController.atualizarVaga);
-router.delete('/vagas/:id', authenticateToken, RhController.deletarVaga);
-router.post('/vagas/:vagaId/adicionar-interesse', authenticateToken, RhController.adicionarInteresseVaga);
-router.post('/vagas/:vagaId/candidato-status', authenticateToken, RhController.setCandidatoStatusVaga);
-router.post('/vagas/:vagaId/sincronizar-banco', authenticateToken, RhController.sincronizarBancoVaga);
+// Vagas (Recrutamento) — com modo demonstracao LGPD (so master + header)
+router.get('/vagas/indicadores', authenticateToken, lgpdDemoMask, RhController.indicadoresRecrutamento);
+router.get('/vagas', authenticateToken, lgpdDemoMask, RhController.listarVagas);
+router.post('/vagas', authenticateToken, lgpdDemoReadOnly, RhController.criarVaga);
+router.put('/vagas/:id', authenticateToken, lgpdDemoReadOnly, RhController.atualizarVaga);
+router.delete('/vagas/:id', authenticateToken, lgpdDemoReadOnly, RhController.deletarVaga);
+router.post('/vagas/:vagaId/adicionar-interesse', authenticateToken, lgpdDemoReadOnly, RhController.adicionarInteresseVaga);
+router.post('/vagas/:vagaId/candidato-status', authenticateToken, lgpdDemoReadOnly, RhController.setCandidatoStatusVaga);
+router.post('/vagas/:vagaId/sincronizar-banco', authenticateToken, lgpdDemoReadOnly, RhController.sincronizarBancoVaga);
 
 // Candidatos
-router.get('/candidatos', authenticateToken, RhController.listarCandidatos);
+router.get('/candidatos', authenticateToken, lgpdDemoMask, RhController.listarCandidatos);
 router.post('/candidatos', authenticateToken, RhController.criarCandidato);
 router.put('/candidatos/:id', authenticateToken, RhController.atualizarCandidato);
 router.delete('/candidatos/:id', authenticateToken, RhController.deletarCandidato);
@@ -223,8 +225,8 @@ router.delete('/disc-results/:id', authenticateToken, RhController.deletarDiscRe
 
 // Documentacao - Stats
 router.get('/documentacao/stats', authenticateToken, RhDocumentacaoController.obterStats);
-router.get('/documentacao/stats-por-colaborador', authenticateToken, RhDocumentacaoController.obterStatsPorColaborador);
-router.get('/documentacao/tree-colaborador', authenticateToken, RhDocumentacaoController.obterTreeColaborador);
+router.get('/documentacao/stats-por-colaborador', authenticateToken, lgpdDemoMask, RhDocumentacaoController.obterStatsPorColaborador);
+router.get('/documentacao/tree-colaborador', authenticateToken, lgpdDemoMask, RhDocumentacaoController.obterTreeColaborador);
 
 // Documentacao - Pastas
 router.get('/documentacao/pastas', authenticateToken, RhDocumentacaoController.listarPastas);
@@ -263,7 +265,7 @@ router.get('/apontamentos', authenticateToken, RhApontamentosController.listar);
 router.get('/apontamentos/periodos', authenticateToken, RhApontamentosController.listarPeriodos);
 
 // Folha de Pagamento - resumo anual (pivot mes x lancamento)
-router.get('/folha/indicadores', authenticateToken, RhFolhaController.indicadores);
+router.get('/folha/indicadores', authenticateToken, lgpdDemoMask, RhFolhaController.indicadores);
 router.get('/folha/resumo-anual', authenticateToken, RhFolhaController.resumoAnual);
 router.get('/folha/holerite', authenticateToken, RhFolhaController.holerite);
 router.post('/apontamentos/periodos/deletar', authenticateToken, RhApontamentosController.deletarPeriodo);
@@ -280,15 +282,15 @@ router.post('/apontamentos/ordem', authenticateToken, RhApontamentosController.s
 router.get('/ponto/relogio/status', authenticateToken, RhPontoController.statusRelogio);
 router.post('/ponto/relogio/testar', authenticateToken, RhPontoController.testarCredenciais);
 router.get('/ponto/rhid/empresas', authenticateToken, RhPontoController.empresasRhid);
-router.post('/ponto/sincronizar-pis', authenticateToken, RhPontoController.sincronizarPis);
-router.get('/ponto/espelho', authenticateToken, RhPontoController.espelho);
-router.get('/ponto/indicadores', authenticateToken, RhPontoController.indicadores);
+router.post('/ponto/sincronizar-pis', authenticateToken, lgpdDemoReadOnly, RhPontoController.sincronizarPis);
+router.get('/ponto/espelho', authenticateToken, lgpdDemoMask, RhPontoController.espelho);
+router.get('/ponto/indicadores', authenticateToken, lgpdDemoMask, RhPontoController.indicadores);
 router.get('/ponto/rhid/vinculos', authenticateToken, RhPontoController.pisVinculados);
 router.get('/ponto/valor-hora', authenticateToken, RhPontoController.getValorHora);
 router.post('/ponto/valor-hora', authenticateToken, RhPontoController.salvarValorHora);
 
 // Férias detectadas pelo ponto (modo "Via Relógio de Ponto")
-router.get('/ferias/deteccao-ponto', authenticateToken, RhPontoController.deteccaoFeriasPonto);
+router.get('/ferias/deteccao-ponto', authenticateToken, lgpdDemoMask, RhPontoController.deteccaoFeriasPonto);
 
 // Performance por Setor (Financeiro RH)
 router.get('/performance-setor', authenticateToken, RhPerformanceController.listar);
@@ -298,7 +300,7 @@ router.delete('/performance-setor/:id', authenticateToken, RhPerformanceControll
 router.post('/performance-setor/venda', authenticateToken, RhPerformanceController.salvarVenda);
 
 // Departamento Pessoal (docs da empresa)
-router.get('/dp/indicadores', authenticateToken, RhDpController.indicadores);
+router.get('/dp/indicadores', authenticateToken, lgpdDemoMask, RhDpController.indicadores);
 router.get('/dp/pastas', authenticateToken, RhDpController.listarPastas);
 router.post('/dp/pastas', authenticateToken, RhDpController.criarPasta);
 router.post('/dp/pastas/reordenar', authenticateToken, RhDpController.reordenarPastas);
@@ -322,17 +324,17 @@ router.put('/documentacao/subpastas/:id', authenticateToken, RhDocumentacaoContr
 router.delete('/documentacao/subpastas/:id', authenticateToken, RhDocumentacaoController.deletarSubpasta);
 
 // ASO (Saude Ocupacional)
-router.get('/asos', authenticateToken, RhAsoController.listar);
-router.get('/asos/stats', authenticateToken, RhAsoController.stats);
-router.get('/asos/colaboradores', authenticateToken, RhAsoController.listarColaboradoresComStatus);
-router.put('/asos/colaboradores/:colaboradorId/dispensar', authenticateToken, RhAsoController.toggleDispensado);
-router.post('/asos', authenticateToken, RhAsoController.criar);
-router.put('/asos/:id', authenticateToken, RhAsoController.atualizar);
+router.get('/asos', authenticateToken, lgpdDemoMask, RhAsoController.listar);
+router.get('/asos/stats', authenticateToken, lgpdDemoMask, RhAsoController.stats);
+router.get('/asos/colaboradores', authenticateToken, lgpdDemoMask, RhAsoController.listarColaboradoresComStatus);
+router.put('/asos/colaboradores/:colaboradorId/dispensar', authenticateToken, lgpdDemoReadOnly, RhAsoController.toggleDispensado);
+router.post('/asos', authenticateToken, lgpdDemoReadOnly, RhAsoController.criar);
+router.put('/asos/:id', authenticateToken, lgpdDemoReadOnly, RhAsoController.atualizar);
 router.post('/asos/:id/arquivo', authenticateToken, uploadDoc.single('arquivo'), RhAsoController.uploadArquivo);
-router.delete('/asos/:id', authenticateToken, RhAsoController.deletar);
+router.delete('/asos/:id', authenticateToken, lgpdDemoReadOnly, RhAsoController.deletar);
 
 // Documentacao - Arquivos
-router.get('/documentacao/documentos', authenticateToken, RhDocumentacaoController.listarDocumentos);
+router.get('/documentacao/documentos', authenticateToken, lgpdDemoMask, RhDocumentacaoController.listarDocumentos);
 router.post('/documentacao/documentos', authenticateToken, uploadDoc.single('arquivo'), RhDocumentacaoController.uploadDocumento);
 router.put('/documentacao/documentos/:id', authenticateToken, RhDocumentacaoController.renomearDocumento);
 router.delete('/documentacao/documentos/:id', authenticateToken, RhDocumentacaoController.deletarDocumento);
@@ -427,11 +429,11 @@ router.post('/fichas-admissao/:id/gerar-link', authenticateToken, RhFichasAdmiss
 router.post('/fichas-admissao/:id/criar-colaborador', authenticateToken, RhFichasAdmissaoController.criarColaborador);
 
 // Controle de Ferias
-router.get('/ferias', authenticateToken, RhFeriasController.listar);
-router.get('/ferias/calendario', authenticateToken, RhFeriasController.calendario);
-router.post('/ferias', authenticateToken, RhFeriasController.criar);
-router.put('/ferias/:id', authenticateToken, RhFeriasController.atualizar);
-router.delete('/ferias/:id', authenticateToken, RhFeriasController.deletar);
+router.get('/ferias', authenticateToken, lgpdDemoMask, RhFeriasController.listar);
+router.get('/ferias/calendario', authenticateToken, lgpdDemoMask, RhFeriasController.calendario);
+router.post('/ferias', authenticateToken, lgpdDemoReadOnly, RhFeriasController.criar);
+router.put('/ferias/:id', authenticateToken, lgpdDemoReadOnly, RhFeriasController.atualizar);
+router.delete('/ferias/:id', authenticateToken, lgpdDemoReadOnly, RhFeriasController.deletar);
 
 // Template centralizado de pastas/subpastas padronizadas (Documentacao Padronizada)
 router.get('/doc-template/pastas', authenticateToken, RhDocTemplateController.listarPastas);

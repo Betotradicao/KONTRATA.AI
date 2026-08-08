@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isLgpdDemoOn } from './lgpdDemo';
 
 // Criar instância do axios SEM baseURL fixo
 export const api = axios.create({
@@ -109,6 +110,13 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Modo demonstracao LGPD: o backend so mascara se receber este header
+    // E o usuario for master. Ligar aqui nao da poder a ninguem — a checagem
+    // de master acontece no servidor.
+    if (isLgpdDemoOn()) {
+      config.headers['x-lgpd-demo'] = '1';
     }
 
     // LOG FINAL ANTES DE ENVIAR

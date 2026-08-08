@@ -423,7 +423,13 @@ export default function BancoCurriculos() {
                           {/* Candidato (foto + nome) */}
                           <td className="px-2 py-1.5">
                             <div className="flex items-center gap-3">
-                              {cv.foto_url ? (
+                              {cv._lgpd_foto ? (
+                                // Modo demonstracao LGPD: o rosto nem chega do servidor
+                                <div title="Foto oculta pelo modo demonstração LGPD"
+                                  className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center shrink-0 border border-slate-500">
+                                  <span className="text-[10px] leading-none">🔒</span>
+                                </div>
+                              ) : cv.foto_url ? (
                                 <img src={cv.foto_url} alt="" className="w-7 h-7 rounded-full object-cover border border-rose-200 shrink-0" />
                               ) : (
                                 <div className="w-7 h-7 rounded-full bg-rose-100 text-rose-700 text-xs flex items-center justify-center font-bold shrink-0 border border-rose-200">
@@ -887,7 +893,14 @@ export function DetalheCV({
             <aside className="bg-slate-800 text-white p-5 space-y-5">
               {/* Foto */}
               <div className="flex justify-center">
-                {cv.foto_url ? (
+                {cv._lgpd_foto ? (
+                  // Modo demonstracao LGPD: o rosto nem chega do servidor
+                  <div title="Foto oculta pelo modo demonstração LGPD"
+                    className="w-36 h-36 rounded-full bg-slate-700 flex flex-col items-center justify-center gap-1 border-4 border-white/20">
+                    <span className="text-4xl leading-none">🔒</span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-300 font-bold">Foto oculta</span>
+                  </div>
+                ) : cv.foto_url ? (
                   <img src={cv.foto_url} alt="" onClick={() => setShowFotoZoom(true)}
                     title="Clique pra ampliar"
                     className="w-36 h-36 rounded-full object-cover border-4 border-white/20 cursor-zoom-in hover:border-white/60 transition" />

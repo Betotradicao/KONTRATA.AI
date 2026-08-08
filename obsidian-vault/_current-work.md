@@ -1,5 +1,109 @@
 # 🚧 Trabalho em Andamento
 
+## 🔒 (08/08) — MODO DEMONSTRAÇÃO LGPD (botão do master) — LOCAL, uncommitado
+Ideia do usuário: pra gravar vídeo de divulgação sem expor candidato real, um botão
+discreto no rodapé do menu lateral que mascara dado pessoal. Cobertura entregue:
+**Recrutamento + Indicadores RH + Colaboradores (3 submenus) + Ponto e Ausências (2 abas)**.
+- **Decisões do usuário:** nome vira `MARIA S*****` (1º nome + inicial + asteriscos do
+  tamanho do sobrenome); alcance = **só a sessão de quem ligou** (Mari e o RH do cliente
+  continuam vendo dado real — não trava a operação do cliente enquanto gravam).
+- ⚠️ **DECISÃO-CHAVE: mascarar no BACKEND, não com CSS no front.** Borrão de CSS engana o
+  gravador de tela mas o dado real continua no payload — aparece no DevTools/aba Network e
+  num frame perdido do vídeo. Aqui o dado real **não sai da VPS**.
+- **Arquivo novo:** `middleware/lgpd-demo.middleware.ts` — envelopa `res.json` e mascara
+  **por NOME DE CAMPO**, recursivo (pega array aninhado tipo `interessados[]`). Não muta o
+  original (pode ser entity do TypeORM). Falha **fechada**: se a máscara estourar, devolve
+  500, nunca dado cru.
+  - ⚠️ Pegadinha que quase passou: no `catch` eu chamava `res.json` — que já era o próprio
+    wrapper → recursão infinita. Tem que usar o `jsonOriginal` capturado antes.
+- **Ativação:** header `x-lgpd-demo: 1` **E** `req.user` ser MASTER. Ligar o header sozinho
+  não dá poder a ninguém — a checagem de master é no servidor.
+- **`lgpdDemoReadOnly` (trava de escrita):** com o modo ligado, POST/PUT/DELETE → **423**.
+  Motivo: o front segura valores JÁ mascarados em estado local; um "Salvar" gravaria
+  `MARIA S*****` por cima do nome real do candidato no banco do cliente. Perda silenciosa
+  e irreversível. Ninguém precisa escrever enquanto grava vídeo.
+- **Campos anulados por completo** (não só mascarados) — os 3 achados que não eram óbvios:
+  `curriculo_pdf_url` (o PDF anexado tem nome/telefone/endereço reais — mascarar só a tela
+  e deixar o anexo clicável vaza tudo), `curriculo_pdf_nome` (o nome do arquivo costuma ser
+  "CV MARIA SANTOS.pdf"), `latitude`/`longitude` (apontam a casa da pessoa).
+- **Preservado de propósito:** bairro, cidade, estado, cargos, **km_residencia** e **idade** —
+  é justamente o que dá valor à demonstração, e sozinho não identifica ninguém.
+- **Montagem:** `curriculos.routes.ts` via `router.use` **depois** do `authenticateToken`
+  (precisa de `req.user`) e sem alcançar as rotas `/publico` (candidato preenchendo não pode
+  ser afetado). Em `rh.routes.ts` é por-rota, nas de `/vagas` e `/candidatos`.
+- **Frontend:** `utils/lgpdDemo.js` (estado + localStorage + pub/sub + hook `useLgpdDemo`),
+  header injetado no interceptor de `utils/api.js`, botão no rodapé do `Sidebar.jsx`
+  (só `podeUsarLgpdDemo(user)`), **tarja fixa amarela no topo** via `Layout.jsx` enquanto
+  ligado (senão alguém esquece ativado e o RH real fica sem ver telefone sem entender por quê),
+  e placeholder 🔒 "Foto oculta" em `BancoCurriculos.jsx` (2 pontos).
+- ✅ `tsc --noEmit` = 0, `vite build` = 0. ✅ Máscara testada com payload real aninhado:
+  `MARIA DAS DORES SILVA SANTOS`→`MARIA S*****`, `(11) 98765-4321`→`(11) 9****-**21`,
+  `maria.santos@gmail.com`→`ma**********@gmail.com`, `AVENIDA PAULISTA`→`A****** P*******`,
+  lat/long/foto/pdf→null, cargos/km/idade intactos, original **não mutado**.
+
+### 🧠 As 2 lições que valem pra qualquer módulo novo
+1. ⚠️ **`nome` puro NÃO é sempre pessoa.** É também nome de pasta de documento, cargo,
+   setor, loja, modelo de pesquisa e **empresa**. Duas defesas, e as duas são necessárias:
+   - **Contexto de catálogo** (`CATALOGO_KEYS` no middleware): dentro de `empresa`,
+     `loja`, `cargo`, `setor`, `pasta`, `jornada`, `escala`, `feriado`… o `nome` é
+     ignorado. Foi o que salvou o cabeçalho do cartão de ponto (`empresa: { nome }`,
+     `rh-ponto.controller.ts:388`) de virar `TRADIÇÃO S*****`.
+   - **Não montar em rota de catálogo**: `/rh/documentacao/pastas` e `/subpastas` usam
+     `nome` puro pra PASTA e vêm soltos (sem objeto pai) — só ficar de fora resolve.
+     Confirmado por teste: montar lá viraria "DOCUMENTOS PESSOAIS" em "DOCUMENTOS P*******".
+     Idem `/rh/empresas/stores/list` (quebraria o filtro de loja) e
+     `/pesquisa-clima/indicadores` (o `nome` é do MODELO de pesquisa; e ela já é anônima).
+2. ⚠️ **Cada controller batiza o nome da pessoa de um jeito.** `rh.controller` usa `nome`
+   puro, mas `rh-aso.controller` usa **`colaborador_nome`**. Por causa disso a Saúde
+   Ocupacional passou batida na 1ª versão — máscara ligada e nome aparecendo.
+   `NOME_FIELDS` hoje cobre `nome`, `nome_completo`, `colaborador_nome`, `nome_colaborador`,
+   `funcionario_nome`, `candidato_nome`. **Ao cobrir módulo novo, conferir o alias do SELECT.**
+
+### 🗺️ Rotas com máscara montada (o resto do sistema segue exposto)
+`curriculos` (router inteiro, exceto `/publico`) · `rh`: `/vagas`, `/vagas/indicadores`,
+`/candidatos`, `/colaboradores` (+`/km` `/stats` `/:id`), `/documentacao/documentos`,
+`/documentacao/stats-por-colaborador`, `/documentacao/tree-colaborador`, `/asos` (+`/stats`
+`/colaboradores`), `/ponto/indicadores`, `/ponto/espelho`, `/folha/indicadores`,
+`/dp/indicadores`, `/ferias` (+`/calendario` `/deteccao-ponto`).
+
+### 🎥 O que fica visível de propósito (senão a demonstração perde a graça)
+Cargo, setor, bairro, cidade, **KM de residência**, idade, datas, totais de horas,
+motivo de desligamento, empresa e CNPJ.
+- ⏳ **Decisão pendente do usuário:** incluir **empresa/CNPJ** na máscara. Hoje ficam
+  visíveis (não são dado pessoal, e o Tradição é do próprio usuário) — mas se gravar
+  usando base de OUTRO cliente, o vídeo identifica esse cliente.
+
+- ✅ **Testado LOCAL pelo usuário e aprovado** nas telas de Vagas, Indicadores RH,
+  Colaboradores (3 submenus) e Ponto e Ausências (2 abas).
+- 🐛 **Bug de UX achado no teste dele:** ligar o botão não mudava a tela — o header só
+  entra em requisição NOVA, e a tela já tinha os dados em estado. Corrigido com
+  `toggleLgpdDemoComReload()` (recarrega a página no clique). Fazer cada tela re-buscar
+  sem reload exigiria mexer em dezenas de telas e deixaria umas viradas e outras não.
+- 🐛 **2º bug do mesmo teste:** a tarja não aparecia. Estava no `Layout.jsx`, mas
+  **`RhVagas.jsx` (e várias outras) montam layout próprio e nunca passam pelo Layout**.
+  Movida pro `App.jsx` (`LgpdDemoBanner`), que embrulha o sistema inteiro.
+
+## 🚀 (08/08) — NIVELAMENTO DA FROTA: 5 clientes subidos pro código do Tradição — ✅ CONCLUÍDO
+Pedido do usuário: "colocar todos na mesma versão do Tradição", **um a um**, exceto
+**mameva, fratelli e cidade** (decisão explícita dele — ficam em `a852803`/28-07).
+Repo VPS `git pull` → `4ba6dcb` (o commit extra sobre `9741b1a` é **só vault**, código idêntico).
+
+| Cliente | Backend | Frontend | Bundle novo | HTTP |
+|---|---|---|---|---|
+| tradicao (ref) | 06/08 18:00 | 06/08 16:20 | — | 200 |
+| puma | 08/08 12:47 | 08/08 12:45 | `index-D4fvHxNJ` | 200 |
+| damata | 08/08 12:54 | 08/08 12:52 | `index-CCP83J2Y` | 200 |
+| guibox | 08/08 12:57 | 08/08 12:56 | `index-QqQmsCLx` | 200 |
+| novacentral | 08/08 13:13 | 08/08 13:11 | `index-L4s5yjxT` | 200 |
+| pontocerto | 08/08 13:17 | 08/08 13:15 | `index-D-QXFFkM` | 200 |
+
+- Receita por cliente: `docker compose build --no-cache backend frontend && docker compose up -d --no-deps backend frontend`. Postgres/MinIO **intactos** em todos.
+- ✅ Nos 5: backend `healthy`, log limpo (0 erros), migration `AddCargosInteresseCurriculos1786900000000` aplicada, coluna `cargos_interesse jsonb` + `curriculo_pdf_url text` presentes, os **5 marcadores** no bundle (`SEM VALIDADE`, `Remover validade`, `Cargos de Interesse`, `Informe seu WhatsApp`, `Resumo Pessoal e Profissional`), HTTP 200 local **e** no domínio.
+- Entrou nessa leva: `9741b1a` (template documentação), `f719264` (validade de doc já enviado), `bdab4a3` (Cargos de Interesse), `fba8eaf` (card Total sem trava de 500), `d685286` (WhatsApp obrigatório).
+- 💡 **Load da VPS 46 aguenta build sequencial:** picos de 11-12 durante `vite build`, voltando a ~3-5 entre clientes. Nenhum cliente no ar foi afetado. Disco 193G, sobrou 124G.
+- ⚠️ **Falso-positivo permanente:** o frontend kontrata **sempre** aparece `unhealthy`/`health: starting` — o healthcheck do BusyBox bate na porta 80 mas o nginx do kontrata escuta **3004** dentro do container. Só o `curl` na porta publicada / no domínio vale como prova de vida.
+- ⏳ mameva, fratelli e cidade seguem em 28/07 **de propósito** — subir só quando o usuário pedir.
+
 ## 🧹 (06/08) — Tradição: exclusão em lote das subpastas "TERMO BANCO DE HORAS" — ✅ FEITO
 Pedido do usuário: remover a subpasta de todos os colaboradores. Levantamento antes:
 **73 subpastas / 73 colaboradores / 0 arquivos dentro / já removida do template**
@@ -30,7 +134,7 @@ achou **2 bugs**, um deles pré-existente e silencioso. Causa-raiz completa:
   intocados. Mudança é **só backend** — não precisou rebuildar front.
 - ✅ Usuário rodou o "🔄 Sincronizar tudo nos colaboradores" em prod: pastas 314→369, sub-pastas
   obrigatórias 360→423. Os colaboradores que estavam vazios foram normalizados.
-- ⏳ Falta propagar pros outros 8 clientes kontrata — um de cada vez.
+- ✅ **Propagado 08/08** pra puma, damata, guibox, novacentral, pontocerto (ver seção do topo). ⏳ Faltam só mameva/fratelli/cidade — o usuário pediu pra deixar de fora.
 
 ## 📅 (06/08) — DP: definir validade de documento JÁ enviado — ✅ DEPLOYADO Tradição (f719264)
 Antes só dava pra marcar "Este documento tem validade?" **no momento do upload**. Se o usuário
@@ -54,8 +158,8 @@ não marcasse, não existia caminho pra corrigir depois — tinha que excluir e 
   `index-BXTo3l5y-1786043975186.js` com os 3 marcadores (`SEM VALIDADE`, `Remover validade`,
   `Alterar/remover a validade`). `curl 127.0.0.1:7903` = 200 e `https://tradicao.kontrataai.com.br` = 200.
   Backend `healthy` (Up 44h, intacto), postgres/minio `Up 4 weeks` (intactos).
-- ⏳ **Falta propagar pros outros 8 clientes kontrata** (puma, damata, guibox, novacentral, pontocerto,
-  fratelli, cidade, mameva) — um de cada vez, só quando o usuário pedir.
+- ✅ **Propagado 08/08** pra puma, damata, guibox, novacentral, pontocerto (ver seção do topo).
+  ⏳ Faltam só mameva/fratelli/cidade — fora por decisão do usuário.
 
 ## 🔭 (04/08) — Currículo público: novos "Cargos de Interesse" (vagas futuras) — ✅ DEPLOYADO Tradição + Ponto Certo (bdab4a3)
 Pedido: além de "Experiências como" (cargos que o candidato já trabalhou), criar uma
@@ -70,7 +174,7 @@ vaga futura — pra RH achar no Banco de Currículos quando abrir vaga nessas á
 - **Modal de detalhe do candidato** (`DetalheCV`, componente compartilhado por Banco de Currículos E RhVagas): nova seção "Cargos de Interesse" com botão "✏️ Editar" que abre popup com checkboxes de TODOS os cargos cadastrados (busca `/curriculos/cargos` só quando abre) — RH pode marcar/desmarcar livremente e salvar. Backend `PUT /curriculos/:id` aceita `cargos_interesse` agora. Prop `onAtualizarCargosInteresse` wireada nos DOIS lugares que usam `DetalheCV` (BancoCurriculos.jsx reusa `salvarStatus` genérico; RhVagas.jsx tem sua própria implementação local, mesmo padrão dos outros campos).
 - **Split visual "Cargo se Candidatado" (amarelo) x "Cargos de Interesse" (azul):** ambos vêm do MESMO array `cargos_interesse`, mas o front separa por origem — `cargos_vaga_aplicada` (novo, calculado em runtime no backend a partir de `vagas_interesse_ids` cruzado com `rh_vagas.cargo_nome`) marca quais entradas vieram de uma vaga que o candidato de fato se candidatou. Precisou mapear `vagas_interesse_ids` na entity `Curriculo.ts` (coluna já existia desde 1784770000000, só não estava mapeada no TypeORM) + enriquecer `listarCurriculos` E `obterCurriculo` com esse cálculo (senão o refresh depois de editar perderia a separação).
   - 🐛 **Bug achado+corrigido (mesma sessão):** `cargo_nome` NÃO é coluna de `rh_vagas` — é alias de JOIN (`ca.nome AS cargo_nome`, `LEFT JOIN rh_cargos ca ON ca.id = v.cargo_id`, ver `rh.controller.ts:1298/1302`). Minha 1ª versão fazia `SELECT id, cargo_nome FROM rh_vagas` direto → Postgres deu erro (coluna não existe) → `.catch(() => [])` engoliu silenciosamente → `cargos_vaga_aplicada` sempre vazio → nenhum cargo aparecia amarelo mesmo candidato vindo de vaga real. Corrigido com o JOIN certo nas duas queries (listarCurriculos + obterCurriculo).
-- ✅ backend `tsc --noEmit` = 0, front `vite build` = 0. ✅ Testado LOCAL (usuário validou "Cargo se Candidatado" separado corretamente). ✅ Commit+push `bdab4a3` + deploy **Tradição** e **Ponto Certo** (build --no-cache front+back, up --no-deps, backends healthy, bundles com marcadores confirmados). ⏳ Falta propagar pros outros 6 clientes kontrata (puma, damata, guibox, novacentral, fratelli, cidade, mameva).
+- ✅ backend `tsc --noEmit` = 0, front `vite build` = 0. ✅ Testado LOCAL (usuário validou "Cargo se Candidatado" separado corretamente). ✅ Commit+push `bdab4a3` + deploy **Tradição** e **Ponto Certo** (build --no-cache front+back, up --no-deps, backends healthy, bundles com marcadores confirmados). ✅ **Propagado 08/08** pra puma, damata, guibox, novacentral (Ponto Certo já tinha). ⏳ Faltam só mameva/fratelli/cidade — fora por decisão do usuário.
 
 ## 🔢 (04/08) — Banco de Currículos: card "Total" travava em 500 — ✅ DEPLOYADO Novacentral (fba8eaf), ⏳ aguardando validação visual
 Cliente Novacentral já tem currículo #663, mas o card TOTAL do Banco de Currículos
@@ -83,7 +187,7 @@ no frontend hoje — tabela carrega tudo de uma vez, então sem cap client-side 
 compensar).
 - ✅ backend `tsc --noEmit` = 0, commit+push `fba8eaf`, deploy Novacentral (build --no-cache backend, up --no-deps, container healthy, log limpo — verificação técnica só).
 - ⏳ **Falta usuário confirmar visualmente** na tela Banco de Currículos do Novacentral que o card Total bate com o real.
-- ⚠️ Esse bug vale pra **TODOS os clientes kontrata** com >500 currículos, não só Novacentral. Propagar pros outros 7 (tradicao, puma, damata, guibox, pontocerto, fratelli, cidade, mameva) só depois de confirmado — um de cada vez.
+- ⚠️ Esse bug vale pra **TODOS os clientes kontrata** com >500 currículos, não só Novacentral. ✅ **Propagado 08/08** pra tradicao, puma, damata, guibox, pontocerto. ⏳ Faltam só mameva/fratelli/cidade — fora por decisão do usuário.
 
 ## 📞 (03/08) — Currículo público: WhatsApp virou obrigatório — ✅ DEPLOYADO Tradição + Ponto Certo (d685286)
 `CurriculoPublico.jsx`: campo WhatsApp trocado de `Field` (opcional) pra `FieldReq`
@@ -92,7 +196,7 @@ padrão de nome/data_nascimento — `scrollTo(0,0)`). Motivo: RH precisa de um j
 contato garantido pra chamar o candidato (e-mail/Instagram continuam opcionais).
 - ✅ Testado LOCAL, commit+push `d685286`.
 - ✅ **Deployado Tradição** (bundle `index-CgTdKkY1`) e **Ponto Certo** (bundle `index-DdpIpaP8`) — marcador "Informe seu WhatsApp" confirmado nos dois, sites 200.
-- ⏳ **Falta propagar pros outros 6 clientes kontrata** (puma, damata, guibox, novacentral, fratelli, cidade, mameva) — um de cada vez, só quando o usuário pedir.
+- ✅ **Propagado 08/08** pra puma, damata, guibox, novacentral. ⏳ Faltam só mameva/fratelli/cidade — fora por decisão do usuário.
 
 ## 📱 (29/07) — Currículo público: fix "tela flutuando" no celular (zoom iOS) — ✅ DEPLOYADO E VALIDADO Tradição (e2d2fe7)
 Candidato reportou (print via WhatsApp Business) que a tela de preenchimento do currículo
@@ -102,7 +206,7 @@ automático do iOS ao focar (só evita com fonte ≥16px). Fix: `useEffect` em
 só em mobile (`max-width:767px`). Detalhes: [[bugs-resolvidos/2026-07-29-curriculo-publico-ios-zoom-flutuando]].
 - ✅ Testado LOCAL, commit+push `e2d2fe7`, deploy Tradição (build --no-cache frontend, up --no-deps, bundle `index-Crr7kW5A` confirmado, marcador `16px !important` presente).
 - ✅ **Usuário validou em produção no celular (29/07): funcionou.**
-- ⏳ **PRÓXIMO:** propagar pros outros 8 clientes kontrata (puma, damata, guibox, novacentral, pontocerto, fratelli, cidade, mameva) — um de cada vez, só quando o usuário pedir.
+- ✅ **Propagado 08/08** pra puma, damata, guibox, novacentral, pontocerto. ⏳ Faltam só mameva/fratelli/cidade — fora por decisão do usuário.
 
 ## ✅ (28/07) — TODOS os 9 clientes kontrata nivelados em a852803 — CONCLUÍDO
 Todos os 9 clientes kontrata vivem na **VPS 46** (a 31 não tem nenhum — confirmado). Ninguém grava "número de versão": todos buildam do mesmo `/root/kontrata-repo`, então **versão do cliente = data de build da IMAGEM dele**. Pra traduzir em "o que ele tem", grepar marcadores de feature no bundle servido (`docker exec <fe> cat /usr/share/nginx/html/assets/index-*.js`).

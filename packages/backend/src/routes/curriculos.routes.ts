@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { CurriculosController } from '../controllers/curriculos.controller';
 import { authenticateToken } from '../middleware/auth';
+import { lgpdDemoMask, lgpdDemoReadOnly } from '../middleware/lgpd-demo.middleware';
 
 const router: Router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -31,6 +32,13 @@ router.post('/publico/enviar', CurriculosController.enviarCurriculoPublico);
 
 // ============ AUTENTICADO ============
 router.use(authenticateToken);
+
+// Modo demonstracao LGPD (so master, so com header x-lgpd-demo: 1).
+// Fica DEPOIS do authenticateToken porque precisa de req.user pra checar master,
+// e ANTES das rotas pra conseguir envelopar o res.json delas.
+// Nao alcanca as rotas /publico acima — o candidato preenchendo nao pode ser afetado.
+router.use(lgpdDemoReadOnly);
+router.use(lgpdDemoMask);
 
 // Catalogo de cargos
 router.get('/cargos', CurriculosController.listarCargos);

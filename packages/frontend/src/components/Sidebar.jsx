@@ -4,6 +4,7 @@ import Logo from './Logo';
 import { useLoja } from '../contexts/LojaContext';
 import { api } from '../utils/api';
 import { loadModulesConfig, readCachedModulesConfig } from '../utils/modulesConfig';
+import { useLgpdDemo, podeUsarLgpdDemo, toggleLgpdDemoComReload } from '../utils/lgpdDemo';
 
 // Modulos que dao "direito" ao menu CONFIGURACOES aparecer.
 // Se nenhum deles estiver ativo (ex: cliente so usa RH), o menu some.
@@ -20,6 +21,9 @@ const CONFIGURACOES_REQUIRED_MODULES = [
 ];
 
 export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileMenuOpen }) {
+  // Modo demonstracao LGPD (botao no rodape, so master)
+  const [lgpdDemoOn] = useLgpdDemo();
+
   const [expandedSections, setExpandedSections] = useState(() => {
     // KONTRATA AI (rh-radar) eh SEMPRE true — usuario nao colapsa nem por engano
     let initial = {
@@ -896,6 +900,35 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
 
       {/* User Section at Bottom */}
       <div className={`border-t border-purple-900 ${isCollapsed ? 'p-2' : 'p-4'}`} style={{ backgroundColor: '#6B21A8' }}>
+        {/* Modo demonstracao LGPD — so master (Roberto e Mari) */}
+        {podeUsarLgpdDemo(user) && (
+          <button
+            onClick={() => toggleLgpdDemoComReload(!lgpdDemoOn)}
+            aria-pressed={lgpdDemoOn}
+            title={lgpdDemoOn
+              ? 'Modo demonstração LGPD ATIVADO — dados pessoais mascarados nesta sessão. Clique para desligar.'
+              : 'Ativar modo demonstração LGPD — mascara dados pessoais para gravar vídeo'}
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center p-1.5' : 'gap-2 px-2.5 py-2 mb-3'} rounded-md transition-colors border ${
+              lgpdDemoOn
+                ? 'bg-yellow-400 border-yellow-300 text-purple-900'
+                : 'bg-purple-900/40 border-purple-900 text-white/60 hover:text-white hover:bg-purple-900/70'
+            }`}
+          >
+            <svg className={isCollapsed ? 'w-4 h-4' : 'w-4 h-4 flex-shrink-0'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {lgpdDemoOn ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+              )}
+            </svg>
+            {!isCollapsed && (
+              <span className="text-[11px] font-semibold tracking-wide uppercase truncate">
+                {lgpdDemoOn ? 'LGPD ativado' : 'LGPD ativar'}
+              </span>
+            )}
+          </button>
+        )}
+
         {isCollapsed ? (
           // Versão colapsada - só o avatar e logout
           <div className="flex flex-col items-center gap-2">
