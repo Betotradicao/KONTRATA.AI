@@ -9,6 +9,7 @@ import EmployeesTab from '../components/configuracoes/EmployeesTab';
 import AniversariantesMesTab from '../components/configuracoes/AniversariantesMesTab';
 import EmailsPadronizadosTab from '../components/configuracoes/EmailsPadronizadosTab';
 import ContratoClausulasPanel from '../components/configuracoes/ContratoClausulasPanel';
+import PadraoEncarteTab from '../components/configuracoes/PadraoEncarteTab';
 import FichasAdmissaoSection from './rh/FichasAdmissaoSection';
 import ContaSalarioSection from './rh/ContaSalarioSection';
 
@@ -17,6 +18,7 @@ const TABS = [
   { key: 'empresas', label: 'Empresas', custom: true },
   { key: 'turnos', label: 'Turnos', custom: true },
   { key: 'cargos', label: 'Cargos', custom: true },
+  { key: 'padrao_encarte', label: '🖼️ Padrão de Encarte', custom: true },
   { key: 'jornadas', label: 'Jornadas', endpoint: '/rh/configuracoes/jornadas', fields: ['nome', 'carga_horaria', 'descricao'] },
   { key: 'escolaridades', label: 'Escolaridades', endpoint: '/rh/configuracoes/escolaridades', fields: ['nome'] },
   { key: 'escalas', label: 'Escalas', endpoint: '/rh/configuracoes/escalas', fields: ['nome', 'descricao'] },
@@ -256,6 +258,8 @@ export default function RhConfiguracoes() {
             <TurnosTab />
           ) : currentTab?.custom && activeTab === 'cargos' ? (
             <CargosTab />
+          ) : currentTab?.custom && activeTab === 'padrao_encarte' ? (
+            <PadraoEncarteTab />
           ) : currentTab?.custom && activeTab === 'epis_epcs' ? (
             <EpisEpcsTab />
           ) : currentTab?.custom && activeTab === 'docs_padronizados' ? (

@@ -17,6 +17,7 @@ import { RhDocTemplateController } from '../controllers/rh-doc-template.controll
 import { RhEmailDocController } from '../controllers/rh-email-doc.controller';
 import { RhPontoController } from '../controllers/rh-ponto.controller';
 import { RhPerformanceController } from '../controllers/rh-performance.controller';
+import { RhEncarteController } from '../controllers/rh-encarte.controller';
 import { authenticateToken } from '../middleware/auth';
 import { lgpdDemoMask, lgpdDemoReadOnly } from '../middleware/lgpd-demo.middleware';
 
@@ -188,6 +189,16 @@ router.delete('/vagas/:id', authenticateToken, lgpdDemoReadOnly, RhController.de
 router.post('/vagas/:vagaId/adicionar-interesse', authenticateToken, lgpdDemoReadOnly, RhController.adicionarInteresseVaga);
 router.post('/vagas/:vagaId/candidato-status', authenticateToken, lgpdDemoReadOnly, RhController.setCandidatoStatusVaga);
 router.post('/vagas/:vagaId/sincronizar-banco', authenticateToken, lgpdDemoReadOnly, RhController.sincronizarBancoVaga);
+
+// Padrao de Encarte (arte de divulgacao de vaga, 1 modelo por cargo)
+router.get('/encarte/campos', authenticateToken, RhEncarteController.listarCampos);
+router.get('/encarte/modelos', authenticateToken, RhEncarteController.listar);
+router.get('/encarte/modelos/cargo/:cargoId', authenticateToken, RhEncarteController.obterPorCargo);
+router.get('/encarte/dados-vaga/:cargoId', authenticateToken, lgpdDemoMask, RhEncarteController.dadosDaVaga);
+router.post('/encarte/modelos', authenticateToken, lgpdDemoReadOnly, RhEncarteController.salvar);
+router.delete('/encarte/modelos/:id', authenticateToken, lgpdDemoReadOnly, RhEncarteController.deletar);
+router.post('/encarte/gerar', authenticateToken, lgpdDemoReadOnly, RhEncarteController.gerar);
+router.post('/encarte/upload', authenticateToken, lgpdDemoReadOnly, uploadDoc.single('arquivo'), RhEncarteController.uploadImagem);
 
 // Candidatos
 router.get('/candidatos', authenticateToken, lgpdDemoMask, RhController.listarCandidatos);

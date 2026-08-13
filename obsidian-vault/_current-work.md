@@ -1,5 +1,49 @@
 # 🚧 Trabalho em Andamento
 
+## 🖼️ (09/08) — PADRÃO DE ENCARTE: arte de vaga gerada por IA — LOCAL, testado, a deployar
+Pedido: aba em Configurações RH onde o RH sobe uma arte de REFERÊNCIA por cargo,
+preenche os dados da vaga e a IA gera a arte pronta pro feed.
+- ⚠️ **A 1ª versão foi DESCARTADA.** Comecei com editor de quadrantes arrastáveis
+  (posições em %, texto desenhado por cima em canvas). Usuário: *"acho que não ficou bom…
+  apenas o local pra preencher os dados e um botão de criar"*. Lição: ele queria a **arte
+  inteira gerada**, não texto sobreposto. O código do editor foi jogado fora.
+- **Fluxo final:** escolhe o cargo → campos vêm preenchidos da VAGA → clica → IA devolve
+  **2 artes**.
+- **Backend:** `rh-encarte.controller.ts` + migration `1787000000000` (`rh_encarte_modelos`:
+  1 modelo por cargo + curinga `cargo_id NULL`). Geração via **`/v1/images/edits`** (não
+  `generations`) — só a EDIÇÃO aceita a imagem de referência, que é o que carrega cor,
+  logo e estilo do cliente. Usa a **mesma `openai_api_key`** de Configurações → IA.
+- 💡 **Modelos de imagem tentados em ordem** (`gpt-image-2` → `1.5` → `1`): a chave de cada
+  cliente pode não ter acesso ao mais novo. A do Tradição tem **gpt-image-2** (confirmado:
+  `chatgpt-image-latest, gpt-image-1, gpt-image-1-mini, gpt-image-1.5, gpt-image-2`).
+- **2 variações por clique** (`Promise.allSettled`, paralelo — são ~30s cada):
+  **Feed** = "CLIQUE NO LINK DA BIO" · **Anúncio** = "CLIQUE NO LINK ABAIXO" + seta.
+  ⚠️ Motivo: em impulsionado o botão fica ABAIXO da imagem; dizer "link da bio" num
+  anúncio manda a pessoa pro lugar errado e queima verba.
+- **Pré-preenche da vaga** (`/rh/encarte/dados-vaga/:cargoId`): vaga aberta mais recente
+  do cargo → salário formatado, experiência (monta frase), atividades (`requisitos`),
+  benefícios. Sem vaga, cai no cadastro do cargo (`salario_base`/`descritivo_atividades`).
+  ⚠️ **O que o RH salvou tem precedência sobre a vaga** — senão cada abertura da tela
+  apagaria o ajuste manual dele.
+- **Jornada é bloco estruturado** (espelha RhVagas): turnos (MESMA lista `TURNOS` da tela
+  de Vagas — senão o RH marca "Tarde" na vaga e vê outro nome no encarte), escala do
+  cadastro, jornada e 4 horários. ⚠️ **`rh_vagas` NÃO guarda escala** → escolha manual.
+  ⚠️ Não existe "Turno Noite" no cadastro (só manha/intermediario/tarde/qualquer).
+- 🐛 **Bugs meus, corrigidos:** (1) `gerando` virou objeto e `{}` é **truthy** → `disabled={gerando}`
+  travaria o botão pra sempre; (2) `onClick={criar}` passava o **evento** como id da variação
+  → geraria só uma arte. (3) Campo novo (`beneficios`) precisa entrar em **CHAVES_VALIDAS**
+  no backend, senão `sanearValores` descarta em silêncio: o campo aparece na tela, o RH
+  preenche, e o texto some da arte **sem nenhum erro**.
+- 🔒 **ACHADO DE SEGURANÇA (pendente):** nem o dev nem o Tradição definem `CONFIG_ENCRYPTION_KEY`
+  → os dois usam o **default hardcoded** (`default-key-change-in-production-32bytes`). Logo,
+  os segredos do banco em produção (OpenAI, senha RHiD, e-mail) são decifráveis por quem
+  tiver o repo + um dump. Foi o que permitiu copiar a chave do Tradição pro dev sem atrito.
+  Corrigir = definir chave própria por cliente + **script de re-encriptação** (trocar a
+  variável sozinha invalida o que já está gravado).
+- ✅ `tsc --noEmit` = 0 · `vite build` = 0 · migration aplicada · rotas 401 (vivas).
+- ✅ **Usuário validou a arte gerada** (REPOSITOR DE FLV saiu fiel à referência).
+- ⏳ Falta: testar as 2 variações + benefícios, e deploy.
+
 ## 🔒 (08/08) — MODO DEMONSTRAÇÃO LGPD (botão do master) — ✅ DEPLOYADO Tradição (e88a27a)
 Ideia do usuário: pra gravar vídeo de divulgação sem expor candidato real, um botão
 discreto no rodapé do menu lateral que mascara dado pessoal. Cobertura entregue:
