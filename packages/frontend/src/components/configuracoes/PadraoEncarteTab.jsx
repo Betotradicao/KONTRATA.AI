@@ -98,6 +98,10 @@ export default function PadraoEncarteTab() {
   const [escalas, setEscalas] = useState([]);
   const [jornada, setJornada] = useState({ jornada_id: '', jornada_nome: '', escala_id: '', escala_nome: '', turnos: [], hora_entrada: '', hora_almoco_ini: '', hora_almoco_fim: '', hora_saida: '' });
   const [daVaga, setDaVaga] = useState(null);
+  // Envio pro WhatsApp
+  const [enviando, setEnviando] = useState(false);
+  const [gruposWhats, setGruposWhats] = useState(null);   // null = ainda carregando
+  const [legendaWhats, setLegendaWhats] = useState('');
 
   const arquivoRef = useRef(null);
   // `gerando` é objeto — {} é truthy, então NUNCA usar ele direto num disabled.
@@ -105,11 +109,28 @@ export default function PadraoEncarteTab() {
 
   useEffect(() => {
     api.get('/rh/configuracoes/cargos').then(r => setCargos(r.data?.data || r.data || [])).catch(() => setCargos([]));
+    carregarGruposWhats();
     recarregar();
   }, []);
 
   const recarregar = () =>
     api.get('/rh/encarte/modelos').then(r => setModelos(r.data?.data || [])).catch(() => setModelos([]));
+
+  /**
+   * Grupos configurados pro envio. Precisa ser rechamavel: o RH salva os grupos
+   * na aba de Rede, volta pra ca e o botao continuaria travado ate dar F5.
+   */
+  const carregarGruposWhats = (avisar = false) =>
+    api.get('/rh/encarte/whatsapp/grupos').then(r => {
+      const d = r.data?.data || {};
+      setGruposWhats(d.grupos || []);
+      if (!legendaWhats) setLegendaWhats(d.legendaPadrao || '');
+      if (avisar) {
+        setMsg((d.grupos || []).length
+          ? { t: 'ok', m: `${d.grupos.length} grupo(s) encontrado(s).` }
+          : { t: 'erro', m: 'Ainda nenhum grupo salvo em Grupos WhatsApp → Encartes de Vaga.' });
+      }
+    }).catch(() => setGruposWhats([]));
 
   // Troca de cargo: carrega a referência salva E os dados já cadastrados na vaga
   useEffect(() => {
@@ -249,12 +270,37 @@ export default function PadraoEncarteTab() {
         preset_export: preset,
         campos: { ...valores, jornada: textoJornada(jornada), orientacao_feed: orientacoes.feed, orientacao_anuncio: orientacoes.anuncio },
       });
-      setModelo(r.data?.data || modelo);
+      // Preserva a referencia se a resposta vier sem ela — o save nunca deve
+      // fazer a arte sumir da tela.
+      setModelo(m => ({ ...(m || {}), ...(r.data?.data || {}), imagem_url: r.data?.data?.imagem_url || m?.imagem_url }));
       recarregar();
       setMsg({ t: 'ok', m: 'Modelo salvo para este cargo.' });
     } catch (e) {
       setMsg({ t: 'erro', m: e.response?.data?.error || 'Falha ao salvar.' });
     } finally { setSalvando(false); }
+  };
+
+  // ---------- envio pro WhatsApp ----------
+  /**
+   * Manda as artes pros grupos configurados em Grupos WhatsApp → Encartes de Vaga.
+   * `quais` = ['feed'] | ['anuncio'] | os dois.
+   */
+  const enviarWhats = async (quais, teste = false) => {
+    const urls = quais.map(q => resultados[q]).filter(Boolean);
+    if (!urls.length) { setMsg({ t: 'erro', m: 'Gere a arte antes de enviar.' }); return; }
+    setEnviando(true);
+    setMsg({ t: 'info', m: teste ? 'Enviando pro primeiro grupo…' : 'Enviando pros grupos…' });
+    try {
+      const r = await api.post('/rh/encarte/whatsapp/enviar', { urls, legenda: legendaWhats, teste });
+      const d = r.data || {};
+      const falhou = (d.falhas || []).length;
+      setMsg({
+        t: falhou ? 'erro' : 'ok',
+        m: `Enviado para ${d.enviados}/${d.total} grupo(s).` + (falhou ? ` Falhas: ${d.falhas.join(' · ')}` : ''),
+      });
+    } catch (e) {
+      setMsg({ t: 'erro', m: e.response?.data?.error || 'Falha ao enviar pro WhatsApp.' });
+    } finally { setEnviando(false); }
   };
 
   const baixar = (id) => {
@@ -505,6 +551,10 @@ export default function PadraoEncarteTab() {
                     <button onClick={() => criar(v.id)}
                             className="flex-1 text-xs px-2 py-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-700">🔄 Refazer</button>
                   </div>
+                  <button onClick={() => enviarWhats([v.id])} disabled={enviando || !gruposWhats?.length}
+                          className="w-full mt-1.5 text-xs px-2 py-2 rounded bg-[#25D366] text-white font-semibold hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                    {enviando ? 'Enviando…' : '📲 Enviar esta pro WhatsApp'}
+                  </button>
                 </div>
               ) : (
                 <div className="aspect-[4/5] rounded-lg border-2 border-dashed border-gray-200 grid place-items-center text-gray-400 text-center px-3">
@@ -517,6 +567,51 @@ export default function PadraoEncarteTab() {
           <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 leading-relaxed">
             <strong>Confira os números antes de publicar.</strong> A IA às vezes erra um dígito do salário ou do horário.
           </p>
+
+          {/* ---------- ENVIO PRO WHATSAPP ---------- */}
+          <div className="border-t pt-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Enviar pro WhatsApp</h3>
+
+            {gruposWhats === null ? (
+              <p className="text-xs text-gray-400">Carregando grupos…</p>
+            ) : gruposWhats.length === 0 ? (
+              <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 leading-relaxed">
+                Nenhum grupo configurado. Vá em <strong>Configurações de Rede → Grupos WhatsApp → 🖼️ Encartes de Vaga</strong>, escolha os grupos e salve.
+                <button onClick={() => carregarGruposWhats(true)}
+                        className="block mt-2 px-2.5 py-1 rounded bg-amber-600 text-white font-semibold hover:bg-amber-700">
+                  ↻ Já salvei — procurar de novo
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-[11px] text-gray-600 mb-2">
+                  Vai para <strong>{gruposWhats.length} grupo(s)</strong>:
+                  <span className="block text-gray-500 mt-0.5">
+                    {gruposWhats.map(g => g.nome || g.id).join(' · ')}
+                  </span>
+                </div>
+
+                <label className="block text-[11px] font-semibold text-gray-600 mb-1">Legenda</label>
+                <textarea rows={3} value={legendaWhats} onChange={(e) => setLegendaWhats(e.target.value)}
+                          placeholder={'🚀 TEMOS VAGA!\nCadastre seu currículo pelo link da bio.'}
+                          className="w-full border rounded-lg px-2 py-1.5 text-xs resize-y mb-2" />
+
+                <button onClick={() => enviarWhats(VARIACOES.map(v => v.id))}
+                        disabled={enviando || !Object.keys(resultados).length}
+                        className="w-full text-xs px-2 py-2.5 rounded bg-[#25D366] text-white font-bold hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed">
+                  {enviando ? 'Enviando…' : '📲 Enviar as artes pro grupo'}
+                </button>
+                <button onClick={() => enviarWhats(VARIACOES.map(v => v.id), true)}
+                        disabled={enviando || !Object.keys(resultados).length}
+                        className="w-full mt-1.5 text-xs px-2 py-2 rounded bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-40">
+                  Testar — manda só pro 1º grupo
+                </button>
+                <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+                  A legenda vai só na primeira arte. Entre um grupo e outro há um intervalo anti-banimento.
+                </p>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

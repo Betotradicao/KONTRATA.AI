@@ -41,8 +41,34 @@ preenche os dados da vaga e a IA gera a arte pronta pro feed.
   Corrigir = definir chave própria por cliente + **script de re-encriptação** (trocar a
   variável sozinha invalida o que já está gravado).
 - ✅ `tsc --noEmit` = 0 · `vite build` = 0 · migration aplicada · rotas 401 (vivas).
-- ✅ **Usuário validou a arte gerada** (REPOSITOR DE FLV saiu fiel à referência).
-- ⏳ Falta: testar as 2 variações + benefícios, e deploy.
+- ✅ **Usuário validou a arte gerada** (REPOSITOR DE FLV e AUXILIAR DE ACOUGUE saíram
+  fiéis à referência, com a seta pra baixo certa na versão de anúncio).
+
+### 📲 (09/08) — Envio do encarte pro WhatsApp
+- `services/encarte-whats.service.ts` + sub-aba **🖼️ Encartes de Vaga** em Configurações de
+  Rede → Grupos WhatsApp. Config PRÓPRIA (`whatsapp_encarte_*`), separada do Disparo de
+  Vagas: aquele é agendado/periódico, este é manual/pontual, e o RH quer grupos diferentes.
+- Mesmo motor do disparo (Evolution `sendMedia` + intervalo anti-ban). Legenda vai **só na
+  primeira arte** (repetir polui o grupo e cheira a spam). Falha num grupo não aborta os outros.
+- 🐛 **BUG MEU — o pior do dia:** `POST /config/configurations` espera objeto **PLANO**
+  (`{ chave: "valor" }`). Mandei aninhado (`{ configurations: { chave: { value } } }`) →
+  o backend gravou UMA chave chamada `configurations` com `[object Object]` e **as minhas
+  nunca existiram**. A tela dizia "Configuração salva" porque a resposta era **200**.
+  O usuário salvou, o botão continuou desabilitado, e ninguém tinha como saber o porquê.
+  ⚠️ **O endpoint também PULA string vazia** → usar `|| ' '` (mesmo truque da aba de Disparo),
+  senão apagar um campo nunca persiste.
+- 🐛 `/whatsapp/fetch-groups` responde **HTTP 200 com `success:false`** e o motivo dentro.
+  A aba de Disparo ignora isso, e eu copiei o vício → qualquer falha da Evolution virava
+  "Nenhum grupo encontrado". Corrigido só na aba nova; **as outras abas de WhatsApp ainda têm**.
+- 🐛 **Referência do encarte sumia ao salvar.** Não reproduzi o gatilho, então blindei a raiz:
+  `imagem_url=COALESCE($n, imagem_url)` nos 3 caminhos de gravação — um save sem imagem
+  **não apaga** a que já está lá. Front também preserva na resposta.
+- 💡 **Config do DEV apontava pra Evolution MORTA** (`http://31.97.82.235:8090` = VPS 31,
+  zerada em 01/07). Timeout eterno no "Carregar Grupos". Corrigido pra
+  `https://evolution.kontrataai.com.br` + token do Tradição → instância `KONTRATAI`
+  `state: open`, 34 grupos. **Ao debugar Evolution no dev, conferir a URL antes de tudo.**
+- ✅ `tsc` = 0 · `vite build` = 0 · rotas vivas · chave lixo `configurations` removida do dev.
+- ⏳ Falta: usuário validar o envio real pro grupo.
 
 ## 🔒 (08/08) — MODO DEMONSTRAÇÃO LGPD (botão do master) — ✅ DEPLOYADO Tradição (e88a27a)
 Ideia do usuário: pra gravar vídeo de divulgação sem expor candidato real, um botão

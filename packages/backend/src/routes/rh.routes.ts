@@ -198,6 +198,8 @@ router.get('/encarte/dados-vaga/:cargoId', authenticateToken, lgpdDemoMask, RhEn
 router.post('/encarte/modelos', authenticateToken, lgpdDemoReadOnly, RhEncarteController.salvar);
 router.delete('/encarte/modelos/:id', authenticateToken, lgpdDemoReadOnly, RhEncarteController.deletar);
 router.post('/encarte/gerar', authenticateToken, lgpdDemoReadOnly, RhEncarteController.gerar);
+router.get('/encarte/whatsapp/grupos', authenticateToken, RhEncarteController.gruposConfigurados);
+router.post('/encarte/whatsapp/enviar', authenticateToken, lgpdDemoReadOnly, RhEncarteController.enviarWhatsapp);
 router.post('/encarte/upload', authenticateToken, lgpdDemoReadOnly, uploadDoc.single('arquivo'), RhEncarteController.uploadImagem);
 
 // Candidatos

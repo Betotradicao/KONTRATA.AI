@@ -245,10 +245,17 @@ export class RhEncarteController {
       const preset = ['feed_4_5', 'feed_1_1', 'story_9_16'].includes(preset_export) ? preset_export : 'feed_4_5';
       const camposLimpos = JSON.stringify(sanearValores(campos));
 
+      // ⚠️ COALESCE no imagem_url: um save que venha sem a imagem NAO pode apagar
+      // a referencia ja gravada. Antes, qualquer payload sem `imagem_url` zerava
+      // a arte do cargo e o RH tinha que subir tudo de novo sem entender por que.
+      // Pra TROCAR a arte existe o botao "Trocar"; pra remover, apagar o modelo.
       if (id) {
         const r = await AppDataSource.query(
           `UPDATE rh_encarte_modelos
-              SET cargo_id=$1, nome=$2, imagem_url=$3, imagem_largura=$4, imagem_altura=$5,
+              SET cargo_id=$1, nome=$2,
+                  imagem_url=COALESCE($3, imagem_url),
+                  imagem_largura=COALESCE($4, imagem_largura),
+                  imagem_altura=COALESCE($5, imagem_altura),
                   preset_export=$6, campos=$7::jsonb, updated_at=NOW()
             WHERE id=$8 RETURNING *`,
           [cargoId, String(nome).trim(), imagem_url || null, imagem_largura || null,
@@ -268,7 +275,10 @@ export class RhEncarteController {
         if (existente.length) {
           const upd = await AppDataSource.query(
             `UPDATE rh_encarte_modelos
-                SET nome=$1, imagem_url=$2, imagem_largura=$3, imagem_altura=$4,
+                SET nome=$1,
+                    imagem_url=COALESCE($2, imagem_url),
+                    imagem_largura=COALESCE($3, imagem_largura),
+                    imagem_altura=COALESCE($4, imagem_altura),
                     preset_export=$5, campos=$6::jsonb, ativo=true, updated_at=NOW()
               WHERE id=$7 RETURNING *`,
             [String(nome).trim(), imagem_url || null, imagem_largura || null,
@@ -292,8 +302,10 @@ export class RhEncarteController {
            (cargo_id, nome, imagem_url, imagem_largura, imagem_altura, preset_export, campos)
          VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)
          ON CONFLICT (cargo_id) WHERE cargo_id IS NOT NULL
-         DO UPDATE SET nome=EXCLUDED.nome, imagem_url=EXCLUDED.imagem_url,
-                       imagem_largura=EXCLUDED.imagem_largura, imagem_altura=EXCLUDED.imagem_altura,
+         DO UPDATE SET nome=EXCLUDED.nome,
+                       imagem_url=COALESCE(EXCLUDED.imagem_url, rh_encarte_modelos.imagem_url),
+                       imagem_largura=COALESCE(EXCLUDED.imagem_largura, rh_encarte_modelos.imagem_largura),
+                       imagem_altura=COALESCE(EXCLUDED.imagem_altura, rh_encarte_modelos.imagem_altura),
                        preset_export=EXCLUDED.preset_export, campos=EXCLUDED.campos, updated_at=NOW()
          RETURNING *`,
         [cargoId, String(nome).trim(), imagem_url || null, imagem_largura || null,
@@ -403,6 +415,33 @@ export class RhEncarteController {
       });
     } catch (e: any) {
       console.error('[RhEncarte] gerar:', e);
+      res.status(500).json({ success: false, error: e.message });
+    }
+  }
+
+  /**
+   * Envia as artes geradas pros grupos de WhatsApp configurados.
+   * `teste: true` manda só pro primeiro grupo (pra conferir antes de disparar).
+   */
+  static async enviarWhatsapp(req: AuthRequest, res: Response) {
+    try {
+      const { EncarteWhatsService } = await import('../services/encarte-whats.service');
+      const { urls, legenda, teste } = req.body || {};
+      const r = await EncarteWhatsService.enviar(urls, legenda, teste === true);
+      res.json({ success: true, ...r });
+    } catch (e: any) {
+      console.error('[RhEncarte] enviarWhatsapp:', e);
+      res.status(400).json({ success: false, error: e.message });
+    }
+  }
+
+  /** Grupos configurados pro encarte — o front mostra pra onde vai antes de enviar. */
+  static async gruposConfigurados(_req: AuthRequest, res: Response) {
+    try {
+      const { EncarteWhatsService } = await import('../services/encarte-whats.service');
+      const { grupos, intervalo, legendaPadrao } = await EncarteWhatsService.getConfig();
+      res.json({ success: true, data: { grupos, intervalo, legendaPadrao } });
+    } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });
     }
   }
