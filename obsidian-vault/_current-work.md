@@ -1,5 +1,68 @@
 # 🚧 Trabalho em Andamento
 
+## 🏦 (18/08) — SALDO DE BANCO: tela nova + disparo agendado do PDF no WhatsApp
+Pedido do usuário: menu abaixo de Espelho de Ponto com o saldo de banco de TODOS, e depois
+uma aba em Grupos WhatsApp pra mandar isso em PDF, agendado.
+
+### Tela `/rh/saldo-banco` (menu PONTO E AUSÊNCIAS → SALDO DE BANCO)
+- Filtros Loja + **Setor** + Colaborador + Pesquisar · colunas **Saldo Positivo / Saldo Negativo**
+  (é o MESMO saldo, só separado — negativo não marca nada no positivo e vice-versa, decidido
+  pelo usuário) · linha de TOTAL · cards de resumo · export **PDF** (jsPDF) e **Excel**.
+- ⚠️ **O setor filtra a lista de colaboradores no FRONT.** `/rh/colaboradores` não aceita
+  `departamento_id`, mas devolve o campo. Filtrar lá dentro evitaria mexer num endpoint que
+  várias telas usam. Ao trocar de setor, a seleção de colaborador se limpa se ele não pertencer.
+- 🪤 **`columnStyles` do jspdf-autotable NÃO alinha o `foot`** — o TOTAL saía fora de prumo com
+  a coluna. Resolvido forçando `halign` no `didParseCell` (que vale pra head/body/foot).
+
+### 🔑 `services/saldo-banco.service.ts` — FONTE ÚNICA
+Tirei o cálculo de dentro do controller. **Por quê:** dois caminhos precisam do mesmo número —
+a tela e o **cron** do PDF (que roda sem navegador). Se cada um calculasse do seu jeito, o PDF
+que o gerente recebe divergiria da tela que o RH abre e ninguém confiaria em nenhum dos dois.
+- Saldo = último `saldoBancoFinalDia` da apuração RHiD (**acumulado all-time**, já com
+  queima/pagamento). MESMO campo do card "Saldo Banco Atual" do Espelho de Ponto.
+- Casamento colaborador↔RHiD por **CPF OU PIS** (mesma regra do espelho/indicadores).
+- 💡 **Janela de 45 dias** (o espelho usa 25). Como o valor é acumulado, alargar **nunca muda o
+  número** — só evita vir vazio pra quem estava de férias/afastado.
+- Cache de 15 min no controller (`_saldoBancoCache`) — é **1 consulta RHiD por colaborador**.
+
+### Aba 🏦 Banco de Horas (Config. de Rede → Grupos WhatsApp)
+- `services/banco-horas-whats.service.ts` + `crons/banco-horas.cron.ts` + rotas
+  `/whatsapp/banco-horas/{enviar,preview}`. Config própria `whatsapp_banco_horas_*`.
+- **1 PDF POR LOJA**, setores como seções dentro, com subtotal por setor e total da loja
+  (escolha do usuário entre esse formato e 1 PDF por setor).
+- ⚠️ **PDF gerado com `pdfkit` NO SERVIDOR**, não com jsPDF no navegador: o disparo é agendado
+  e roda sem ninguém com o sistema aberto. `pdfkit` já era dependência do backend.
+- PDF vai como **base64** no `media` do `sendMedia` da Evolution (o disparo-vagas usa URL porque
+  a arte dele é um upload; aqui o arquivo nasce em memória).
+- Agendamento clonado do `disparo-vagas.cron`: modo `semana` (dias getDay) ou `mes` + horário,
+  cron de minuto. Sem modo/horário = só manual.
+- Botão **👁️ Ver o que será enviado** lista as lojas/setores/contagem SEM enviar nada.
+- ⚠️ Aviso de LGPD na aba: o arquivo tem nome de pessoa + saldo individual → só grupo de gestão.
+- ✅ backend `tsc` = 0 · `vite build` = 0 · rotas 401 · cron confirmado no log (consulta
+  `whatsapp_banco_horas_horario` a cada minuto).
+- ⏳ **NÃO testado: o envio real pro grupo** (layout do PDF pronto pode pedir ajuste fino).
+
+
+## 💼 (15/08) — GO-TO-MARKET do módulo de Currículo (sessão comercial, sem código)
+Roberto + Mari vão começar a divulgar. Vendem **só o módulo de currículo/recrutamento** primeiro.
+- **Preço definido pelo usuário: R$ 380/mês** (só o módulo de currículo). ⏳ Falta confirmar
+  se é **por loja** ou **por cliente** — muda a comissão em rede com várias lojas.
+- **Posicionamento escolhido: "sou supermercadista igual você"** — Roberto se apresenta como
+  dono do Tradição que construiu o sistema pra resolver a própria dor. **Por quê:** mata a
+  defesa contra "vendedor de software" e explica a qualidade do produto sem autoelogio.
+  ⚠️ Risco mapeado: mercado vizinho pode temer dar dado pro concorrente → atacar fora da
+  área de atuação direta primeiro + resposta pronta ("cada mercado só vê o dele").
+- **Funil em 5 etapas.** O gargalo real é a **etapa 4 (ativação = ver currículo real caindo
+  no banco)**, não o fechamento. A R$ 380 não existe "sim de impulso" — sem ativação não fecha.
+- **Comissão de indicação recomendada: 20% recorrente por 12 meses** (R$ 76/mês, R$ 912/cliente).
+  Recorrência é o que **filtra cliente ruim** (parceiro só ganha enquanto o cliente fica).
+  Cliente atual que indica → **1 mês grátis**, nunca dinheiro.
+- ⚖️ **Pesquisa jurídica nova:** [[LEGALIDADE JURIDICA/ia-pre-entrevista-legalidade]] —
+  IA fazer pré-entrevista **é legal**, mas Kontrata é **operador** e responde solidariamente
+  (LGPD Art. 42). Precisa de **DPA com cada cliente**.
+- ⏳ Próximos entregáveis pedidos/oferecidos: roteiro do vídeo demo nº 1, cartaz A4 com QR code,
+  carrossel da história de origem, termo de parceria de 1 página.
+
 ## 🖼️ (09/08) — PADRÃO DE ENCARTE: arte de vaga gerada por IA — LOCAL, testado, a deployar
 Pedido: aba em Configurações RH onde o RH sobe uma arte de REFERÊNCIA por cargo,
 preenche os dados da vaga e a IA gera a arte pronta pro feed.

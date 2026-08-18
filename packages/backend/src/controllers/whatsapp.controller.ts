@@ -7,6 +7,7 @@ import { DenunciaWhatsService } from '../services/denuncia-whats.service';
 import { DpDocsWhatsService } from '../services/dp-docs-whats.service';
 import { AniversarioWhatsService } from '../services/aniversario-whats.service';
 import { DisparoVagasWhatsService } from '../services/disparo-vagas-whats.service';
+import { BancoHorasWhatsService } from '../services/banco-horas-whats.service';
 import { minioService } from '../services/minio.service';
 
 // Le a config da Evolution API salva nas configurations. O token e guardado
@@ -214,6 +215,42 @@ export class WhatsappController {
     } catch (error: any) {
       console.error('[whatsapp] disparo-vagas:', error.message);
       return res.json({ success: false, error: error.response?.data?.message || error.message || 'erro ao disparar' });
+    }
+  }
+
+  // POST /api/whatsapp/banco-horas/enviar?teste=true — gera os PDFs (1 por loja) e dispara.
+  static async enviarBancoHoras(req: Request, res: Response) {
+    try {
+      const teste = String(req.query.teste || '') === 'true';
+      const r = await BancoHorasWhatsService.enviar(teste);
+      const detalhe = r.falhas?.length ? ` Falhas: ${r.falhas.join(' | ')}` : '';
+      return res.json({
+        success: true,
+        message: `Disparado pra ${r.enviados}/${r.total} grupo(s) — ${r.pdfs} PDF(s): ${r.lojas.join(', ')}${teste ? ' (teste — só o 1º grupo)' : ''}.${detalhe}`,
+      });
+    } catch (error: any) {
+      console.error('[whatsapp] banco-horas:', error.message);
+      return res.json({ success: false, error: error.response?.data?.message || error.message || 'erro ao disparar' });
+    }
+  }
+
+  // GET /api/whatsapp/banco-horas/preview — texto final + quais PDFs sairiam,
+  // SEM enviar nada. Serve pro RH conferir antes de disparar pro grupo.
+  static async previewBancoHoras(_req: Request, res: Response) {
+    try {
+      const { mensagem } = await BancoHorasWhatsService.getConfig();
+      const { blocos } = await BancoHorasWhatsService.gerarPdfs();
+      return res.json({
+        success: true,
+        mensagem: BancoHorasWhatsService.buildTexto(mensagem),
+        lojas: blocos.map(b => ({
+          loja: b.loja,
+          setores: b.setores.map(s => ({ setor: s.setor, colaboradores: s.itens.length })),
+          colaboradores: b.setores.reduce((a, s) => a + s.itens.length, 0),
+        })),
+      });
+    } catch (error: any) {
+      return res.json({ success: false, error: error.message });
     }
   }
 

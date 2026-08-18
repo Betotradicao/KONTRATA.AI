@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { RhidService } from '../services/rhid.service';
+import { SaldoBancoService } from '../services/saldo-banco.service';
 import { ConfigurationService } from '../services/configuration.service';
 
 const fmtHora = (h: any) => { const s = String(h ?? '').padStart(4, '0'); return `${s.slice(0, 2)}:${s.slice(2, 4)}`; };
@@ -15,6 +16,12 @@ const IND_TTL = 20 * 60 * 1000;   // 20 min
 // passados nunca mudam, então cacheamos por colaborador por bastante tempo.
 const _detFeriasCache = new Map<number, { at: number; data: any }>();
 const DET_FERIAS_TTL = 6 * 60 * 60 * 1000;   // 6 h
+
+// Cache do Saldo de Banco em lote. É 1 consulta RHiD por colaborador, então sem
+// cache a tela ficaria pesada a cada clique em Pesquisar. TTL curto porque o saldo
+// muda conforme o relógio envia batidas novas.
+const _saldoBancoCache = new Map<string, { at: number; data: any }>();
+const SALDO_BANCO_TTL = 15 * 60 * 1000;   // 15 min
 /** Invalida o cache dos indicadores — chamado quando um colaborador é criado/editado/excluído
  * (ex: marcar "não bate ponto" tem que refletir na hora, sem precisar clicar em Recalcular). */
 export function limparCacheIndicadores() { _indCache.clear(); }
@@ -416,6 +423,38 @@ export class RhPontoController {
       return res.status(502).json({ error: err?.message || 'Erro ao buscar a apuração na RHiD' });
     }
   }
+  /**
+   * SALDO DE BANCO DE HORAS de vários colaboradores de uma vez.
+   * Mesma fonte do card "SALDO BANCO ATUAL" do Espelho de Ponto: o último
+   * `saldoBancoFinalDia` da apuração RHiD (valor ACUMULADO all-time, já com
+   * queima/pagamento aplicados).
+   * ⚠️ A janela serve só pra ACHAR o dia mais recente. Como o valor é acumulado,
+   * alargar a janela nunca muda o número — só evita devolver vazio pra quem não
+   * bateu ponto nas últimas semanas (férias, afastamento).
+   * Query: company_id, departamento_id, colaborador_id (opcionais), refresh=1
+   */
+  static async saldoBanco(req: AuthRequest, res: Response) {
+    try {
+      const companyId = String(req.query.company_id || '');
+      const departamentoId = String(req.query.departamento_id || '');
+      const colaboradorId = String(req.query.colaborador_id || '');
+      const refresh = req.query.refresh === '1';
+
+      const cacheKey = `${companyId || 'all'}:${departamentoId || 'all'}:${colaboradorId || 'all'}`;
+      if (!refresh) {
+        const c = _saldoBancoCache.get(cacheKey);
+        if (c && Date.now() - c.at < SALDO_BANCO_TTL) return res.json({ ...c.data, cache: true });
+      }
+
+      const data = await SaldoBancoService.calcular({ companyId, departamentoId, colaboradorId });
+      _saldoBancoCache.set(cacheKey, { at: Date.now(), data });
+      return res.json(data);
+    } catch (err: any) {
+      console.error('[PONTO] saldo-banco RHiD:', err?.message);
+      return res.status(502).json({ error: err?.message || 'Erro ao buscar os saldos na RHiD' });
+    }
+  }
+
 
   /**
    * Indicadores de Ponto e Ausências (dashboard) — agrega a apuração RHiD de

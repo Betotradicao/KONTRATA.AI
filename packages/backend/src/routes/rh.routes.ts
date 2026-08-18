@@ -298,6 +298,7 @@ router.get('/ponto/rhid/empresas', authenticateToken, RhPontoController.empresas
 router.post('/ponto/sincronizar-pis', authenticateToken, lgpdDemoReadOnly, RhPontoController.sincronizarPis);
 router.get('/ponto/espelho', authenticateToken, lgpdDemoMask, RhPontoController.espelho);
 router.get('/ponto/indicadores', authenticateToken, lgpdDemoMask, RhPontoController.indicadores);
+router.get('/ponto/saldo-banco', authenticateToken, lgpdDemoMask, RhPontoController.saldoBanco);
 router.get('/ponto/rhid/vinculos', authenticateToken, RhPontoController.pisVinculados);
 router.get('/ponto/valor-hora', authenticateToken, RhPontoController.getValorHora);
 router.post('/ponto/valor-hora', authenticateToken, RhPontoController.salvarValorHora);

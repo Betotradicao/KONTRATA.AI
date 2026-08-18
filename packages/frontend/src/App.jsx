@@ -38,6 +38,7 @@ import RhDocumentacao from './pages/RhDocumentacao';
 import RhDepartamentoPessoal from './pages/RhDepartamentoPessoal';
 import RhLancamentos from './pages/RhLancamentos';
 import RhEspelhoPonto from './pages/RhEspelhoPonto';
+import RhSaldoBanco from './pages/RhSaldoBanco';
 import RhEscala from './pages/RhEscala';
 import RhEscalaTemplate from './pages/RhEscalaTemplate';
 import RhEscalaRegrasSetor from './pages/RhEscalaRegrasSetor';
@@ -120,6 +121,7 @@ function App() {
               {/* RH — Ponto e Ausencias */}
               <Route path="/rh/ausencias" element={<ProtectedRoute moduleId="rh-ausencias"><RhAusencias /></ProtectedRoute>} />
               <Route path="/rh/espelho-ponto" element={<ProtectedRoute moduleId="rh-ponto"><RhEspelhoPonto /></ProtectedRoute>} />
+              <Route path="/rh/saldo-banco" element={<ProtectedRoute moduleId="rh-ponto"><RhSaldoBanco /></ProtectedRoute>} />
               <Route path="/rh/ferias" element={<ProtectedRoute moduleId="rh-ferias"><RhFerias /></ProtectedRoute>} />
               <Route path="/rh/aso" element={<ProtectedRoute moduleId="rh-saude"><RhControleASO /></ProtectedRoute>} />
 

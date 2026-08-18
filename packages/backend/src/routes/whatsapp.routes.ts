@@ -38,6 +38,8 @@ router.get('/aniversario/preview', authenticateToken, WhatsappController.preview
 // Disparo de Vagas (recrutamento em massa pros grupos, com intervalo + arte PDF)
 router.post('/disparo-vagas/enviar', authenticateToken, WhatsappController.enviarDisparoVagas);
 router.get('/disparo-vagas/preview', authenticateToken, WhatsappController.previewDisparoVagas);
+router.post('/banco-horas/enviar', authenticateToken, WhatsappController.enviarBancoHoras);
+router.get('/banco-horas/preview', authenticateToken, WhatsappController.previewBancoHoras);
 router.post('/disparo-vagas/arte', authenticateToken, uploadArte.single('arte'), WhatsappController.uploadArteDisparo);
 
 export default router;

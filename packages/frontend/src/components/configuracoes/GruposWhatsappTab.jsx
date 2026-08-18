@@ -6,6 +6,7 @@ import DepartamentoPessoalWhatsTab from './DepartamentoPessoalWhatsTab';
 import AniversarioWhatsTab from './AniversarioWhatsTab';
 import DisparoVagasWhatsTab from './DisparoVagasWhatsTab';
 import EncarteWhatsTab from './EncarteWhatsTab';
+import BancoHorasWhatsTab from './BancoHorasWhatsTab';
 
 const SUBABAS = [
   { id: 'disparo_vagas', label: '📣 Disparo de Vagas' },
@@ -15,6 +16,7 @@ const SUBABAS = [
   { id: 'dp', label: '📁 Departamento Pessoal' },
   { id: 'aniversario', label: '🎉 Aniversariantes' },
   { id: 'encarte', label: '🖼️ Encartes de Vaga' },
+  { id: 'banco_horas', label: '🏦 Banco de Horas' },
 ];
 
 export default function GruposWhatsappTab() {
@@ -41,6 +43,7 @@ export default function GruposWhatsappTab() {
       {sub === 'dp' && <DepartamentoPessoalWhatsTab />}
       {sub === 'aniversario' && <AniversarioWhatsTab />}
       {sub === 'encarte' && <EncarteWhatsTab />}
+      {sub === 'banco_horas' && <BancoHorasWhatsTab />}
     </div>
   );
 }
