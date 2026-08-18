@@ -13,6 +13,9 @@ RH NO RADAR
 │   ├── SAÚDE OCUPACIONAL      → /rh/aso
 │   └── FÉRIAS                 → /rh/ferias  (placeholder)
 ├── PONTO E AUSÊNCIAS
+│   ├── ESPELHO DE PONTO       → /rh/espelho-ponto
+│   ├── SALDO DE BANCO         → /rh/saldo-banco
+│   └── CONTROLE DE FÉRIAS     → /rh/ferias
 ├── RECRUTAMENTO
 │   ├── VAGAS ABERTAS          → /rh/vagas
 │   ├── PROCESSO SELETIVO
@@ -96,6 +99,45 @@ Replica "APONTAMENTOS 2026.xlsx":
 
 ### Benefícios dinâmicos
 Aba "Benefícios" do modal de colaborador lista de `/rh/configuracoes/beneficios`. Novos benefícios viram checkbox automático. Salvo em `beneficios_ids INT[]`.
+
+### Saldo de Banco de Horas — fonte ÚNICA (`services/saldo-banco.service.ts`)
+
+O cálculo NÃO mora no controller. **Por quê:** dois caminhos precisam do mesmo número —
+a tela `/rh/saldo-banco` e o **cron** que manda o PDF no WhatsApp (roda sem navegador).
+Se cada um calculasse do seu jeito, o PDF que o gerente recebe divergiria da tela que o
+RH abre, e ninguém confiaria em nenhum dos dois.
+
+- Saldo = **último `saldoBancoFinalDia`** da apuração RHiD — **acumulado all-time**, já com
+  queima/pagamento aplicados. É o MESMO campo do card "Saldo Banco Atual" do Espelho de Ponto.
+- Casamento colaborador↔RHiD por **CPF OU PIS** (mesma regra do espelho e dos indicadores).
+- 💡 **Janela de 45 dias** (o espelho usa 25). Como o valor é acumulado, alargar a janela
+  **nunca muda o número** — só evita vir vazio pra quem estava de férias/afastado.
+- ⚠️ É **1 consulta RHiD por colaborador** → pool de 6 + cache de 15 min. Essa tela nunca
+  vai ser instantânea como as outras.
+- Positivo e negativo são o MESMO saldo em duas colunas: negativo não marca nada no
+  positivo e vice-versa; zero não marca nenhuma das duas.
+
+### Disparo do Banco de Horas no WhatsApp — PDF gerado no SERVIDOR
+
+`services/banco-horas-whats.service.ts` + `crons/banco-horas.cron.ts`, aba
+Config. de Rede → Grupos WhatsApp → 🏦 Banco de Horas (`whatsapp_banco_horas_*`).
+
+- ⚠️ **PDF com `pdfkit` no backend, não com jsPDF no navegador.** O disparo é agendado e roda
+  sem ninguém com o sistema aberto. `pdfkit` já era dependência do backend.
+- Vai como **base64** no `media` do `sendMedia` da Evolution (o disparo-vagas usa URL porque
+  a arte dele é upload; aqui o arquivo nasce em memória).
+- **1 PDF por loja**, setores como seções dentro, subtotal por setor + total da loja.
+- Agendamento clonado do `disparo-vagas.cron`: modo `semana` (dias getDay) ou `mes` + horário.
+
+### 🪤 jspdf-autotable: `columnStyles` NÃO alinha o `foot`
+
+`columnStyles: { 3: { halign: 'right' } }` alinha o corpo mas **deixa o rodapé fora de prumo**
+com a coluna. Forçar dentro do `didParseCell` (vale pra head/body/foot).
+
+### `/rh/colaboradores` não filtra por setor
+
+O endpoint não aceita `departamento_id`, mas **devolve o campo**. Telas que precisam filtrar
+por setor fazem isso no front — mexer no endpoint afetaria várias outras telas.
 
 ## 🎨 Padrões de UX
 

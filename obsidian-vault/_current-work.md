@@ -40,7 +40,13 @@ que o gerente recebe divergiria da tela que o RH abre e ninguém confiaria em ne
 - ⚠️ Aviso de LGPD na aba: o arquivo tem nome de pessoa + saldo individual → só grupo de gestão.
 - ✅ backend `tsc` = 0 · `vite build` = 0 · rotas 401 · cron confirmado no log (consulta
   `whatsapp_banco_horas_horario` a cada minuto).
-- ⏳ **NÃO testado: o envio real pro grupo** (layout do PDF pronto pode pedir ajuste fino).
+- ✅✅ **DEPLOYADO kontrata-tradicao (VPS 46) 18/08 + VALIDADO PELO USUÁRIO.** Commit `8c4e50d`,
+  build `--no-cache` back+front, `up -d --no-deps`. Backend `healthy`, log limpo, cron
+  "Banco de Horas ativo", bundle `index-C-j_m1oj`, domínio 200, postgres/minio intactos.
+- 📚 **Lições movidas pro vault permanente:** [[modulos/rh]] (fonte única, PDF server-side,
+  pegadinha do `columnStyles` no foot, `/rh/colaboradores` sem filtro de setor).
+- ⏳ **Ainda NÃO testado: o envio real pro grupo de WhatsApp** (só a tela foi validada).
+- ⏳ Falta propagar pros outros 8 clientes kontrata — um de cada vez, só quando pedir.
 
 
 ## 💼 (15/08) — GO-TO-MARKET do módulo de Currículo (sessão comercial, sem código)
