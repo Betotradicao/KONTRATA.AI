@@ -103,6 +103,15 @@ export default function RhCadastroGeral() {
   // Foto expandida (lightbox) ao clicar na foto do colaborador
   const [fotoExpandida, setFotoExpandida] = useState(null);
 
+  // ESC fecha a foto ampliada. Só escuta enquanto está aberta pra não roubar
+  // o ESC dos outros modais da tela.
+  useEffect(() => {
+    if (!fotoExpandida) return;
+    const onKey = (e) => { if (e.key === 'Escape') setFotoExpandida(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fotoExpandida]);
+
   // Busca (não bloqueante) quais PIS/CPF o relógio identifica — pra coluna "Relógio de Ponto"
   useEffect(() => {
     api.get('/rh/ponto/rhid/vinculos')
@@ -746,11 +755,20 @@ export default function RhCadastroGeral() {
       {fotoExpandida && (
         <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={() => setFotoExpandida(null)}>
           <div className="relative" onClick={e => e.stopPropagation()}>
-            <img src={fotoExpandida.url} alt={fotoExpandida.nome}
-              className="max-w-[90vw] max-h-[85vh] rounded-lg shadow-2xl object-contain bg-white" />
-            <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-sm font-semibold px-3 py-2 rounded-b-lg">{fotoExpandida.nome}</div>
-            <button onClick={() => setFotoExpandida(null)}
-              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-700 shadow-lg flex items-center justify-center font-bold hover:bg-gray-100">✕</button>
+            <div className="relative">
+              <img src={fotoExpandida.url} alt={fotoExpandida.nome}
+                className="max-w-[90vw] max-h-[72vh] rounded-lg shadow-2xl object-contain bg-white" />
+              <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-sm font-semibold px-3 py-2 rounded-b-lg">{fotoExpandida.nome}</div>
+              <button onClick={() => setFotoExpandida(null)}
+                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-700 shadow-lg flex items-center justify-center font-bold hover:bg-gray-100">✕</button>
+            </div>
+            <div className="flex flex-col items-center gap-2 mt-3">
+              <button onClick={() => setFotoExpandida(null)}
+                className="px-8 py-2.5 bg-white/90 hover:bg-white text-gray-800 rounded-lg font-bold text-sm shadow-lg">
+                Fechar
+              </button>
+              <div className="text-white/50 text-[11px]">ou aperte ESC</div>
+            </div>
           </div>
         </div>
       )}

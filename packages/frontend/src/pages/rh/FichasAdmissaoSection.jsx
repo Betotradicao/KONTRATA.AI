@@ -259,6 +259,15 @@ async function gerarPdfFicha(ficha) {
  * - Gera link público pro candidato preencher dados pessoais (FASE B).
  * - Depois vira colaborador com 1 clique (FASE B).
  */
+// Filtros da lista de fichas. Mantém "Todas" como escape: sem ele, ficha em
+// rascunho/cancelada ficaria invisível pra sempre, já que a tela abre filtrada.
+const FILTROS_STATUS = [
+  { key: 'todas',                label: 'Todas' },
+  { key: 'aguardando_candidato', label: 'Aguardando candidato' },
+  { key: 'preenchida',           label: 'Preenchida' },
+  { key: 'colaborador_criado',   label: 'Colaborador criado' },
+];
+
 export default function FichasAdmissaoSection() {
   const [fichas, setFichas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -268,6 +277,17 @@ export default function FichasAdmissaoSection() {
 
   // Cadastros (dropdowns)
   const [linkGerado, setLinkGerado] = useState(null); // { url, nome } ou null — modal de copiar link
+  const [filtroStatus, setFiltroStatus] = useState('aguardando_candidato'); // abre já filtrado: é a fila que o RH precisa cobrar
+  const [fotoExpandida, setFotoExpandida] = useState(null); // { url, nome } ou null — lightbox da foto
+
+  // ESC fecha a foto ampliada (mesmo comportamento do Banco de Currículos).
+  // Só escuta enquanto está aberta pra não roubar o ESC dos outros modais.
+  useEffect(() => {
+    if (!fotoExpandida) return;
+    const onKey = (e) => { if (e.key === 'Escape') setFotoExpandida(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fotoExpandida]);
   const [empresas, setEmpresas] = useState([]);
   const [cargos, setCargos] = useState([]);
   const [departamentos, setDepartamentos] = useState([]);
@@ -545,6 +565,9 @@ export default function FichasAdmissaoSection() {
     return <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${m.cls}`}>{m.label}</span>;
   };
 
+  const contaStatus = (key) => key === 'todas' ? fichas.length : fichas.filter(f => f.status === key).length;
+  const fichasFiltradas = filtroStatus === 'todas' ? fichas : fichas.filter(f => f.status === filtroStatus);
+
   if (loading) return <div className="p-8 text-center text-gray-400">Carregando fichas...</div>;
 
   return (
@@ -552,31 +575,64 @@ export default function FichasAdmissaoSection() {
       <Toaster position="top-right" />
       {/* Header com botão Nova Ficha */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
           <div>
             <h3 className="text-base font-bold text-gray-800">📋 Fichas de Admissão</h3>
             <p className="text-xs text-gray-500">RH preenche os dados de contratação; o candidato completa dados pessoais via link.</p>
           </div>
-          <button onClick={novaFicha}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded text-sm shadow">
-            + Nova Ficha
-          </button>
+          {/* Filtro de status na mesma linha do botão — a contagem deixa claro
+              que existem fichas fora do filtro ativo. */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {FILTROS_STATUS.map(op => {
+              const ativo = filtroStatus === op.key;
+              const n = contaStatus(op.key);
+              return (
+                <button key={op.key} type="button" onClick={() => setFiltroStatus(op.key)}
+                  className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-semibold border transition ${
+                    ativo
+                      ? 'bg-purple-600 border-purple-600 text-white shadow-sm'
+                      : 'bg-white border-gray-300 text-gray-600 hover:border-purple-400 hover:text-purple-700'
+                  }`}>
+                  {op.label}
+                  {/* Badge estilo notificação. Some no zero de propósito — bolinha
+                      com "0" vira ruído visual e some o senso de "tem coisa aqui". */}
+                  {n > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold leading-none shadow-sm">
+                      {n}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            <button onClick={novaFicha}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded text-sm shadow ml-1">
+              + Nova Ficha
+            </button>
+          </div>
         </div>
 
-        {fichas.length === 0 ? (
+        {fichasFiltradas.length === 0 ? (
           <div className="text-center py-10 text-gray-400 text-sm">
-            Nenhuma ficha criada ainda. Clique em <strong>+ Nova Ficha</strong> pra começar.
+            {fichas.length === 0 ? (
+              <>Nenhuma ficha criada ainda. Clique em <strong>+ Nova Ficha</strong> pra começar.</>
+            ) : (
+              <>Nenhuma ficha com o status <strong>{FILTROS_STATUS.find(o => o.key === filtroStatus)?.label}</strong>.</>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
-            {fichas.map(f => (
+            {fichasFiltradas.map(f => (
               <div key={f.id} className="border border-gray-200 rounded-lg p-3 hover:border-emerald-300 transition">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Avatar do candidato — usa a foto se houver, senão um placeholder */}
                     {f.candidato_dados?.foto_url ? (
-                      <img src={f.candidato_dados.foto_url} alt={f.candidato_nome}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 flex-shrink-0" />
+                      <button type="button" title="Clique pra ampliar a foto"
+                        onClick={() => setFotoExpandida({ url: f.candidato_dados.foto_url, nome: f.candidato_nome })}
+                        className="flex-shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        <img src={f.candidato_dados.foto_url} alt={f.candidato_nome}
+                          className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 cursor-pointer hover:border-purple-500 hover:brightness-90 transition" />
+                      </button>
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border-2 border-gray-200 flex-shrink-0 text-xl">
                         👤
@@ -613,6 +669,24 @@ export default function FichasAdmissaoSection() {
           </div>
         )}
       </div>
+
+      {/* Lightbox da foto do candidato — clicar fora ou no Fechar sai.
+          z acima dos outros modais pra funcionar mesmo aberto por cima deles. */}
+      {fotoExpandida && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"
+          onClick={() => setFotoExpandida(null)}>
+          <div className="flex flex-col items-center gap-3" onClick={e => e.stopPropagation()}>
+            <img src={fotoExpandida.url} alt={fotoExpandida.nome}
+              className="max-w-[90vw] max-h-[75vh] object-contain rounded-lg shadow-2xl bg-white" />
+            <div className="text-white text-sm font-semibold text-center">{fotoExpandida.nome}</div>
+            <button onClick={() => setFotoExpandida(null)}
+              className="px-8 py-2.5 bg-white/90 hover:bg-white text-gray-800 rounded-lg font-bold text-sm shadow-lg">
+              Fechar
+            </button>
+            <div className="text-white/50 text-[11px]">ou aperte ESC</div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Link gerado: input read-only + botão Copiar + atalhos WhatsApp/Email */}
       {linkGerado && (

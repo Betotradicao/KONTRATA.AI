@@ -110,6 +110,15 @@ export default function RhVagas() {
   const [buscandoCurriculo, setBuscandoCurriculo] = useState(false);
   const [curriculoVisualizar, setCurriculoVisualizar] = useState(null);
   const [fotoZoom, setFotoZoom] = useState(null); // URL da foto sendo ampliada
+
+  // ESC fecha a foto ampliada. Só escuta enquanto está aberta pra não roubar
+  // o ESC dos outros modais da tela.
+  useEffect(() => {
+    if (!fotoZoom) return;
+    const onKey = (e) => { if (e.key === 'Escape') setFotoZoom(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fotoZoom]);
   // Modal "o que fazer com o status do candidato apos resultado negativo da entrevista"
   // { vaga, candidato, resultado } — onde resultado = 'nao_compareceu' | 'reprovado' | 'desistiu'
   const [modalRecolocacao, setModalRecolocacao] = useState(null);
@@ -2452,8 +2461,17 @@ export default function RhVagas() {
         {fotoZoom && (
           <div className="fixed inset-0 bg-black/85 z-[70] flex items-center justify-center p-4 cursor-zoom-out"
             onClick={() => setFotoZoom(null)}>
-            <img src={fotoZoom} alt="Foto do candidato"
-              className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" />
+            {/* Botão Fechar ABAIXO da foto — por isso a imagem cede altura:
+                92vh não deixaria espaço pro botão em tela de notebook. */}
+            <div className="flex flex-col items-center gap-3">
+              <img src={fotoZoom} alt="Foto do candidato"
+                className="max-w-[92vw] max-h-[76vh] object-contain rounded-lg shadow-2xl" />
+              <button onClick={() => setFotoZoom(null)}
+                className="px-8 py-2.5 bg-white/90 hover:bg-white text-gray-800 rounded-lg font-bold text-sm shadow-lg">
+                Fechar
+              </button>
+              <div className="text-white/50 text-[11px]">ou aperte ESC</div>
+            </div>
             <button onClick={() => setFotoZoom(null)}
               className="absolute top-4 right-4 text-white/80 hover:text-white text-5xl leading-none">×</button>
           </div>

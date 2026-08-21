@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import toast, { Toaster } from 'react-hot-toast';
@@ -15,6 +15,16 @@ export default function AdmissaoPublica() {
   const [erro, setErro] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
+
+  // ── Autosave ──────────────────────────────────────────────────────────
+  // Candidato reclamava de perder tudo ao sair do link no meio. Agora salva
+  // sozinho 2s depois de parar de digitar; o botão "Salvar rascunho" continua
+  // existindo só como conforto (quem quer clicar em algo pra ter certeza).
+  const [carregado, setCarregado] = useState(false); // trava o autosave até a carga inicial terminar
+  const [autoStatus, setAutoStatus] = useState('idle'); // idle | salvando | salvo | erro
+  const [salvoEm, setSalvoEm] = useState(null);
+  const ultimoSalvoRef = useRef(''); // serial do último payload que subiu — evita PUT repetido
+  const LS_KEY = `ficha-admissao:${token}`;
 
   // Dados que o candidato preenche (estrutura espelha o que o backend espera em criar-colaborador)
   const [dados, setDados] = useState({
@@ -80,22 +90,41 @@ export default function AdmissaoPublica() {
         setFicha(r.data);
         // Pré-preenche o que já temos
         const cd = r.data.candidato_dados || {};
-        setDados(prev => ({
-          ...prev,
-          ...cd,
-          dados_pessoais: {
-            ...prev.dados_pessoais,
-            ...(cd.dados_pessoais || {}),
-            nome: cd?.dados_pessoais?.nome || r.data.candidato_nome || '',
-          },
-          contato: {
-            ...prev.contato,
-            ...(cd.contato || {}),
-            email: cd?.contato?.email || r.data.candidato_email || '',
-            celular: cd?.contato?.celular || r.data.candidato_celular || '',
-          },
-        }));
+        setDados(prev => {
+          const doServidor = {
+            ...prev,
+            ...cd,
+            dados_pessoais: {
+              ...prev.dados_pessoais,
+              ...(cd.dados_pessoais || {}),
+              nome: cd?.dados_pessoais?.nome || r.data.candidato_nome || '',
+            },
+            contato: {
+              ...prev.contato,
+              ...(cd.contato || {}),
+              email: cd?.contato?.email || r.data.candidato_email || '',
+              celular: cd?.contato?.celular || r.data.candidato_celular || '',
+            },
+          };
+          ultimoSalvoRef.current = JSON.stringify(doServidor);
+
+          // Se o navegador fechou/caiu a internet antes do autosave subir, o
+          // snapshot local está NA FRENTE do servidor. Só nesse caso ele vence
+          // — senão o servidor é sempre a fonte da verdade.
+          try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+              const snap = JSON.parse(raw);
+              if (snap && snap.sincronizado === false && snap.dados) {
+                toast('Recuperamos o que você tinha preenchido antes de sair.', { icon: '♻️', duration: 5000 });
+                return snap.dados;
+              }
+            }
+          } catch { /* snapshot corrompido — segue com o do servidor */ }
+          return doServidor;
+        });
         if (r.data.status === 'preenchida') setFinalizado(true);
+        setCarregado(true);
       } catch (e) {
         setErro(e?.response?.data?.error || 'Não foi possível carregar a ficha');
       } finally { setLoading(false); }
@@ -178,12 +207,52 @@ export default function AdmissaoPublica() {
   });
   const rmDependente = (i) => setDados(d => ({ ...d, dependentes: d.dependentes.filter((_, x) => x !== i) }));
 
+  // Autosave: espelha no localStorage na hora (instantâneo, sobrevive a queda
+  // de conexão) e sobe pro servidor 2s depois da última tecla.
+  useEffect(() => {
+    if (!carregado || finalizado) return;
+    const serial = JSON.stringify(dados);
+    if (serial === ultimoSalvoRef.current) return; // nada mudou de verdade
+
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ sincronizado: false, dados })); }
+    catch { /* cota estourada (foto grande) — o servidor ainda é o plano A */ }
+
+    const t = setTimeout(async () => {
+      setAutoStatus('salvando');
+      try {
+        await api.put(`/rh/fichas-admissao/public/${token}`, { dados, finalizar: false });
+        ultimoSalvoRef.current = serial;
+        try { localStorage.setItem(LS_KEY, JSON.stringify({ sincronizado: true, dados })); } catch { /* idem */ }
+        setSalvoEm(new Date());
+        setAutoStatus('salvo');
+      } catch {
+        // Não incomoda com toast: o indicador no rodapé já avisa, e o snapshot
+        // local segue marcado como não-sincronizado pra recuperar depois.
+        setAutoStatus('erro');
+      }
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [dados, carregado, finalizado, token]);
+
+  // Avisa antes de fechar a aba se ainda tem coisa não sincronizada
+  useEffect(() => {
+    const handler = (e) => {
+      if (autoStatus === 'salvando' || autoStatus === 'erro') { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [autoStatus]);
+
   const salvarRascunho = async () => {
     setSalvando(true);
     try {
       await api.put(`/rh/fichas-admissao/public/${token}`, { dados, finalizar: false });
+      ultimoSalvoRef.current = JSON.stringify(dados);
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ sincronizado: true, dados })); } catch { /* idem */ }
+      setSalvoEm(new Date());
+      setAutoStatus('salvo');
       toast.success('Rascunho salvo!');
-    } catch (e) { toast.error('Erro ao salvar'); }
+    } catch (e) { setAutoStatus('erro'); toast.error('Erro ao salvar'); }
     finally { setSalvando(false); }
   };
 
@@ -194,6 +263,10 @@ export default function AdmissaoPublica() {
       [dados.dados_pessoais.nome,           'Nome completo é obrigatório'],
       [dados.dados_pessoais.cpf,            'CPF é obrigatório'],
       [dados.dados_pessoais.data_nascimento,'Data de nascimento é obrigatória'],
+      // Sexo é obrigatório no Cadastro Geral (RhCadastroGeral > camposObrigatorios).
+      // Sem ele aqui, o RH recebia ficha "preenchida" que travava na hora de
+      // criar o colaborador. Manter as duas listas em sincronia.
+      [dados.dados_pessoais.sexo,           'Sexo é obrigatório'],
       [dados.escolaridade.escolaridade_id,  'Grau de instrução é obrigatório'],
       [dados.endereco.cep,                  'CEP é obrigatório'],
       [dados.endereco.rua,                  'Rua / Logradouro é obrigatório'],
@@ -212,6 +285,7 @@ export default function AdmissaoPublica() {
     setSalvando(true);
     try {
       await api.put(`/rh/fichas-admissao/public/${token}`, { dados, finalizar: true });
+      try { localStorage.removeItem(LS_KEY); } catch { /* nada a limpar */ }
       toast.success('Ficha enviada! O RH vai revisar e finalizar sua admissão.');
       setFinalizado(true);
     } catch (e) { toast.error(e?.response?.data?.error || 'Erro ao enviar'); }
@@ -347,7 +421,7 @@ export default function AdmissaoPublica() {
               <input type="date" className={inputCls} value={dados.dados_pessoais.data_nascimento} onChange={e => setSecao('dados_pessoais', { data_nascimento: e.target.value })} />
             </div>
             <div>
-              <label className={labelCls}>Sexo</label>
+              <label className={labelCls}>Sexo *</label>
               <select className={inputCls} value={dados.dados_pessoais.sexo} onChange={e => setSecao('dados_pessoais', { sexo: e.target.value })}>
                 <option value="">—</option>
                 <option value="M">Masculino</option>
@@ -804,8 +878,20 @@ export default function AdmissaoPublica() {
           ))}
         </div>
 
-        {/* Botões */}
-        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col md:flex-row gap-2 justify-end sticky bottom-2">
+        {/* Botões + indicador de autosave */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow flex flex-col md:flex-row gap-2 md:items-center md:justify-between sticky bottom-2">
+          {/* Deixa explícito que dá pra sair e voltar — é a dúvida que gerava a reclamação */}
+          <div className="text-xs font-semibold min-h-[1rem]">
+            {autoStatus === 'salvando' && <span className="text-gray-500">💾 Salvando…</span>}
+            {autoStatus === 'salvo' && (
+              <span className="text-emerald-600">
+                ✅ Salvo automaticamente{salvoEm ? ` às ${salvoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''} — pode sair e voltar depois
+              </span>
+            )}
+            {autoStatus === 'erro' && <span className="text-red-600">⚠️ Sem conexão — não feche esta página até salvar</span>}
+            {autoStatus === 'idle' && <span className="text-gray-400">Seu preenchimento é salvo sozinho — pode sair e voltar depois</span>}
+          </div>
+          <div className="flex flex-col md:flex-row gap-2 justify-end">
           <button onClick={salvarRascunho} disabled={salvando}
             className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded font-semibold text-sm disabled:opacity-50">
             💾 Salvar rascunho
@@ -814,6 +900,7 @@ export default function AdmissaoPublica() {
             className="px-5 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded font-bold text-sm disabled:opacity-50">
             ✅ Enviar ficha
           </button>
+          </div>
         </div>
 
         <p className="text-center text-xs text-gray-400 py-4">Seus dados são protegidos. Apenas o RH da empresa terá acesso.</p>

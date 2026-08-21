@@ -772,6 +772,15 @@ export function DetalheCV({
   // === Foto expandida ao clicar ===
   const [showFotoZoom, setShowFotoZoom] = useState(false);
 
+  // ESC fecha a foto ampliada. Só escuta enquanto ela está aberta pra não
+  // roubar o ESC de outros modais/inputs da tela.
+  useEffect(() => {
+    if (!showFotoZoom) return;
+    const onKey = (e) => { if (e.key === 'Escape') setShowFotoZoom(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showFotoZoom]);
+
   // === Migrar Loja ===
   const [showMigrarLoja, setShowMigrarLoja] = useState(false);
   const [lojasDisponiveis, setLojasDisponiveis] = useState([]);
@@ -1265,13 +1274,20 @@ export function DetalheCV({
       {showFotoZoom && cv.foto_url && (
         <div className="fixed inset-0 bg-black/85 z-[70] flex items-center justify-center p-4 cursor-zoom-out"
           onClick={() => setShowFotoZoom(false)}>
-          <img src={cv.foto_url} alt={cv.nome}
-            className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl" />
+          {/* Nome e Fechar ficam ABAIXO da foto (não sobrepostos), por isso a
+              imagem cede altura: 92vh não caberia junto com os dois. */}
+          <div className="flex flex-col items-center gap-3">
+            <img src={cv.foto_url} alt={cv.nome}
+              className="max-w-[92vw] max-h-[74vh] object-contain rounded-lg shadow-2xl" />
+            <div className="bg-black/60 text-white text-sm px-4 py-2 rounded-full">{cv.nome}</div>
+            <button onClick={() => setShowFotoZoom(false)}
+              className="px-8 py-2.5 bg-white/90 hover:bg-white text-gray-800 rounded-lg font-bold text-sm shadow-lg">
+              Fechar
+            </button>
+            <div className="text-white/50 text-[11px]">ou aperte ESC</div>
+          </div>
           <button onClick={() => setShowFotoZoom(false)}
             className="absolute top-4 right-4 text-white/80 hover:text-white text-5xl leading-none">×</button>
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full">
-            {cv.nome}
-          </div>
         </div>
       )}
 
