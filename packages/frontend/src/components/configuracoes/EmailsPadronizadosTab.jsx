@@ -27,6 +27,7 @@ const VARIAVEIS = [
 
 // Documentos que terão sub-aba de mensagem padrão. Comecamos pela Ficha Cadastral.
 // Para adicionar outro doc no futuro, basta incluir aqui.
+const BR = '\n'; // quebra de linha usada nos corpos de e-mail
 const DOC_TIPOS = [
   {
     key: 'ficha_cadastral',
@@ -34,6 +35,22 @@ const DOC_TIPOS = [
     defaultAssunto: 'Ficha Cadastral - {NOME}',
     defaultCorpo:
       'Olá,\n\nSegue em anexo a Ficha Cadastral do colaborador {NOME} ({CARGO}).\n\nQualquer dúvida estamos à disposição.\n\nAtenciosamente,\n{RESPONSAVEL}\n{EMPRESA}',
+  },
+  {
+    key: 'guia_exame',
+    label: '🏥 Medicina do Trabalho',
+    defaultAssunto: 'Exame {TIPO_EXAME} - {NOME}',
+    defaultCorpo:
+      'Olá,' + BR + BR +
+      'Segue em anexo o Guia de Exame Ocupacional ({TIPO_EXAME}) do candidato {NOME} ({CARGO}).' + BR + BR +
+      'Agendamento: {AGENDADO}' + BR + BR +
+      'Fico à disposição para qualquer dúvida.' + BR + BR +
+      'Atenciosamente,' + BR + '{RESPONSAVEL}' + BR + '{EMPRESA}',
+    // Variáveis que só fazem sentido neste documento
+    variaveisExtra: [
+      { token: '{TIPO_EXAME}', desc: 'Tipo do exame (Admissional, Periódico...)' },
+      { token: '{AGENDADO}', desc: 'Data e hora agendadas' },
+    ],
   },
 ];
 
@@ -45,6 +62,12 @@ export default function EmailsPadronizadosTab() {
   const [empresa, setEmpresa] = useState({ user: '', pass: '', nome: '' }); // remetente (cliente)
   const [destinatarios, setDestinatarios] = useState([]); // [{ nome, email }]
   const [textos, setTextos] = useState({}); // { docKey: { assunto, corpo } }
+  // Dados da clinica de medicina do trabalho. Vao num JSON unico em
+  // `guia_exame_config` — sem migration, igual ao resto desta tela.
+  const [guiaCfg, setGuiaCfg] = useState({
+    email: '', clinicaEndereco: '', clinicaCidade: '',
+    clinicaTelefone: '', clinicaSite: '', medicoPcmso: '', responsavel: '',
+  });
 
   useEffect(() => {
     (async () => {
@@ -75,6 +98,11 @@ export default function EmailsPadronizadosTab() {
           if (!txt[d.key]) txt[d.key] = { assunto: d.defaultAssunto, corpo: d.defaultCorpo };
         });
         setTextos(txt);
+        // config da clinica
+        try {
+          const g = JSON.parse(data.guia_exame_config || '{}');
+          setGuiaCfg((prev) => ({ ...prev, ...g }));
+        } catch { /* config invalida — segue com os campos vazios */ }
       } catch (e) {
         console.error('Erro ao carregar emails padronizados:', e);
         toast.error('Erro ao carregar configurações de e-mail');
@@ -146,6 +174,7 @@ export default function EmailsPadronizadosTab() {
     try {
       setSaving(true);
       await api.put('/configurations/email_textos_padrao', { value: JSON.stringify(textos) });
+      await api.put('/configurations/guia_exame_config', { value: JSON.stringify(guiaCfg) });
       toast.success('Textos padrão salvos!');
     } catch {
       toast.error('Erro ao salvar textos');
@@ -210,6 +239,16 @@ export default function EmailsPadronizadosTab() {
             destinatarios={destinatarios}
             setDestinatarios={setDestinatarios}
             onSalvar={salvarDestinatarios}
+            saving={saving}
+          />
+        ) : subAba === 'guia_exame' ? (
+          <MedicinaTrabalhoEditor
+            cfg={guiaCfg}
+            setCfg={setGuiaCfg}
+            doc={DOC_TIPOS.find((d) => d.key === 'guia_exame')}
+            valor={textos.guia_exame || { assunto: '', corpo: '' }}
+            onChange={(v) => setTextos({ ...textos, guia_exame: v })}
+            onSalvar={salvarTextos}
             saving={saving}
           />
         ) : (
@@ -471,7 +510,7 @@ function TextoDocEditor({ doc, valor, onChange, onSalvar, saving }) {
             São substituídas automaticamente no envio.
           </p>
           <div className="flex flex-col gap-2">
-            {VARIAVEIS.map((v) => (
+            {[...VARIAVEIS, ...(doc.variaveisExtra || [])].map((v) => (
               <button
                 key={v.token}
                 type="button"
@@ -484,6 +523,57 @@ function TextoDocEditor({ doc, valor, onChange, onSalvar, saving }) {
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+/**
+ * Aba "Medicina do Trabalho": junta num lugar so tudo que o Guia de Exame
+ * Ocupacional precisa — os dados da clinica (que saem impressos no CABECALHO
+ * do .docx), pra quem enviar, e o texto padrao do e-mail.
+ *
+ * Fica aqui e nao em Empresas porque e tudo o mesmo assunto, e assim nao
+ * precisa de coluna nova no banco: vai num JSON em `guia_exame_config`.
+ */
+function MedicinaTrabalhoEditor({ cfg, setCfg, doc, valor, onChange, onSalvar, saving }) {
+  const Campo = ({ label, chave, dica, tipo = 'text' }) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input
+        type={tipo}
+        value={cfg[chave] || ''}
+        onChange={(e) => setCfg({ ...cfg, [chave]: e.target.value })}
+        placeholder={dica}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+      />
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+        <p className="text-sm font-bold text-emerald-900">Empresa de Medicina do Trabalho</p>
+        <p className="text-xs text-emerald-800 mt-1">
+          Estes dados saem impressos no <strong>cabecalho do Guia de Exame</strong> e sao usados no envio.
+          O logotipo continua sendo o do formulario original da clinica.
+          Preencha e clique em <strong>Salvar</strong> la embaixo — o botao salva os dados e o texto do e-mail juntos.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Campo label="E-mail da clinica" chave="email" dica="contato@clinica.com.br" tipo="email" />
+        <Campo label="Medico Coordenador do PCMSO" chave="medicoPcmso" dica="Nome do medico" />
+        <Campo label="Endereco" chave="clinicaEndereco" dica="Rua Major Vaz, 247" />
+        <Campo label="Bairro / Cidade / UF" chave="clinicaCidade" dica="Vila Adyana | Sao Jose dos Campos | SP" />
+        <Campo label="Telefone" chave="clinicaTelefone" dica="(12) 3019-1664" />
+        <Campo label="Site" chave="clinicaSite" dica="www.clinica.com.br" />
+        <Campo label="Responsavel pelo encaminhamento" chave="responsavel" dica="Quem assina o guia" />
+      </div>
+
+      <div className="border-t pt-6">
+        <TextoDocEditor doc={doc} valor={valor} onChange={onChange} onSalvar={onSalvar} saving={saving} />
       </div>
     </div>
   );

@@ -441,6 +441,7 @@ router.put('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController
 router.delete('/fichas-admissao/:id', authenticateToken, RhFichasAdmissaoController.deletar);
 router.post('/fichas-admissao/:id/gerar-link', authenticateToken, RhFichasAdmissaoController.gerarLink);
 router.post('/fichas-admissao/:id/criar-colaborador', authenticateToken, RhFichasAdmissaoController.criarColaborador);
+router.post('/fichas-admissao/:id/guia-exame', authenticateToken, RhFichasAdmissaoController.gerarGuiaExame);
 
 // Controle de Ferias
 router.get('/ferias', authenticateToken, lgpdDemoMask, RhFeriasController.listar);

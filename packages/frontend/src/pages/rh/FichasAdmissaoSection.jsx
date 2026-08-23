@@ -261,6 +261,38 @@ async function gerarPdfFicha(ficha) {
  */
 // Filtros da lista de fichas. Mantém "Todas" como escape: sem ele, ficha em
 // rascunho/cancelada ficaria invisível pra sempre, já que a tela abre filtrada.
+// Tipos de exame do "GUIA - EXAME OCUPACIONAL". A ordem e as chaves espelham
+// TIPOS_EXAME em packages/backend/src/services/guia-exame.service.ts — se mexer
+// aqui, mexa la tambem (o backend valida a chave recebida).
+// Mascaras de digitacao do agendamento: o RH digita so numeros e a
+// pontuacao aparece sozinha. Data e hora ficam em campos separados pra
+// dar pra preencher a data mesmo sem ter o horario fechado ainda.
+const mascaraData = (v) => {
+  const d = String(v || '').replace(/[^0-9]/g, '').slice(0, 8);
+  let out = d.slice(0, 2);
+  if (d.length > 2) out += '/' + d.slice(2, 4);
+  if (d.length > 4) out += '/' + d.slice(4, 8);
+  return out;
+};
+const mascaraHora = (v) => {
+  const d = String(v || '').replace(/[^0-9]/g, '').slice(0, 4);
+  return d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2, 4) : d;
+};
+// O documento recebe os dois juntos: "25/08/2026 09:30".
+const juntarAgendamento = (data, hora) => [data, hora].filter(Boolean).join(' ').trim();
+
+const TIPOS_EXAME = [
+  { key: 'admissional',    label: 'Admissional' },
+  { key: 'demissional',    label: 'Demissional' },
+  { key: 'periodico',      label: 'Periódico' },
+  { key: 'mudanca_funcao', label: 'Mudança de Função' },
+  { key: 'retorno',        label: 'Retorno ao Trabalho' },
+  { key: 'avaliacao',      label: 'Avaliação Médica' },
+  { key: 'altura',         label: 'Trabalho em Altura' },
+  { key: 'confinado',      label: 'Trabalho em Espaço Confinado' },
+  { key: 'outro',          label: 'Outro' },
+];
+
 const FILTROS_STATUS = [
   { key: 'todas',                label: 'Todas' },
   { key: 'aguardando_candidato', label: 'Aguardando candidato' },
@@ -274,6 +306,7 @@ export default function FichasAdmissaoSection() {
   const [modalAberto, setModalAberto] = useState(false);
   const [fichaEditando, setFichaEditando] = useState(null);
   const [emailModal, setEmailModal] = useState(null); // { ficha, gerando, enviando, pdf, destinatarios, to, assunto, corpo }
+  const [guiaModal, setGuiaModal] = useState(null);  // Guia de Exame Ocupacional
 
   // Cadastros (dropdowns)
   const [linkGerado, setLinkGerado] = useState(null); // { url, nome } ou null — modal de copiar link
@@ -409,6 +442,102 @@ export default function FichasAdmissaoSection() {
     } catch { toast.error('Erro ao excluir'); }
   };
 
+  // ── Guia de Exame Ocupacional ────────────────────────────────────────
+  // O .docx e montado no BACKEND (o template mora la). O mesmo blob serve
+  // pro download e pro anexo do e-mail — nao gera duas vezes.
+  const abrirGuia = async (f) => {
+    let cfg = {};
+    let texto = { assunto: "", corpo: "" };
+    try {
+      const { data } = await api.get("/configurations");
+      try { cfg = JSON.parse(data.guia_exame_config || "{}"); } catch { cfg = {}; }
+      try { texto = (JSON.parse(data.email_textos_padrao || "{}")).guia_exame || texto; } catch { /* usa vazio */ }
+    } catch { /* sem config o RH ainda consegue baixar o .docx */ }
+    setGuiaModal({
+      ficha: f, cfg, texto, ocupado: false,
+      tipoExame: "admissional", outroDesc: "", agendadoData: "", agendadoHora: "",
+      riscoFisico: "", riscoQuimico: "", riscoBiologico: "", riscoOutros: "",
+    });
+  };
+
+  const rotuloTipo = (k) => (TIPOS_EXAME.find((t) => t.key === k) || {}).label || "Exame";
+
+  const nomeDoArquivo = (g) => {
+    const pessoa = String(g.ficha.candidato_nome || "Candidato")
+      .replace(/[\\\\/:*?\"<>|]/g, "").trim();
+    return "Guia Exame - " + rotuloTipo(g.tipoExame) + " - " + pessoa + ".docx";
+  };
+
+  const gerarGuiaBlob = async (g) => {
+    const r = await api.post(`/rh/fichas-admissao/${g.ficha.id}/guia-exame`, {
+      tipoExame: g.tipoExame, outroDesc: g.outroDesc,
+      agendado: juntarAgendamento(g.agendadoData, g.agendadoHora),
+      riscoFisico: g.riscoFisico, riscoQuimico: g.riscoQuimico,
+      riscoBiologico: g.riscoBiologico, riscoOutros: g.riscoOutros,
+    }, { responseType: "blob" });
+    return r.data;
+  };
+
+  const baixarGuia = async () => {
+    if (!guiaModal) return;
+    setGuiaModal((g) => ({ ...g, ocupado: true }));
+    try {
+      const blob = await gerarGuiaBlob(guiaModal);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = nomeDoArquivo(guiaModal);
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Guia gerado!");
+    } catch {
+      toast.error("Erro ao gerar o guia");
+    } finally {
+      setGuiaModal((g) => (g ? { ...g, ocupado: false } : g));
+    }
+  };
+
+  const enviarGuiaEmail = async () => {
+    if (!guiaModal) return;
+    const g = guiaModal;
+    const para = (g.cfg.email || "").trim();
+    if (!para) {
+      toast.error("Cadastre o e-mail da clínica em Configurações → E-mails Padronizados → Medicina do Trabalho");
+      return;
+    }
+    setGuiaModal((x) => ({ ...x, ocupado: true }));
+    try {
+      const blob = await gerarGuiaBlob(g);
+      const base64 = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(String(fr.result).replace(/^data:[^,]+,/, ""));
+        fr.onerror = rej;
+        fr.readAsDataURL(blob);
+      });
+      const tipoLabel = rotuloTipo(g.tipoExame);
+      const trocar = (txt) => String(txt || "")
+        .split("{NOME}").join(g.ficha.candidato_nome || "")
+        .split("{CARGO}").join(g.ficha.cargo_nome || "")
+        .split("{EMPRESA}").join(g.ficha.empresa_nome || "")
+        .split("{RESPONSAVEL}").join(g.cfg.responsavel || "")
+        .split("{TIPO_EXAME}").join(tipoLabel)
+        .split("{AGENDADO}").join(juntarAgendamento(g.agendadoData, g.agendadoHora) || "a combinar");
+      await api.post("/rh/email-doc/enviar", {
+        to: para,
+        subject: trocar(g.texto.assunto) || ("Exame " + tipoLabel),
+        body: trocar(g.texto.corpo),
+        attachment: {
+          filename: nomeDoArquivo(g),
+          base64,
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        },
+      });
+      toast.success("Guia enviado para " + para);
+      setGuiaModal(null);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || "Erro ao enviar o e-mail");
+      setGuiaModal((x) => (x ? { ...x, ocupado: false } : x));
+    }
+  };
   const gerarLink = async (ficha) => {
     try {
       const r = await api.post(`/rh/fichas-admissao/${ficha.id}/gerar-link`);
@@ -660,6 +789,12 @@ export default function FichasAdmissaoSection() {
                       <button onClick={() => criarColaborador(f.id)}
                         className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-semibold">✅ Cadastrar colaborador</button>
                     )}
+                    {/* Sem trava de status: o RH costuma agendar o exame junto com o
+                        envio do link, antes do candidato preencher. Nesse caso os dados
+                        pessoais saem em branco — o modal avisa quando for o caso. */}
+                    <button onClick={() => abrirGuia(f)}
+                      title="Gerar Guia de Exame Ocupacional pra medicina do trabalho"
+                      className="text-xs px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded font-semibold">🩺 Guia</button>
                     <button onClick={() => excluir(f.id)}
                       className="text-xs px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded font-semibold">🗑️</button>
                   </div>
@@ -742,6 +877,115 @@ export default function FichasAdmissaoSection() {
         />
       )}
 
+      {/* Guia de Exame Ocupacional — RH preenche so o topo; a tabela de exames
+          vai em branco de proposito, quem marca e a clinica. */}
+      {guiaModal && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => !guiaModal.ocupado && setGuiaModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="bg-teal-600 text-white px-5 py-3 rounded-t-xl">
+              <h3 className="text-lg font-bold">🩺 Guia de Exame Ocupacional</h3>
+              <p className="text-xs text-teal-100">{guiaModal.ficha.candidato_nome}</p>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 text-xs text-teal-900">
+                Nome, nascimento, RG, CPF, função, empresa e setor vêm da ficha automaticamente.
+                A tabela de exames sai <strong>em branco</strong> — quem marca é a clínica.
+              </div>
+
+              {/* Nascimento/RG/CPF vem do que o CANDIDATO preenche no link dele.
+                  Se ainda nao preencheu, o guia sai com esses campos vazios. */}
+              {!guiaModal.ficha?.candidato_dados?.dados_pessoais?.cpf && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-900">
+                  ⚠️ Este candidato ainda não preencheu o link dele, então
+                  <strong> nascimento, RG e CPF vão sair em branco</strong> no guia —
+                  dá pra completar à mão no Word. Nome, função, empresa e setor saem normalmente.
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de exame *</label>
+                  <select value={guiaModal.tipoExame}
+                    onChange={(e) => setGuiaModal({ ...guiaModal, tipoExame: e.target.value })}
+                    className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400">
+                    {TIPOS_EXAME.map((t) => (
+                      <option key={t.key} value={t.key}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Data do agendamento</label>
+                  <input type="text" value={guiaModal.agendadoData} inputMode="numeric"
+                    onChange={(e) => setGuiaModal({ ...guiaModal, agendadoData: mascaraData(e.target.value) })}
+                    placeholder="25/08/2026" maxLength={10}
+                    className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Horário</label>
+                  <input type="text" value={guiaModal.agendadoHora} inputMode="numeric"
+                    onChange={(e) => setGuiaModal({ ...guiaModal, agendadoHora: mascaraHora(e.target.value) })}
+                    placeholder="09:30" maxLength={5}
+                    className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                </div>
+              </div>
+
+              {guiaModal.tipoExame === "outro" && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Qual?</label>
+                  <input type="text" value={guiaModal.outroDesc}
+                    onChange={(e) => setGuiaModal({ ...guiaModal, outroDesc: e.target.value })}
+                    className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400" />
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold text-gray-600 mb-2">Riscos ocupacionais (opcional)</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[
+                    ["riscoFisico", "Físico"],
+                    ["riscoQuimico", "Químico"],
+                    ["riscoBiologico", "Biológico"],
+                    ["riscoOutros", "Outros"],
+                  ].map(([chave, rotulo]) => (
+                    <div key={chave}>
+                      <label className="block text-[11px] text-gray-500 mb-1">{rotulo}</label>
+                      <input type="text" value={guiaModal[chave]}
+                        onChange={(e) => setGuiaModal({ ...guiaModal, [chave]: e.target.value })}
+                        className="w-full border-2 border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-teal-400" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {!guiaModal.cfg.email && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-900">
+                  ⚠️ Nenhum e-mail de clínica cadastrado. Dá pra <strong>baixar</strong> o guia normalmente,
+                  mas pra enviar, cadastre em <strong>Configurações → E-mails Padronizados → Medicina do Trabalho</strong>.
+                </div>
+              )}
+            </div>
+
+            <div className="border-t px-5 py-3 flex flex-col md:flex-row gap-2 md:justify-end">
+              <button onClick={() => setGuiaModal(null)} disabled={guiaModal.ocupado}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={baixarGuia} disabled={guiaModal.ocupado}
+                className="px-5 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg text-sm font-bold disabled:opacity-50">
+                ⬇️ Baixar .docx
+              </button>
+              <button onClick={enviarGuiaEmail} disabled={guiaModal.ocupado || !guiaModal.cfg.email}
+                title={guiaModal.cfg.email ? ("Enviar para " + guiaModal.cfg.email) : "Cadastre o e-mail da clínica primeiro"}
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-bold disabled:opacity-50">
+                {guiaModal.ocupado ? "Aguarde..." : "📧 Enviar pra clínica"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {emailModal && (
         <EnviarEmailModal
           estado={emailModal}

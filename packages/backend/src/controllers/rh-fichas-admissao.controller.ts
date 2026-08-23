@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { replicarTemplateNoColaborador } from '../services/doc-template.service';
+import { GuiaExameService, TIPOS_EXAME } from '../services/guia-exame.service';
+import { ConfigurationService } from '../services/configuration.service';
 
 /**
  * Ficha de Admissão — RH preenche dados de contratação na 1ª fase, gera link
@@ -452,4 +454,92 @@ export class RhFichasAdmissaoController {
       res.status(500).json({ error: e.message });
     }
   }
+
+  // POST /rh/fichas-admissao/:id/guia-exame
+  // Monta o "GUIA - EXAME OCUPACIONAL" (.docx) pra mandar pra medicina do
+  // trabalho. Os dados da pessoa saem da ficha; clinica/medico/responsavel
+  // saem da config (Emails Padronizados > Medicina do Trabalho). O RH so
+  // informa tipo de exame, data agendada e riscos.
+  static async gerarGuiaExame(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id);
+      const b = (req.body || {}) as any;
+
+      if (!b.tipoExame || !TIPOS_EXAME.some((t) => t.key === b.tipoExame)) {
+        return res.status(400).json({ error: 'Tipo de exame inválido' });
+      }
+
+      const [f] = await AppDataSource.query(
+        `SELECT f.*,
+                e.razao_social AS empresa_razao_social,
+                COALESCE(e.apelido, e.nome_fantasia, e.razao_social) AS empresa_nome,
+                e.cnpj AS empresa_cnpj,
+                c.nome AS cargo_nome,
+                s.nome AS departamento_nome
+         FROM rh_fichas_admissao f
+         LEFT JOIN rh_empresas e ON e.id = f.company_id
+         LEFT JOIN rh_cargos c ON c.id = f.cargo_id
+         LEFT JOIN rh_departamentos s ON s.id = f.departamento_id
+         WHERE f.id = $1`,
+        [id]
+      );
+      if (!f) return res.status(404).json({ error: 'Ficha não encontrada' });
+
+      const cd = f.candidato_dados || {};
+      const dp = cd.dados_pessoais || {};
+
+      // Config da clinica (JSON unico, sem migration — mesma abordagem do
+      // resto da tela de Emails Padronizados).
+      let cfg: any = {};
+      try {
+        cfg = JSON.parse((await ConfigurationService.get('guia_exame_config', '{}')) || '{}');
+      } catch { cfg = {}; }
+
+      // 'YYYY-MM-DD' -> 'DD/MM/YYYY' por string. Usar new Date() aqui volta 1
+      // dia dependendo do fuso — o classico que ja mordeu esse projeto antes.
+      const dataBr = (v?: string | null) => {
+        const s = String(v || '').slice(0, 10);
+        const m = s.match(/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : (v ? String(v) : '');
+      };
+
+      const empresa = [f.empresa_razao_social || f.empresa_nome, f.empresa_cnpj]
+        .filter(Boolean).join(' ');
+
+      const buffer = GuiaExameService.gerar({
+        tipoExame: b.tipoExame,
+        outroDesc: b.outroDesc,
+        agendado: b.agendado || '',
+        nome: dp.nome || f.candidato_nome || '',
+        dataNascimento: dataBr(dp.data_nascimento),
+        rg: dp.rg || '',
+        cpf: dp.cpf || '',
+        // matricula so nasce quando a ficha vira colaborador -> em branco aqui
+        matricula: f.matricula || '',
+        funcao: f.cargo_nome || '',
+        empresa,
+        setor: f.departamento_nome || '',
+        medicoPcmso: cfg.medicoPcmso || '',
+        riscoFisico: b.riscoFisico || '',
+        riscoQuimico: b.riscoQuimico || '',
+        riscoBiologico: b.riscoBiologico || '',
+        riscoOutros: b.riscoOutros || '',
+        clinicaEndereco: cfg.clinicaEndereco || '',
+        clinicaCidade: cfg.clinicaCidade || '',
+        clinicaTelefone: cfg.clinicaTelefone || '',
+        clinicaSite: cfg.clinicaSite || '',
+        responsavel: cfg.responsavel || '',
+      });
+
+      const nomeArq = GuiaExameService.nomeArquivo(dp.nome || f.candidato_nome, b.tipoExame);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      // filename* (RFC 5987) porque o nome tem acento e espaco
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(nomeArq)}`);
+      return res.send(buffer);
+    } catch (e: any) {
+      console.error('[FichasAdmissao] gerarGuiaExame:', e);
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
 }
