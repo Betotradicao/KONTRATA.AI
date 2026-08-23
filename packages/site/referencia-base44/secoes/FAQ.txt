@@ -1,0 +1,123 @@
+import{c as ye,r as i,j as l,a as Y,R as h,u as w,b as J,d as L}from"./index-Ct_5x2aU.js";import{S as Q}from"./ScrollReveal-D_4fvhty.js";/**
+ * @license lucide-react v0.475.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const Re=[["path"
+ {d:"m6 9 6 6 6-6",key:"qrunsl"}]],Ie=ye("ChevronDown",Re);function k(e,t=[]){let o=[];function n(s,c){const a=i.createContext(c),d=o.length;o=[...o,c];const u=f=>{var b;const{scope:x,
+ children:C,...N}=f,v=((b=x==null?void 0:x[e])==null?void 0:b[d])||a,g=i.useMemo(()=>N,Object.values(N));return l.jsx(v.Provider
+ {value:g,
+ children:C})};u.displayName=s+"Provider";function p(f,x){var v;const C=((v=x==null?void 0:x[e])==null?void 0:v[d])||a,N=i.useContext(C);if(N)return N;if(c!==void 0)return c;throw new Error(`\`${f}\` must be used within \`${s}\``)}return[u,p]}const r=()=>{const s=o.map(c=>i.createContext(c));return function(a){const d=(a==null?void 0:a[e])||s;return i.useMemo(()=>({[`__scope${e}`]:{...a,[e]:d}}),[a,d])}};return r.scopeName=e,[n,Se(r,...t)]}function Se(...e){const t=e[0];if(e.length===1)return t;const o=()=>{const n=e.map(r=>({useScope:r(),scopeName:r.scopeName}));return function(s){const c=n.reduce((a
+ {useScope:d,scopeName:u})=>{const f=d(s)[`__scope${u}`];return{...a,...f}}
+ {});return i.useMemo(()=>({[`__scope${t.scopeName}`]:c}),[c])}};return o.scopeName=t.scopeName,o}function Z(e){const t=we(e),o=i.forwardRef((n,r)=>{const{
+ children:s,...c}=n,a=i.Children.toArray(s),d=a.find(Ee);if(d){const u=d.props.children,p=a.map(f=>f===d?i.Children.count(u)>1?i.Children.only(null):i.isValidElement(u)?u.props.
+ children:null:f);return l.jsx(t
+ {...c,ref:r,
+ children:i.isValidElement(u)?i.cloneElement(u,void 0,p):null})}return l.jsx(t
+ {...c,ref:r,
+ children:s})});return o.displayName=`${e}.Slot`,o}function we(e){const t=i.forwardRef((o,n)=>{const{
+ children:r,...s}=o;if(i.isValidElement(r)){const c=_e(r),a=je(s,r.props);return r.type!==i.Fragment&&(a.ref=n?Y(n,c):c),i.cloneElement(r,a)}return i.Children.count(r)>1?i.Children.only(null):null});return t.displayName=`${e}.SlotClone`,t}var Pe=Symbol("radix.slottable");function Ee(e){return i.isValidElement(e)&&typeof e.type=="function"&&"__radixId"in e.type&&e.type.__radixId===Pe}function je(e,t){const o={...t};for(const n in t){const r=e[n],s=t[n];/^on[A-Z]/.test(n)?r&&s?o[n]=(...a)=>{const d=s(...a);return r(...a),d}:r&&(o[n]=r):n==="style"?o[n]={...r,...s}:n==="className"&&(o[n]=[r,s].filter(Boolean).join(" "))}return{...e,...o}}function _e(e){var n,r;let t=(n=Object.getOwnPropertyDescriptor(e.props,"ref"))==null?void 0:n.get,o=t&&"isReactWarning"in t&&t.isReactWarning;return o?e.ref:(t=(r=Object.getOwnPropertyDescriptor(e,"ref"))==null?void 0:r.get,o=t&&"isReactWarning"in t&&t.isReactWarning,o?e.props.ref:e.props.ref||e.ref)}function Oe(e){const t=e+"CollectionProvider",[o,n]=k(t),[r,s]=o(t
+ {collectionRef:{current:null},itemMap:new Map}),c=v=>{const{scope:g,
+ children:b}=v,m=h.useRef(null),A=h.useRef(new Map).current;return l.jsx(r
+ {scope:g,itemMap:A,collectionRef:m,
+ children:b})};c.displayName=t;const a=e+"CollectionSlot",d=Z(a),u=h.forwardRef((v,g)=>{const{scope:b,
+ children:m}=v,A=s(a,b),y=w(g,A.collectionRef);return l.jsx(d
+ {ref:y,
+ children:m})});u.displayName=a;const p=e+"CollectionItemSlot",f="data-radix-collection-item",x=Z(p),C=h.forwardRef((v,g)=>{const{scope:b,
+ children:m,...A}=v,y=h.useRef(null),S=w(g,y),I=s(p,b);return h.useEffect(()=>(I.itemMap.set(y
+ {ref:y,...A}),()=>void I.itemMap.delete(y))),l.jsx(x
+ {[f]:"",ref:S,
+ children:m})});C.displayName=p;function N(v){const g=s(e+"CollectionConsumer",v);return h.useCallback(()=>{const m=g.collectionRef.current;if(!m)return[];const A=Array.from(m.querySelectorAll(`[${f}]`));return Array.from(g.itemMap.values()).sort((I,D)=>A.indexOf(I.ref.current)-A.indexOf(D.ref.current))},[g.collectionRef,g.itemMap])}return[{Provider:c,Slot:u,ItemSlot:C},N,n]}function X(e,t
+ {checkForDefaultPrevented:o=!0}={}){return function(r){if(e==null||e(r),o===!1||!r.defaultPrevented)return t==null?void 0:t(r)}}var P=globalThis!=null&&globalThis.document?i.useLayoutEffect:()=>{},Me=J[" useInsertionEffect ".trim().toString()]||P;function q({prop:e,defaultProp:t,onChange:o=()=>{},caller:n}){const[r,s,c]=Te({defaultProp:t,onChange:o}),a=e!==void 0,d=a?e:r;{const p=i.useRef(e!==void 0);i.useEffect(()=>{const f=p.current;f!==a&&console.warn(`${n} is changing from ${f?"controlled":"uncontrolled"} to ${a?"controlled":"uncontrolled"}. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled value for the lifetime of the component.`),p.current=a},[a,n])}const u=i.useCallback(p=>{var f;if(a){const x=De(p)?p(e):p;x!==e&&((f=c.current)==null||f.call(c,x))}else s(p)},[a,e,s,c]);return[d,u]}function Te({defaultProp:e,onChange:t}){const[o,n]=i.useState(e),r=i.useRef(o),s=i.useRef(t);return Me(()=>{s.current=t},[t]),i.useEffect(()=>{var c;r.current!==o&&((c=s.current)==null||c.call(s,o),r.current=o)},[o,r]),[o,n,s]}function De(e){return typeof e=="function"}function $e(e){const t=Ve(e),o=i.forwardRef((n,r)=>{const{
+ children:s,...c}=n,a=i.Children.toArray(s),d=a.find(ke);if(d){const u=d.props.children,p=a.map(f=>f===d?i.Children.count(u)>1?i.Children.only(null):i.isValidElement(u)?u.props.
+ children:null:f);return l.jsx(t
+ {...c,ref:r,
+ children:i.isValidElement(u)?i.cloneElement(u,void 0,p):null})}return l.jsx(t
+ {...c,ref:r,
+ children:s})});return o.displayName=`${e}.Slot`,o}function Ve(e){const t=i.forwardRef((o,n)=>{const{
+ children:r,...s}=o;if(i.isValidElement(r)){const c=We(r),a=qe(s,r.props);return r.type!==i.Fragment&&(a.ref=n?Y(n,c):c),i.cloneElement(r,a)}return i.Children.count(r)>1?i.Children.only(null):null});return t.displayName=`${e}.SlotClone`,t}var Le=Symbol("radix.slottable");function ke(e){return i.isValidElement(e)&&typeof e.type=="function"&&"__radixId"in e.type&&e.type.__radixId===Le}function qe(e,t){const o={...t};for(const n in t){const r=e[n],s=t[n];/^on[A-Z]/.test(n)?r&&s?o[n]=(...a)=>{const d=s(...a);return r(...a),d}:r&&(o[n]=r):n==="style"?o[n]={...r,...s}:n==="className"&&(o[n]=[r,s].filter(Boolean).join(" "))}return{...e,...o}}function We(e){var n,r;let t=(n=Object.getOwnPropertyDescriptor(e.props,"ref"))==null?void 0:n.get,o=t&&"isReactWarning"in t&&t.isReactWarning;return o?e.ref:(t=(r=Object.getOwnPropertyDescriptor(e,"ref"))==null?void 0:r.get,o=t&&"isReactWarning"in t&&t.isReactWarning,o?e.props.ref:e.props.ref||e.ref)}var Ue=["a","button","div","form","h2","h3","img","input","label","li","nav","ol","p","select","span","svg","ul"],E=Ue.reduce((e,t)=>{const o=$e(`Primitive.${t}`),n=i.forwardRef((r,s)=>{const{asChild:c,...a}=r,d=c?o:t;return typeof window<"u"&&(window[Symbol.for("radix-ui")]=!0),l.jsx(d
+ {...a,ref:s})});return n.displayName=`Primitive.${t}`
+ {...e,[t]:n}}
+ {});function Fe(e,t){return i.useReducer((o,n)=>t[o][n]??o,e)}var ee=e=>{const{present:t,
+ children:o}=e,n=Be(t),r=typeof o=="function"?o({present:n.isPresent}):i.Children.only(o),s=w(n.ref,Ke(r));return typeof o=="function"||n.isPresent?i.cloneElement(r
+ {ref:s}):null};ee.displayName="Presence";function Be(e){const[t,o]=i.useState(),n=i.useRef(null),r=i.useRef(e),s=i.useRef("none"),c=e?"mounted":"unmounted",[a,d]=Fe(c
+ {mounted:{UNMOUNT:"unmounted",ANIMATION_OUT:"unmountSuspended"},unmountSuspended:{MOUNT:"mounted",ANIMATION_END:"unmounted"},unmounted:{MOUNT:"mounted"}});return i.useEffect(()=>{const u=j(n.current);s.current=a==="mounted"?u:"none"},[a]),P(()=>{const u=n.current,p=r.current;if(p!==e){const x=s.current,C=j(u);e?d("MOUNT"):C==="none"||(u==null?void 0:u.display)==="none"?d("UNMOUNT"):d(p&&x!==C?"ANIMATION_OUT":"UNMOUNT"),r.current=e}},[e,d]),P(()=>{if(t){let u;const p=t.ownerDocument.defaultView??window,f=C=>{const v=j(n.current).includes(CSS.escape(C.animationName));if(C.target===t&&v&&(d("ANIMATION_END"),!r.current)){const g=t.style.animationFillMode;t.style.animationFillMode="forwards",u=p.setTimeout(()=>{t.style.animationFillMode==="forwards"&&(t.style.animationFillMode=g)})}},x=C=>{C.target===t&&(s.current=j(n.current))};return t.addEventListener("animationstart",x),t.addEventListener("animationcancel",f),t.addEventListener("animationend",f),()=>{p.clearTimeout(u),t.removeEventListener("animationstart",x),t.removeEventListener("animationcancel",f),t.removeEventListener("animationend",f)}}else d("ANIMATION_END")},[t,d])
+ {isPresent:["mounted","unmountSuspended"].includes(a),ref:i.useCallback(u=>{n.current=u?getComputedStyle(u):null,o(u)},[])}}function j(e){return(e==null?void 0:e.animationName)||"none"}function Ke(e){var n,r;let t=(n=Object.getOwnPropertyDescriptor(e.props,"ref"))==null?void 0:n.get,o=t&&"isReactWarning"in t&&t.isReactWarning;return o?e.ref:(t=(r=Object.getOwnPropertyDescriptor(e,"ref"))==null?void 0:r.get,o=t&&"isReactWarning"in t&&t.isReactWarning,o?e.props.ref:e.props.ref||e.ref)}var ze=J[" useId ".trim().toString()]||(()=>{}),Ge=0;function te(e){const[t,o]=i.useState(ze());return P(()=>{o(n=>n??String(Ge++))},[e]),t?`radix-${t}`:""}var O="Collapsible",[He,oe]=k(O),[Qe,W]=He(O),ne=i.forwardRef((e,t)=>{const{__scopeCollapsible:o,open:n,defaultOpen:r,disabled:s,onOpenChange:c,...a}=e,[d,u]=q({prop:n,defaultProp:r??!1,onChange:c,caller:O});return l.jsx(Qe
+ {scope:o,disabled:s,contentId:te(),open:d,onOpenToggle:i.useCallback(()=>u(p=>!p),[u]),
+ children:l.jsx(E.div
+ {"data-state":F(d),"data-disabled":s?"":void 0,...a,ref:t})})});ne.displayName=O;var re="CollapsibleTrigger",se=i.forwardRef((e,t)=>{const{__scopeCollapsible:o,...n}=e,r=W(re,o);return l.jsx(E.button
+ {type:"button","aria-controls":r.contentId,"aria-expanded":r.open||!1,"data-state":F(r.open),"data-disabled":r.disabled?"":void 0,disabled:r.disabled,...n,ref:t,onClick:X(e.onClick,r.onOpenToggle)})});se.displayName=re;var U="CollapsibleContent",ie=i.forwardRef((e,t)=>{const{forceMount:o,...n}=e,r=W(U,e.__scopeCollapsible);return l.jsx(ee
+ {present:o||r.open,
+ children:({present:s})=>l.jsx(Ze
+ {...n,ref:t,present:s})})});ie.displayName=U;var Ze=i.forwardRef((e,t)=>{const{__scopeCollapsible:o,present:n,
+ children:r,...s}=e,c=W(U,o),[a,d]=i.useState(n),u=i.useRef(null),p=w(t,u),f=i.useRef(0),x=f.current,C=i.useRef(0),N=C.current,v=c.open||a,g=i.useRef(v),b=i.useRef(void 0);return i.useEffect(()=>{const m=requestAnimationFrame(()=>g.current=!1);return()=>cancelAnimationFrame(m)},[]),P(()=>{const m=u.current;if(m){b.current=b.current||{transitionDuration:m.style.transitionDuration,animationName:m.style.animationName},m.style.transitionDuration="0s",m.style.animationName="none";const A=m.getBoundingClientRect();f.current=A.height,C.current=A.width,g.current||(m.style.transitionDuration=b.current.transitionDuration,m.style.animationName=b.current.animationName),d(n)}},[c.open,n]),l.jsx(E.div
+ {"data-state":F(c.open),"data-disabled":c.disabled?"":void 0,id:c.contentId,hidden:!v,...s,ref:p,style:{"--radix-collapsible-content-height":x?`${x}px`:void 0,"--radix-collapsible-content-width":N?`${N}px`:void 0,...e.style},
+ children:v&&r})});function F(e){return e?"open":"closed"}var Ye=ne,Je=se,Xe=ie,et=i.createContext(void 0);function tt(e){const t=i.useContext(et);return e||t||"ltr"}var R="Accordion",ot=["Home","End","ArrowDown","ArrowUp","ArrowLeft","ArrowRight"],[B,nt,rt]=Oe(R),[M]=k(R,[rt,oe]),K=oe(),ae=h.forwardRef((e,t)=>{const{type:o,...n}=e,r=n,s=n;return l.jsx(B.Provider
+ {scope:e.__scopeAccordion,
+ children:o==="multiple"?l.jsx(ct
+ {...s,ref:t}):l.jsx(at
+ {...r,ref:t})})});ae.displayName=R;var[ce,st]=M(R),[le,it]=M(R
+ {collapsible:!1}),at=h.forwardRef((e,t)=>{const{value:o,defaultValue:n,onValueChange:r=()=>{},collapsible:s=!1,...c}=e,[a,d]=q({prop:o,defaultProp:n??"",onChange:r,caller:R});return l.jsx(ce
+ {scope:e.__scopeAccordion,value:h.useMemo(()=>a?[a]:[],[a]),onItemOpen:d,onItemClose:h.useCallback(()=>s&&d(""),[s,d]),
+ children:l.jsx(le
+ {scope:e.__scopeAccordion,collapsible:s,
+ children:l.jsx(de
+ {...c,ref:t})})})}),ct=h.forwardRef((e,t)=>{const{value:o,defaultValue:n,onValueChange:r=()=>{},...s}=e,[c,a]=q({prop:o,defaultProp:n??[],onChange:r,caller:R}),d=h.useCallback(p=>a((f=[])=>[...f,p]),[a]),u=h.useCallback(p=>a((f=[])=>f.filter(x=>x!==p)),[a]);return l.jsx(ce
+ {scope:e.__scopeAccordion,value:c,onItemOpen:d,onItemClose:u,
+ children:l.jsx(le
+ {scope:e.__scopeAccordion,collapsible:!0,
+ children:l.jsx(de
+ {...s,ref:t})})})}),[lt,T]=M(R),de=h.forwardRef((e,t)=>{const{__scopeAccordion:o,disabled:n,dir:r,orientation:s="vertical",...c}=e,a=h.useRef(null),d=w(a,t),u=nt(o),f=tt(r)==="ltr",x=X(e.onKeyDown,C=>{var G;if(!ot.includes(C.key))return;const N=C.target,v=u().filter($=>{var H;return!((H=$.ref.current)!=null&&H.disabled)}),g=v.findIndex($=>$.ref.current===N),b=v.length;if(g===-1)return;C.preventDefault();let m=g;const A=0,y=b-1,S=()=>{m=g+1,m>y&&(m=A)},I=()=>{m=g-1,m<A&&(m=y)};switch(C.key){case"Home":m=A;break;case"End":m=y;break;case"ArrowRight":s==="horizontal"&&(f?S():I());break;case"ArrowDown":s==="vertical"&&S();break;case"ArrowLeft":s==="horizontal"&&(f?I():S());break;case"ArrowUp":s==="vertical"&&I();break}const D=m%b;(G=v[D].ref.current)==null||G.focus()});return l.jsx(lt
+ {scope:o,disabled:n,direction:r,orientation:s,
+ children:l.jsx(B.Slot
+ {scope:o,
+ children:l.jsx(E.div
+ {...c,"data-orientation":s,ref:d,onKeyDown:n?void 0:x})})})}),_="AccordionItem",[dt,z]=M(_),ue=h.forwardRef((e,t)=>{const{__scopeAccordion:o,value:n,...r}=e,s=T(_,o),c=st(_,o),a=K(o),d=te(),u=n&&c.value.includes(n)||!1,p=s.disabled||e.disabled;return l.jsx(dt
+ {scope:o,open:u,disabled:p,triggerId:d,
+ children:l.jsx(Ye
+ {"data-orientation":s.orientation,"data-state":ve(u),...a,...r,ref:t,disabled:p,open:u,onOpenChange:f=>{f?c.onItemOpen(n):c.onItemClose(n)}})})});ue.displayName=_;var fe="AccordionHeader",pe=h.forwardRef((e,t)=>{const{__scopeAccordion:o,...n}=e,r=T(R,o),s=z(fe,o);return l.jsx(E.h3
+ {"data-orientation":r.orientation,"data-state":ve(s.open),"data-disabled":s.disabled?"":void 0,...n,ref:t})});pe.displayName=fe;var V="AccordionTrigger",me=h.forwardRef((e,t)=>{const{__scopeAccordion:o,...n}=e,r=T(R,o),s=z(V,o),c=it(V,o),a=K(o);return l.jsx(B.ItemSlot
+ {scope:o,
+ children:l.jsx(Je
+ {"aria-disabled":s.open&&!c.collapsible||void 0,"data-orientation":r.orientation,id:s.triggerId,...a,...n,ref:t})})});me.displayName=V;var xe="AccordionContent",Ce=h.forwardRef((e,t)=>{const{__scopeAccordion:o,...n}=e,r=T(R,o),s=z(xe,o),c=K(o);return l.jsx(Xe
+ {role:"region","aria-labelledby":s.triggerId,"data-orientation":r.orientation,...c,...n,ref:t,style:{"--radix-accordion-content-height":"var(--radix-collapsible-content-height)","--radix-accordion-content-width":"var(--radix-collapsible-content-width)",...e.style}})});Ce.displayName=xe;function ve(e){return e?"open":"closed"}var ut=ae,ft=ue,pt=pe,ge=me,he=Ce;const mt=ut,be=i.forwardRef(({className:e,...t},o)=>l.jsx(ft
+ {ref:o,className:L("border-b",e),...t}));be.displayName="AccordionItem";const Ae=i.forwardRef(({className:e,
+ children:t,...o},n)=>l.jsx(pt
+ {className:"flex",
+ children:l.jsxs(ge
+ {ref:n,className:L("flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline text-left [&[data-state=open]>svg]:rotate-180",e),...o,
+ children:[t,l.jsx(Ie
+ {className:"h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200"})]})}));Ae.displayName=ge.displayName;const Ne=i.forwardRef(({className:e,
+ children:t,...o},n)=>l.jsx(he
+ {ref:n,className:"overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",...o,
+ children:l.jsx("div"
+ {className:L("pb-4 pt-0",e),
+ children:t})}));Ne.displayName=he.displayName;const xt=[{q:"Preciso integrar com meu sistema de PDV (Linx, Consinco, RP, Bluesoft, Avanço)?",a:"Não. O Kontrataai é independente. Você usa pelo navegador, sem mexer em nada do que já roda hoje. Isso é proposital — implantação rápida e zero dor de cabeça com TI."}
+ {q:"Como funciona o white label?",a:"Você nos envia seu logo, suas cores e seu domínio. Em até 48 horas o sistema sobe com a sua identidade. Para o seu candidato, é a sua marca recrutando — não o Kontrataai. Esse é um dos maiores diferenciais do produto."}
+ {q:"Quem cuida do suporte? Vou ficar perdido se algo quebrar?",a:"WhatsApp Business com SLA de resposta em até 4 horas em horário comercial. Sem call center, sem ticket número 47823, sem URA. Você fala direto com quem entende do sistema."}
+ {q:"E se eu quiser cancelar?",a:"Cancela. Sem multa, sem letra miúda, sem fidelidade. Você continuou porque te servia, não porque estava preso. Esse é o teste que toda boa empresa de software deveria passar."}
+ {q:"Quem está usando o Kontrataai hoje?",a:"O sistema nasceu dentro do Supermercado Tradição. Estamos validando agora com mais alguns mercados selecionados antes de abrir comercialmente em larga escala. Por isso nossas vagas de implementação são limitadas."}];function gt(){return l.jsx("section"
+ {id:"faq",className:"py-14 lg:py-28 bg-white",
+ children:l.jsxs("div"
+ {className:"max-w-3xl mx-auto px-5 sm:px-6 lg:px-8",
+ children:[l.jsx(Q
+ {className:"text-center mb-8 lg:mb-14",
+ children:l.jsxs("h2"
+ {className:"font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4",
+ children:[l.jsxs("span"
+ {className:"sm:hidden",
+ children:["As perguntas que",l.jsx("br"
+ {}),"todo dono de",l.jsx("br"
+ {}),"mercado faz."]}),l.jsx("span"
+ {className:"hidden sm:inline",
+ children:"As perguntas que todo dono de mercado faz."})]})}),l.jsx(Q
+ {
+ children:l.jsx(mt
+ {type:"single",collapsible:!0,className:"space-y-0",
+ children:xt.map((e,t)=>l.jsxs(be
+ {value:`item-${t}`,className:"border-b border-border-light",
+ children:[l.jsx(Ae
+ {className:"py-5 text-left font-semibold text-text-dark hover:text-purple-800 text-base lg:text-lg [&[data-state=open]>svg]:text-purple-800",
+ children:e.q}),l.jsx(Ne
+ {className:"pb-5 text-text-gray leading-relaxed",
+ children:e.a})]},t))})})]})})}export{gt as default};

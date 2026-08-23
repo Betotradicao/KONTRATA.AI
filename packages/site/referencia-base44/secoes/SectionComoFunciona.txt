@@ -1,0 +1,37 @@
+import{j as e}from"./index-Ct_5x2aU.js";import{S as s}from"./ScrollReveal-D_4fvhty.js";const o=[{num:"01",title:"Você cria a vaga em 1 minuto",text:"Cargo, salário, jornada, requisitos. Formato direto, sem campos chatos. O sistema atualiza automaticamente."}
+ {num:"02",title:"A vaga fica ativa pelos seus canais",text:"Cola na bio do Instagram. Imprime QR Code na fachada. Manda no grupo de WhatsApp da cidade. O candidato clica ou escaneia o QR Code e vê as vagas em aberto."}
+ {num:"03",title:"Candidatos se inscrevem pelo celular",text:"Formulário simples, direto no celular. Sem criar conta, sem burocracia. O candidato preenche em 2 minutos e entra no seu banco."}
+ {num:"04",title:"Seu RH só fala com quem vale",text:"Os melhores candidatos sobem com tag verde. Os duvidosos com tag amarela. Os fora de perfil com tag vermelha. A decisão final é sempre sua — mas só com quem realmente importa."}];function m(){return 
+JSX("section"
+ {id:"como-funciona",className:"py-14 lg:py-28 bg-purple-50",
+ children:
+JSX("div"
+ {className:"max-w-7xl mx-auto px-5 sm:px-6 lg:px-8",
+ children:[
+JSX(s
+ {className:"text-center mb-8 lg:mb-14",
+ children:[
+JSX("span"
+ {className:"text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block",
+ children:"Como funciona?"}),
+JSX("h2"
+ {className:"font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4",
+ children:"Do currículo ao contratado em 4 passos."})]}),
+JSX("div"
+ {className:"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6",
+ children:o.map((a,t)=>
+JSX(s
+ {delay:t*.08,
+ children:
+JSX("div"
+ {className:"relative",
+ children:[
+JSX("div"
+ {className:"text-[64px] font-display font-bold text-purple-100 leading-none mb-4 select-none",
+ children:a.num}),
+JSX("h3"
+ {className:"font-display font-semibold text-text-dark text-lg mb-3 leading-snug",
+ children:a.title}),
+JSX("p"
+ {className:"text-text-gray text-sm leading-relaxed",
+ children:a.text})]})},t))})]})})}export{m as default};

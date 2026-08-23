@@ -1,0 +1,37 @@
+import{j as e}from"./index-Ct_5x2aU.js";import{S as a}from"./ScrollReveal-D_4fvhty.js";const l=[{title:"Vaga aberta há 30 dias e ninguém para começar segunda."}
+ {title:"Caixa de e-mail entupida de currículo que ninguém lê."}
+ {title:"Funcionário novo dura 60 dias e some."}
+ {title:"Encarregado virou RH na marra."}];function i(){return 
+JSX("section"
+ {className:"py-14 lg:py-28 bg-purple-50",
+ children:
+JSX("div"
+ {className:"max-w-7xl mx-auto px-5 sm:px-6 lg:px-8",
+ children:[
+JSX(a
+ {className:"text-center mb-8 lg:mb-14",
+ children:[
+JSX("span"
+ {className:"text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block",
+ children:"O que todo dono de supermercado já viveu"}),
+JSX("h2"
+ {className:"font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4",
+ children:"Você reconhece alguma dessas situações?"})]}),
+JSX("div"
+ {className:"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5",
+ children:l.map((t,s)=>
+JSX(a
+ {delay:s*.08,
+ children:
+JSX("div"
+ {className:"bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(91,33,182,0.08)] h-full flex flex-col",
+ children:
+JSX("h3"
+ {className:"font-display font-semibold text-text-dark text-base leading-snug",
+ children:t.title})})},s))}),
+JSX(a
+ {
+ children:
+JSX("p"
+ {className:"text-center text-text-gray text-base mt-10 max-w-2xl mx-auto italic",
+ children:"A rotatividade no varejo alimentar está entre as maiores do Brasil. Não é só seu problema. Mas é seu prejuízo — todo mês."})})]})})}export{i as default};

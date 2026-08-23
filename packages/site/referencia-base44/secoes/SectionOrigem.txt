@@ -1,0 +1,48 @@
+import{j as e}from"./index-Ct_5x2aU.js";import{S as a}from"./ScrollReveal-D_4fvhty.js";function r(){return 
+JSX("section"
+ {className:"py-14 lg:py-28 bg-purple-50",
+ children:
+JSX("div"
+ {className:"max-w-3xl mx-auto px-5 sm:px-6 lg:px-8",
+ children:[
+JSX(a
+ {className:"text-center mb-8",
+ children:[
+JSX("span"
+ {className:"text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block",
+ children:"De onde nasceu?"}),
+JSX("h2"
+ {className:"font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4",
+ children:[
+JSX("span"
+ {className:"sm:hidden",
+ children:["Não foi feito",
+JSX("br"
+ {}),"por programador.",
+JSX("br"
+ {}),"Foi feito por gente",
+JSX("br"
+ {}),"que vive supermercado",
+JSX("br"
+ {}),"todo dia."]}),
+JSX("span"
+ {className:"hidden sm:inline",
+ children:"Não foi feito por programador. Foi feito por gente que vive supermercado todo dia."})]})]}),
+JSX("div"
+ {className:"space-y-6",
+ children:[
+JSX(a
+ {
+ children:
+JSX("p"
+ {className:"text-text-gray text-sm sm:text-lg leading-relaxed",
+ children:"O Kontrataai começou com uma conversa há 6 meses. Uma cliente nossa, dona de mercado em São José dos Campos, falou que o RH dela perdia horas todo dia abrindo currículo, ligando candidato, marcando entrevista que não acontecia. E nada andava."})}),
+JSX(a
+ {delay:.15,
+ children:
+JSX("div"
+ {className:"bg-white rounded-2xl p-6 border-l-4 border-amber-400 shadow-[0_4px_20px_rgba(91,33,182,0.06)]",
+ children:
+JSX("p"
+ {className:"text-text-dark text-base leading-relaxed font-medium",
+ children:"Hoje, o sistema está rodando em produção e estamos validando agora com mais alguns mercados antes de abrir comercialmente em larga escala."})})})]})]})})}export{r as default};

@@ -1,0 +1,110 @@
+import{j as e,X as a}from"./index-Ct_5x2aU.js";import{S as x}from"./ScrollReveal-D_4fvhty.js";import{C as l}from"./check-Dn0tF0f2.js";const r=[];function d(){return 
+JSX("section"
+ {className:"py-14 lg:py-28 bg-white",
+ children:
+JSX("div"
+ {className:"max-w-5xl mx-auto px-5 sm:px-6 lg:px-8",
+ children:[
+JSX(x
+ {className:"text-center mb-8 lg:mb-14",
+ children:[
+JSX("span"
+ {className:"text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block",
+ children:"Por que Kontrataai"}),
+JSX("h2"
+ {className:"font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4",
+ children:[
+JSX("span"
+ {className:"sm:hidden",
+ children:["Não somos genéricos.",
+JSX("br"
+ {}),"Somos do varejo alimentar."]}),
+JSX("span"
+ {className:"hidden sm:inline",
+ children:"Não somos genéricos. Somos do varejo alimentar."})]}),
+JSX("p"
+ {className:"text-text-gray text-sm sm:text-lg max-w-2xl mx-auto",
+ children:"Existem dezenas de sistemas de RH no mercado. Quase todos foram feitos para empresas de qualquer setor — e adaptados na unha quando o cliente é um supermercado. O Kontrataai fez o caminho oposto: nasceu dentro de uma loja, e foi crescendo a partir de dores reais de operação. Faz diferença."})]}),
+JSX("div"
+ {className:"sm:hidden space-y-3",
+ children:r.map((s,t)=>
+JSX("div"
+ {className:"bg-white rounded-xl p-4 shadow-[0_2px_12px_rgba(91,33,182,0.08)]",
+ children:[
+JSX("p"
+ {className:"font-semibold text-text-dark text-sm mb-3",
+ children:s.criterio}),
+JSX("div"
+ {className:"flex flex-col gap-2",
+ children:[
+JSX("div"
+ {className:"flex items-start gap-2 text-xs text-text-gray",
+ children:[
+JSX(a
+ {className:"w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5"}),
+JSX("span"
+ {
+ children:[
+JSX("span"
+ {className:"text-text-gray/60 font-medium",
+ children:"Genérico: "}),s.generico]})]}),
+JSX("div"
+ {className:"flex items-start gap-2 text-xs text-text-dark font-medium",
+ children:[
+JSX(l
+ {className:"w-3.5 h-3.5 text-success flex-shrink-0 mt-0.5"}),
+JSX("span"
+ {
+ children:[
+JSX("span"
+ {className:"text-purple-800 font-semibold",
+ children:"Kontrataai: "}),s.mameva]})]})]})]},t))}),
+JSX(x
+ {
+ children:
+JSX("div"
+ {className:"hidden sm:block overflow-x-auto rounded-2xl shadow-[0_4px_20px_rgba(91,33,182,0.08)]",
+ children:
+JSX("table"
+ {className:"w-full min-w-[480px]",
+ children:[
+JSX("thead"
+ {
+ children:
+JSX("tr"
+ {className:"bg-purple-800 text-white",
+ children:[
+JSX("th"
+ {className:"text-left px-4 py-3 font-semibold text-sm",
+ children:"Critério"}),
+JSX("th"
+ {className:"text-left px-4 py-3 font-semibold text-sm",
+ children:"RH Genérico"}),
+JSX("th"
+ {className:"text-left px-4 py-3 font-semibold text-sm text-amber-400",
+ children:"Kontrataai"})]})}),
+JSX("tbody"
+ {
+ children:r.map((s,t)=>
+JSX("tr"
+ {className:t%2===0?"bg-white":"bg-purple-50",
+ children:[
+JSX("td"
+ {className:"px-4 py-3 text-sm font-semibold text-text-dark",
+ children:s.criterio}),
+JSX("td"
+ {className:"px-4 py-3 text-sm text-text-gray",
+ children:
+JSX("span"
+ {className:"flex items-start gap-2",
+ children:[
+JSX(a
+ {className:"w-4 h-4 text-red-400 flex-shrink-0 mt-0.5"}),s.generico]})}),
+JSX("td"
+ {className:"px-4 py-3 text-sm text-text-dark font-medium",
+ children:
+JSX("span"
+ {className:"flex items-start gap-2",
+ children:[
+JSX(l
+ {className:"w-4 h-4 text-success flex-shrink-0 mt-0.5"}),s.mameva]})})]},t))})]})})})]})})}export{d as default};

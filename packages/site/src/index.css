@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply font-body text-text-dark antialiased;
+    /* O hero e roxo escuro e sangra ate o topo; sem isso aparece faixa branca
+       no "overscroll" do celular. */
+    background-color: #ffffff;
+  }
+}
+
+/* ⚠️ NAO reativar um "prefers-reduced-motion" global aqui.
+   Tentei isso em 23/08/2026 achando que era boa pratica, e ele DESLIGOU as tres
+   animacoes do hero (marquee, shimmer e meshMove) — que sao justamente a
+   identidade da pagina. O Windows costuma vir com "mostrar animacoes"
+   desativado, entao o navegador pede movimento reduzido e a regra matava tudo.
+   O site original nao tem essa regra. Se um dia for reativar, exclua as
+   animacoes da marca em vez de usar o seletor `*`. */

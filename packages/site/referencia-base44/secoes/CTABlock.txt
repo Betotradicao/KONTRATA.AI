@@ -1,0 +1,33 @@
+import{j as e}from"./index-Ct_5x2aU.js";const a="https://media.base44.com/images/public/69f8ed987578342297c17351/3205fe8b5_generated_34ed48bc.png";function t(){return 
+JSX("section"
+ {id:"cta",className:"py-12 lg:py-28 bg-white",
+ children:
+JSX("div"
+ {className:"max-w-7xl mx-auto px-5 sm:px-6 lg:px-8",
+ children:
+JSX("div"
+ {className:"relative overflow-hidden rounded-2xl bg-gradient-to-br from-hero-bg to-purple-800 p-6 sm:p-10 lg:p-16",
+ children:
+JSX("div"
+ {className:"grid lg:grid-cols-2 gap-8 items-center",
+ children:[
+JSX("div"
+ {
+ children:[
+JSX("span"
+ {className:"inline-block text-amber-400 text-xs font-semibold uppercase tracking-[0.08em] mb-3",
+ children:"Próximo passo"}),
+JSX("h2"
+ {className:"font-display font-bold text-white text-xl sm:text-3xl lg:text-5xl leading-[1.15] mb-4",
+ children:"Quer ver o Kontrataai funcionando na prática?"}),
+JSX("p"
+ {className:"text-purple-300 text-sm sm:text-lg leading-relaxed mb-6",
+ children:"30 minutos de demonstração. Mostramos o sistema na operação real e você decide se faz sentido. Sem cobrança, sem amarração."}),
+JSX("a"
+ {href:"#",className:"inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 rounded-lg bg-amber-400 text-text-dark font-semibold text-base sm:text-lg hover:bg-amber-500 transition-all",
+ children:"Agendar demonstração →"})]}),
+JSX("div"
+ {className:"hidden lg:flex justify-center",
+ children:
+JSX("img"
+ {src:a,alt:"Especialista pronta para atender",loading:"lazy",className:"w-72 h-72 object-cover rounded-2xl shadow-2xl"})})]})})})})}export{t as default};
