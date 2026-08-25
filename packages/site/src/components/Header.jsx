@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useTextos } from '../textos';
 import { useWhatsApp } from '../useWhatsApp';
+import RedesSociais from './RedesSociais';
 
 // Menu igual ao original. "Por que Kontrataai" e "Como funciona" apontam pro
 // mesmo ancora (#como-funciona) — era assim no site do Base44, mantido.
@@ -54,6 +55,11 @@ export default function Header() {
                 {l.label}
               </a>
             ))}
+            <RedesSociais
+              variante="simples"
+              cor={rolou ? 'text-text-gray hover:text-purple-800' : 'text-white/70 hover:text-white'}
+              className="mr-1"
+            />
             <a
               href="/treinamento"
               className={`inline-flex items-center justify-center px-5 py-2 rounded-lg border font-semibold text-sm transition-all ${
@@ -112,6 +118,11 @@ export default function Header() {
             >
               {t('demo')}
             </a>
+            <RedesSociais
+              variante="simples"
+              cor="text-text-gray hover:text-purple-800"
+              className="justify-center pt-1"
+            />
           </div>
         </div>
       )}

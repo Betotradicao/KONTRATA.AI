@@ -25,14 +25,25 @@ const REDES = [
   { k: 'google', nome: 'Google', Icon: IconeGoogle },
 ];
 
-export default function RedesSociais({ className = '' }) {
+/**
+ * `circulo` no rodapé, onde sobra espaço e o contorno dá acabamento.
+ * `simples` no topo, que já está cheio de botão — ali os ícones entram
+ * discretos, sem competir com o "Agendar demo".
+ */
+const ESTILO = {
+  circulo:
+    'w-9 h-9 rounded-full border border-purple-600/50 flex items-center justify-center text-white/80 hover:text-white hover:border-white/60 hover:bg-white/10 transition-colors',
+  simples: 'p-1 flex items-center justify-center transition-colors',
+};
+
+export default function RedesSociais({ className = '', variante = 'circulo', cor }) {
   const { t } = useTextos('redes');
   const ativas = REDES.map((r) => ({ ...r, href: t(r.k) })).filter((r) => r.href);
 
   if (!ativas.length) return null;
 
   return (
-    <div className={`flex flex-wrap items-center gap-3 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       {ativas.map(({ k, nome, Icon, href }) => (
         <a
           key={k}
@@ -41,11 +52,9 @@ export default function RedesSociais({ className = '' }) {
           rel="noopener noreferrer"
           aria-label={nome}
           title={nome}
-          className="w-9 h-9 rounded-full border border-purple-600/50 flex items-center justify-center
-                     text-white/80 hover:text-white hover:border-white/60 hover:bg-white/10
-                     transition-colors"
+          className={`${ESTILO[variante] || ESTILO.circulo} ${cor || ''}`}
         >
-          <Icon className="w-4 h-4" />
+          <Icon className="w-[18px] h-[18px]" />
         </a>
       ))}
     </div>
