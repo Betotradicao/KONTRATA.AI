@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, ShieldCheck, Eye, EyeOff, Send } from 'lucide-react';
+import { Check, ShieldCheck, Eye, EyeOff, Send, Copy } from 'lucide-react';
 import { api } from '../api';
 
 // Rótulos amigáveis pras chaves cruas do banco.
@@ -38,12 +38,23 @@ export default function Integracoes({ master = false }) {
   // Segredos que o master pediu pra ver: chave -> valor em texto.
   const [revelado, setRevelado] = useState({});
   const [erroRevelar, setErroRevelar] = useState(null);
+  const [copiado, setCopiado] = useState(null);
 
   const carregar = async () => {
     try { setLista(await api.get('/integracoes')); } catch { setLista([]); }
   };
 
   useEffect(() => { carregar(); }, []);
+
+  const copiarChave = async (chave) => {
+    try {
+      await navigator.clipboard.writeText(revelado[chave] || '');
+      setCopiado(chave);
+      setTimeout(() => setCopiado(null), 2000);
+    } catch {
+      /* navegador bloqueou: o texto está na tela pra copiar na mão */
+    }
+  };
 
   const revelar = async (item) => {
     if (revelado[item.chave] !== undefined) {
@@ -57,16 +68,6 @@ export default function Integracoes({ master = false }) {
     try {
       const { valor } = await api.get(`/integracoes/${item.chave}/revelar`);
       setRevelado((r) => ({ ...r, [item.chave]: valor }));
-
-      // 🪤 O campo mostra `rascunho[chave] ?? revelado[chave]`, e `??` só cai
-      // pro lado direito em null/undefined. Quem clicou no campo e apagou o
-      // que digitou deixa uma string VAZIA no rascunho — que ganha do valor
-      // revelado e faz o olhinho "não funcionar". Some com a entrada.
-      setRascunho((r) => {
-        const novo = { ...r };
-        delete novo[item.chave];
-        return novo;
-      });
     } catch (e) {
       setErroRevelar({ chave: item.chave, texto: e.message });
       setTimeout(() => setErroRevelar(null), 4000);
@@ -140,11 +141,8 @@ export default function Integracoes({ master = false }) {
               <div className="flex gap-2 flex-wrap">
                 <div className="flex-1 min-w-[220px] relative">
                   <input
-                    type={item.secreto && revelado[item.chave] === undefined ? 'password' : 'text'}
-                    value={
-                      rascunho[item.chave] ??
-                      (item.secreto ? revelado[item.chave] ?? '' : item.valor || '')
-                    }
+                    type={item.secreto ? 'password' : 'text'}
+                    value={rascunho[item.chave] ?? (item.secreto ? '' : item.valor || '')}
                     onChange={(e) => setRascunho({ ...rascunho, [item.chave]: e.target.value })}
                     placeholder={
                       item.secreto && item.preenchido ? '•••••••• (deixe em branco para manter)' : ''
@@ -185,6 +183,39 @@ export default function Integracoes({ master = false }) {
                   {salvando === item.chave ? 'Salvando…' : salvo === item.chave ? 'Salvo!' : 'Salvar'}
                 </button>
               </div>
+
+              {/* A chave revelada aparece FORA do campo de digitar.
+                  Dentro dele ela disputava espaço com o que a pessoa digita, e
+                  bastava um clique-e-apaga pra sumir sem explicação. Aqui ela é
+                  só leitura — dá pra selecionar, copiar e conferir. */}
+              {revelado[item.chave] !== undefined && (
+                <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                  <p className="text-[11px] text-purple-900 font-semibold mb-1">
+                    Chave salva hoje:
+                  </p>
+                  {revelado[item.chave] ? (
+                    <div className="flex items-start gap-2">
+                      <code className="flex-1 text-xs text-text-dark break-all select-all">
+                        {revelado[item.chave]}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => copiarChave(item.chave)}
+                        className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded border border-purple-300 bg-white text-purple-800 text-[11px] font-semibold hover:bg-purple-100"
+                      >
+                        {copiado === item.chave ? (
+                          <Check className="w-3 h-3" />
+                        ) : (
+                          <Copy className="w-3 h-3" />
+                        )}
+                        {copiado === item.chave ? 'Copiado' : 'Copiar'}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-gray">Está vazia.</p>
+                  )}
+                </div>
+              )}
 
               {erroRevelar?.chave === item.chave && (
                 <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
