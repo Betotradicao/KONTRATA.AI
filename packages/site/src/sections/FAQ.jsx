@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useTextos } from '../textos';
+
+// Quantos pares pergunta/resposta o painel oferece. Maior que a lista padrao
+// de proposito: sobra espaco pra acrescentar pergunta sem mexer no codigo.
+const VAGAS = 8;
 
 const PERGUNTAS = [
   {
@@ -25,27 +30,46 @@ const PERGUNTAS = [
 ];
 
 export default function FAQ() {
+  const { t } = useTextos('faq');
   // Sanfona de item único: abrir um fecha o outro. Clicar no aberto fecha.
   const [aberto, setAberto] = useState(null);
+
+  const titulo = t('titulo', '');
+
+  // Um par por vaga. Cada campo cai no padrao daquela posicao, e o par so
+  // aparece se tiver pergunta E resposta — assim apagar a pergunta some com o
+  // item inteiro, em vez de deixar um titulo vazio abrindo uma resposta orfa.
+  const perguntas = Array.from({ length: VAGAS }, (_, i) => ({
+    q: t(`p${i + 1}`, PERGUNTAS[i]?.q || ''),
+    a: t(`r${i + 1}`, PERGUNTAS[i]?.a || ''),
+  })).filter((item) => item.q && item.a);
 
   return (
     <section id="faq" className="py-14 lg:py-28 bg-white">
       <div className="max-w-3xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            <span className="sm:hidden">
-              As perguntas que
-              <br />
-              todo dono de
-              <br />
-              mercado faz.
-            </span>
-            <span className="hidden sm:inline">As perguntas que todo dono de mercado faz.</span>
+            {titulo ? (
+              titulo
+            ) : (
+              <>
+                <span className="sm:hidden">
+                  As perguntas que
+                  <br />
+                  todo dono de
+                  <br />
+                  mercado faz.
+                </span>
+                <span className="hidden sm:inline">
+                  As perguntas que todo dono de mercado faz.
+                </span>
+              </>
+            )}
           </h2>
         </div>
 
         <div>
-          {PERGUNTAS.map((item, i) => {
+          {perguntas.map((item, i) => {
             const estaAberto = aberto === i;
             return (
               <div key={item.q} className="border-b border-border-light">

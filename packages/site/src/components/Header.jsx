@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import { useTextos } from '../textos';
 
 // Menu igual ao original. "Por que Kontrataai" e "Como funciona" apontam pro
 // mesmo ancora (#como-funciona) — era assim no site do Base44, mantido.
@@ -11,6 +12,7 @@ const LINKS = [
 ];
 
 export default function Header() {
+  const { t } = useTextos('topo');
   const [aberto, setAberto] = useState(false);
   // Topo transparente sobre o hero roxo; ao rolar vira branco solido.
   const [rolou, setRolou] = useState(false);
@@ -35,7 +37,7 @@ export default function Header() {
             href="/"
             className={`font-display font-bold text-xl ${rolou ? 'text-text-dark' : 'text-white'}`}
           >
-            Kontrataai
+            {t('marca', 'Kontrataai')}
           </a>
 
           <nav className="hidden lg:flex items-center gap-8">
@@ -54,7 +56,7 @@ export default function Header() {
               href="#"
               className={`text-sm font-medium ${rolou ? 'text-purple-800' : 'text-white/90 hover:text-white'}`}
             >
-              Entrar
+              {t('entrar', 'Entrar')}
             </a>
             <a
               href="/treinamento"
@@ -64,13 +66,13 @@ export default function Header() {
                   : 'border-white/40 text-white hover:bg-white/10'
               }`}
             >
-              Treinamento
+              {t('treinamento', 'Treinamento')}
             </a>
             <a
               href="#cta"
               className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-amber-400 text-text-dark font-semibold text-sm hover:bg-amber-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
             >
-              Agendar demo
+              {t('demo', 'Agendar demo')}
             </a>
           </nav>
 
@@ -99,21 +101,21 @@ export default function Header() {
             ))}
             <hr className="border-border-light" />
             <a href="#" className="block text-purple-800 font-medium py-2">
-              Entrar
+              {t('entrar', 'Entrar')}
             </a>
             <a
               href="/treinamento"
               onClick={() => setAberto(false)}
               className="block text-center px-6 py-3 rounded-lg border border-purple-800 text-purple-800 font-semibold hover:bg-purple-50 transition-colors"
             >
-              Treinamento
+              {t('treinamento', 'Treinamento')}
             </a>
             <a
               href="#cta"
               onClick={() => setAberto(false)}
               className="block text-center px-6 py-3 rounded-lg bg-amber-400 text-text-dark font-semibold hover:bg-amber-500 transition-colors"
             >
-              Agendar demo
+              {t('demo', 'Agendar demo')}
             </a>
           </div>
         </div>

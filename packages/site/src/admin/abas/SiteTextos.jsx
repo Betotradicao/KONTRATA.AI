@@ -13,6 +13,16 @@ import { api } from '../api';
  */
 const SECOES = [
   {
+    id: 'topo',
+    titulo: 'Menu do topo',
+    campos: [
+      { k: 'marca', r: 'Nome da marca', p: 'Kontrataai' },
+      { k: 'entrar', r: 'Link "Entrar"', p: 'Entrar' },
+      { k: 'treinamento', r: 'Botão "Treinamento"', p: 'Treinamento' },
+      { k: 'demo', r: 'Botão amarelo', p: 'Agendar demo' },
+    ],
+  },
+  {
     id: 'hero',
     titulo: 'Topo do site (hero)',
     campos: [
@@ -82,6 +92,37 @@ const SECOES = [
       { k: 'titulo', r: 'Título', area: true },
       { k: 'texto', r: 'Texto', area: true },
       { k: 'destaque', r: 'Caixa em destaque', area: true },
+    ],
+  },
+  {
+    id: 'comparativo',
+    titulo: 'Comparativo (tabela)',
+    campos: [
+      { k: 'olho', r: 'Olho', p: 'Por que Kontrataai' },
+      { k: 'titulo', r: 'Título', p: 'Não somos genéricos. Somos do varejo alimentar.' },
+      { k: 'texto', r: 'Texto', area: true },
+      { k: 'coluna1', r: 'Cabeçalho da 1ª coluna', p: 'Critério' },
+      { k: 'coluna2', r: 'Cabeçalho da 2ª coluna', p: 'RH Genérico' },
+      { k: 'coluna3', r: 'Cabeçalho da 3ª coluna', p: 'Kontrataai' },
+      {
+        k: 'criterios',
+        r: 'Linhas da tabela',
+        area: true,
+        lista: true,
+        p: 'Implantação | De 30 a 90 dias | 7 dias',
+        dica: 'Uma linha por critério, separando as 3 colunas com |  —  Ex.: Implantação | De 30 a 90 dias | 7 dias. Sem nenhuma linha, a tabela não aparece.',
+      },
+    ],
+  },
+  {
+    id: 'faq',
+    titulo: 'Perguntas frequentes',
+    campos: [
+      { k: 'titulo', r: 'Título', p: 'As perguntas que todo dono de mercado faz.' },
+      ...Array.from({ length: 8 }, (_, i) => [
+        { k: `p${i + 1}`, r: `${i + 1}ª pergunta`, area: true },
+        { k: `r${i + 1}`, r: `${i + 1}ª resposta`, area: true },
+      ]).flat(),
     ],
   },
   {
@@ -176,8 +217,10 @@ export default function SiteTextos() {
                         onChange={(e) => mudar(secao.id, c.k, e.target.value)}
                         placeholder={c.p || ''} className={campoCls} />
                     )}
-                    {c.lista && (
-                      <p className="text-[11px] text-text-gray mt-1">Um item por linha.</p>
+                    {(c.dica || c.lista) && (
+                      <p className="text-[11px] text-text-gray mt-1">
+                        {c.dica || 'Um item por linha.'}
+                      </p>
                     )}
                   </div>
                 ))}
