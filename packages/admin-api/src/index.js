@@ -815,18 +815,130 @@ app.get('/api/integracoes', async (_req, res) => {
 
 app.put('/api/integracoes/:chave', async (req, res) => {
   const { valor, secreto } = req.body || {};
+  const vazio = valor === undefined || valor === null || String(valor).trim() === '';
   try {
+    // 🪤 Campo secreto em branco quer dizer MANTER — e a tela diz isso na
+    // caixa ("deixe em branco para manter"). Gravar o vazio apagaria a chave
+    // de quem so clicou em Salvar de novo, sem erro nenhum na tela.
+    if (secreto && vazio) {
+      const { rows } = await query('SELECT valor FROM integracoes WHERE chave = $1', [
+        req.params.chave,
+      ]);
+      if (rows[0]?.valor) return res.json({ ok: true, mantido: true });
+    }
+
     await query(
       `INSERT INTO integracoes (chave, valor, secreto, atualizado)
        VALUES ($1,$2,COALESCE($3,false),now())
        ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor,
          secreto = EXCLUDED.secreto, atualizado = now()`,
-      [req.params.chave, valor ?? null, secreto]
+      [req.params.chave, vazio ? null : valor, secreto]
     );
     res.json({ ok: true });
   } catch (e) {
     console.error('[integracoes]', e.message);
     res.status(500).json({ erro: 'Erro ao salvar integração' });
+  }
+});
+
+/**
+ * Mostra o valor de uma chave secreta. Só o master.
+ *
+ * A tela esconde por padrão, mas "guardei e nunca mais vejo" obriga a pessoa a
+ * anotar a chave num papel fora do sistema — que é pior que deixar quem já
+ * administra o painel conferir o que ele mesmo digitou.
+ */
+app.get('/api/integracoes/:chave/revelar', async (req, res) => {
+  if (!req.usuario?.master) return res.status(403).json({ erro: 'Só o usuário master' });
+  const { rows } = await query('SELECT valor FROM integracoes WHERE chave = $1', [
+    req.params.chave,
+  ]);
+  res.json({ valor: rows[0]?.valor || '' });
+});
+
+/**
+ * Traduz a resposta de erro da Evolution pra uma frase que resolve o problema.
+ *
+ * O corpo cru dela é um objeto aninhado — devolver aquilo pra tela faz a
+ * pessoa ver `{"jid":"...","exists":false}` e não saber o que fazer. Cada
+ * caso aqui aponta pra causa: número sem WhatsApp, chave errada, instância
+ * desconectada.
+ */
+function explicarErro(corpo, status, destino) {
+  const msg = corpo?.response?.message ?? corpo?.message;
+  const primeiro = Array.isArray(msg) ? msg[0] : msg;
+
+  if (primeiro && typeof primeiro === 'object' && primeiro.exists === false) {
+    return `O número ${destino} não tem WhatsApp. Confira o DDD e os dígitos.`;
+  }
+  if (status === 401 || status === 403) {
+    return 'A Evolution recusou a chave. Confira a Chave da Evolution API.';
+  }
+  if (status === 404) {
+    return 'Instância não encontrada na Evolution. Confira o nome da instância e a URL.';
+  }
+  if (typeof primeiro === 'string') return primeiro;
+  if (typeof corpo?.error === 'string') return corpo.error;
+  return `A Evolution respondeu ${status}. Veja se a instância está conectada.`;
+}
+
+/**
+ * Dispara uma mensagem de teste pelo WhatsApp com o que está salvo aqui.
+ *
+ * Existe porque "salvei os três campos" e "o disparo funciona" são coisas
+ * diferentes: instância errada, chave vencida ou URL apontando pro /manager
+ * salvam igualzinho e só aparecem na hora de mandar. Melhor descobrir aqui do
+ * que num aviso de cobrança que não chegou.
+ */
+app.post('/api/integracoes/testar-whatsapp', async (req, res) => {
+  const numero = String(req.body?.numero || '').replace(/[^0-9]/g, '');
+  if (numero.length < 10) return res.status(400).json({ erro: 'Informe o número com DDD' });
+
+  try {
+    const { rows } = await query(
+      `SELECT chave, valor FROM integracoes
+        WHERE chave IN ('whatsapp_evolution_url','whatsapp_evolution_key','whatsapp_evolution_instance')`
+    );
+    const cfg = Object.fromEntries(rows.map((r) => [r.chave, r.valor]));
+    const url = cfg.whatsapp_evolution_url;
+    const chave = cfg.whatsapp_evolution_key;
+    const instancia = cfg.whatsapp_evolution_instance;
+
+    const faltando = [
+      !url && 'URL',
+      !chave && 'Chave',
+      !instancia && 'Instância',
+    ].filter(Boolean);
+    if (faltando.length) {
+      return res.status(400).json({ erro: `Falta preencher: ${faltando.join(', ')}` });
+    }
+
+    // A pessoa costuma copiar o endereço do painel visual da Evolution, que
+    // termina em /manager. Aquilo é a interface, não a API — e o erro que volta
+    // não diz isso. Tirar aqui evita um diagnóstico longo por um /manager.
+    const base = url.trim().replace(/\/+$/, '').replace(/\/manager$/i, '');
+
+    // O Brasil manda com 55 na frente; se veio só com DDD, completa.
+    const destino = numero.startsWith('55') ? numero : `55${numero}`;
+
+    const r = await fetch(`${base}/message/sendText/${encodeURIComponent(instancia)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: chave },
+      body: JSON.stringify({
+        number: destino,
+        text: 'Teste do painel Kontrataai. Se você recebeu isso, o disparo está funcionando.',
+      }),
+    });
+
+    const corpo = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      console.error('[testar-whatsapp]', r.status, JSON.stringify(corpo).slice(0, 300));
+      return res.status(400).json({ erro: explicarErro(corpo, r.status, destino) });
+    }
+    res.json({ ok: true, para: destino });
+  } catch (e) {
+    console.error('[testar-whatsapp]', e.message);
+    res.status(500).json({ erro: `Não consegui falar com a Evolution: ${e.message}` });
   }
 });
 

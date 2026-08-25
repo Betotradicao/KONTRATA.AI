@@ -208,7 +208,7 @@ export default function Admin() {
               <AcessosTreinamento />
             </div>
           )}
-          {secao === 'integracoes' && <Integracoes />}
+          {secao === 'integracoes' && <Integracoes master={usuario.master} />}
           {secao === 'site_textos' && <SiteTextos />}
           {secao === 'planos' && <Planos />}
           {secao === 'usuarios' && usuario.master && <Usuarios euId={usuario.id} />}

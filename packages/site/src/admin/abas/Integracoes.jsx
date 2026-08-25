@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, ShieldCheck } from 'lucide-react';
+import { Check, ShieldCheck, Eye, EyeOff, Send } from 'lucide-react';
 import { api } from '../api';
 
 // Rótulos amigáveis pras chaves cruas do banco.
@@ -30,17 +30,36 @@ const DESCRICAO = {
   },
 };
 
-export default function Integracoes() {
+export default function Integracoes({ master = false }) {
   const [lista, setLista] = useState([]);
   const [rascunho, setRascunho] = useState({});
   const [salvando, setSalvando] = useState(null);
   const [salvo, setSalvo] = useState(null);
+  // Segredos que o master pediu pra ver: chave -> valor em texto.
+  const [revelado, setRevelado] = useState({});
 
   const carregar = async () => {
     try { setLista(await api.get('/integracoes')); } catch { setLista([]); }
   };
 
   useEffect(() => { carregar(); }, []);
+
+  const revelar = async (item) => {
+    if (revelado[item.chave] !== undefined) {
+      setRevelado((r) => {
+        const novo = { ...r };
+        delete novo[item.chave];
+        return novo;
+      });
+      return;
+    }
+    try {
+      const { valor } = await api.get(`/integracoes/${item.chave}/revelar`);
+      setRevelado((r) => ({ ...r, [item.chave]: valor }));
+    } catch {
+      /* sem permissão ou sem valor: o campo continua escondido */
+    }
+  };
 
   const salvar = async (item) => {
     setSalvando(item.chave);
@@ -67,6 +86,7 @@ export default function Integracoes() {
   };
 
   return (
+    <div className="space-y-5">
     <div className="bg-white rounded-xl shadow-sm border border-border-light">
       <div className="p-4 border-b border-border-light">
         <h2 className="font-display font-bold text-text-dark text-lg">Integrações</h2>
@@ -76,8 +96,9 @@ export default function Integracoes() {
       <div className="bg-purple-50 border-b border-purple-200 px-4 py-2.5 text-xs text-purple-900 flex items-start gap-2">
         <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <span>
-          Chaves marcadas como secretas <strong>nunca voltam para a tela</strong> depois de
-          salvas — o painel só mostra se estão preenchidas. Para trocar, digite a nova por cima.
+          Chaves secretas ficam escondidas. Deixar o campo <strong>em branco mantém</strong> o
+          que já está salvo — para trocar, digite a nova por cima.
+          {master && ' No olhinho você confere o que foi guardado.'}
         </span>
       </div>
 
@@ -105,13 +126,36 @@ export default function Integracoes() {
               {d.ajuda && <p className="text-xs text-text-gray mb-3">{d.ajuda}</p>}
 
               <div className="flex gap-2 flex-wrap">
-                <input
-                  type={item.secreto ? 'password' : 'text'}
-                  value={rascunho[item.chave] ?? (item.secreto ? '' : item.valor || '')}
-                  onChange={(e) => setRascunho({ ...rascunho, [item.chave]: e.target.value })}
-                  placeholder={item.secreto && item.preenchido ? '•••••••• (deixe em branco para manter)' : ''}
-                  className="flex-1 min-w-[220px] border-2 border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-600"
-                />
+                <div className="flex-1 min-w-[220px] relative">
+                  <input
+                    type={item.secreto && revelado[item.chave] === undefined ? 'password' : 'text'}
+                    value={
+                      rascunho[item.chave] ??
+                      (item.secreto ? revelado[item.chave] ?? '' : item.valor || '')
+                    }
+                    onChange={(e) => setRascunho({ ...rascunho, [item.chave]: e.target.value })}
+                    placeholder={
+                      item.secreto && item.preenchido ? '•••••••• (deixe em branco para manter)' : ''
+                    }
+                    className={`w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-600 ${
+                      item.secreto && master ? 'pr-10' : ''
+                    }`}
+                  />
+                  {item.secreto && master && item.preenchido && (
+                    <button
+                      type="button"
+                      onClick={() => revelar(item)}
+                      title={revelado[item.chave] === undefined ? 'Ver o que está salvo' : 'Esconder'}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-gray hover:text-purple-800"
+                    >
+                      {revelado[item.chave] === undefined ? (
+                        <Eye className="w-4 h-4" />
+                      ) : (
+                        <EyeOff className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
+                </div>
                 <button
                   onClick={() => salvar(item)}
                   disabled={salvando === item.chave}
@@ -124,6 +168,78 @@ export default function Integracoes() {
           );
         })}
       </div>
+    </div>
+
+    <TesteWhatsApp />
+    </div>
+  );
+}
+
+/**
+ * Disparo de teste do WhatsApp.
+ *
+ * "Salvei os três campos" e "o disparo funciona" são coisas diferentes:
+ * instância errada, chave vencida ou URL apontando pro painel visual da
+ * Evolution salvam igualzinho e só aparecem na hora de mandar. Melhor
+ * descobrir aqui do que num aviso de cobrança que não chegou.
+ */
+function TesteWhatsApp() {
+  const [numero, setNumero] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+
+  const enviar = async () => {
+    setEnviando(true);
+    setResultado(null);
+    try {
+      const r = await api.post('/integracoes/testar-whatsapp', { numero });
+      setResultado({ ok: true, texto: `Mensagem enviada para ${r.para}. Confira o aparelho.` });
+    } catch (e) {
+      setResultado({ ok: false, texto: e.message });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-border-light p-4">
+      <h3 className="font-display font-bold text-text-dark text-sm mb-1">
+        Testar o disparo do WhatsApp
+      </h3>
+      <p className="text-xs text-text-gray mb-3">
+        Manda uma mensagem de teste com as chaves salvas acima. Serve pra saber se a
+        instância está mesmo conectada.
+      </p>
+
+      <div className="flex gap-2 flex-wrap">
+        <input
+          value={numero}
+          onChange={(e) => setNumero(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && numero && enviar()}
+          placeholder="Número com DDD (ex: 12988887777)"
+          className="flex-1 min-w-[220px] border-2 border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-600"
+        />
+        <button
+          onClick={enviar}
+          disabled={enviando || numero.replace(/[^0-9]/g, '').length < 10}
+          className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-purple-800 text-white text-sm font-semibold hover:bg-purple-600 transition-colors disabled:opacity-40"
+        >
+          <Send className="w-4 h-4" />
+          {enviando ? 'Enviando…' : 'Enviar teste'}
+        </button>
+      </div>
+
+      {resultado && (
+        <p
+          className={`text-xs mt-3 px-3 py-2 rounded-lg ${
+            resultado.ok
+              ? 'bg-emerald-50 text-emerald-800'
+              : 'bg-red-50 text-red-700'
+          }`}
+        >
+          {resultado.texto}
+        </p>
+      )}
     </div>
   );
 }
