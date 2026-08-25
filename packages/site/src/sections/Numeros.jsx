@@ -136,8 +136,9 @@ function Logo({ cliente, aparecer, ordem }) {
       style={{ transitionDelay: `${ordem * 120}ms` }}
     >
       {/* Caixa branca de altura fixa: os logos vêm em proporções diferentes
-          (uns quadrados, outros deitados) e sem isso a fileira fica desalinhada. */}
-      <div className="flex items-center justify-center h-16 w-28 sm:h-20 sm:w-32 rounded-xl bg-white/95 px-3 py-2">
+          (uns quadrados, outros deitados) e sem isso a fileira fica desalinhada.
+          A largura é a da coluna da grade — assim quatro cabem numa linha só. */}
+      <div className="flex items-center justify-center h-16 sm:h-20 w-full rounded-xl bg-white/95 px-3 py-2">
         <img
           src={`/admin/api/publico/clientes/${cliente.id}/logo`}
           alt={cliente.nome}
@@ -146,9 +147,7 @@ function Logo({ cliente, aparecer, ordem }) {
           className="max-h-full max-w-full object-contain"
         />
       </div>
-      <p className="text-center text-white/80 text-xs mt-2 w-28 sm:w-32 truncate">
-        {cliente.nome}
-      </p>
+      <p className="text-center text-white/80 text-xs mt-2 truncate">{cliente.nome}</p>
     </div>
   );
 }
@@ -218,9 +217,12 @@ export default function Numeros() {
           {clientes.length > 0 && (
             <div className="lg:pl-14">
               <h2 className={TITULO}>{t('titulo_clientes')}</h2>
+              {/* Grade de 4 colunas, não flex-wrap: com larguras livres o
+                  quarto logo sobrava pra segunda linha. Assim eles dividem o
+                  espaço e ficam sempre alinhados — no celular, 2 por linha. */}
               <div
                 ref={faixaLogos}
-                className="flex flex-wrap items-center justify-center gap-3 sm:gap-4"
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 items-start"
               >
                 {clientes.map((c, i) => (
                   <Logo key={c.id} cliente={c} aparecer={logosNaTela} ordem={i} />
