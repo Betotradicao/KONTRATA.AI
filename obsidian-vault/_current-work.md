@@ -11,10 +11,17 @@ Testado em produção: gravou → apareceu em `/admin/api/publico/site` → limp
 ⚠️ **Publicar o site só com `packages/site/publicar.sh`.** Subir por scp na mão
 dá tela branca (403 por permissão). Está explicado na nota.
 
+## Também nesta sessão
+
+- Vitrine de clientes na faixa roxa (6 logos, ordem definida no painel)
+- Redes sociais editáveis, só as preenchidas vão pro site
+- 🐛 Integrações apagava a chave secreta ao salvar em branco:
+  [[2026-08-25-integracoes-segredo-apagado]]
+
 ## Commits locais, ainda SEM push
 
-`fd26f06`, `1d69c5b`, `1c3b474` — o deploy foi por scp (site estático) e
-rebuild do admin-api. Falta `git push` quando o usuário validar.
+13 commits desde `1203da0`. O deploy foi por scp (site estático) e rebuild do
+admin-api. Falta `git push` quando o usuário validar.
 
 ## Pendências conhecidas
 
