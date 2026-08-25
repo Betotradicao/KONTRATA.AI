@@ -16,6 +16,27 @@ create table config (
 
 Aqui virou `site_config`, idêntico. Uma linha, tudo em jsonb.
 
+## Prévia ao vivo (padrão Pegue e Monte)
+
+Formulário à esquerda, o site à direita mudando a cada tecla. A prévia é um
+**`<iframe>` do próprio site** em `?preview=1`, recebendo o rascunho por
+`postMessage`.
+
+**Por que iframe e não re-renderizar as seções dentro do painel:** o site tem
+cabeçalho `fixed`, animação disparada por rolagem (`IntersectionObserver`) e
+largura de tela cheia. Dentro de uma `<div>` do painel nada disso se comporta
+igual — e **prévia que mente é pior que prévia nenhuma**.
+
+Detalhe que custa um bug se esquecer: o painel precisa esperar o iframe avisar
+que carregou. A primeira leva de rascunho sai antes de existir alguém
+escutando, e a prévia abriria com o texto do banco em vez do que está na tela.
+Por isso a prévia manda `{pronto:true}` ao montar e o painel reenvia.
+
+O modo prévia fica atrás de `?preview=1` pra o site de verdade não ficar
+escutando `message` de origem nenhuma. E o Google Analytics ignora
+`?preview=1` e `/admin` — senão a gente inflaria o número de acessos medindo o
+próprio trabalho.
+
 ## 🔑 A regra que vale pro site inteiro
 
 **O texto do código é o padrão. O banco só SOBRESCREVE o que estiver
@@ -28,8 +49,18 @@ preenchido.** Não é detalhe de implementação, é o que faz o desenho funcion
   botão "restaurar padrão".
 
 Implementado em `packages/site/src/textos.jsx`: `useTextos(secao)` devolve
-`t(chave, padrao)` e `lista(chave, padraoArray)`. Só conta como sobrescrita
+`t(chave)`, `lista(chave)` e `ehPadrao(chave)`. Só conta como sobrescrita
 string com conteúdo de verdade (`trim() !== ''`).
+
+⚠️ **`conteudoPadrao.js` é FONTE ÚNICA do texto.** O padrão já esteve embutido
+em cada `t('chave', 'texto…')` da seção — e aí o painel precisaria repetir tudo
+pra pré-preencher os campos. Duas cópias que desandam na primeira edição, com o
+painel mostrando uma frase e o site outra. Se for acrescentar texto, é lá.
+
+`ehPadrao()` existe pros títulos que vêm quebrados à mão pro celular (Origem,
+Comparativo, FAQ): a quebra manual só vale enquanto ninguém editou o título.
+Editado, não dá pra adivinhar onde quebrar — aí vale o mesmo texto nas duas
+larguras e o navegador quebra sozinho.
 
 O `TextosProvider` renderiza os filhos na PRIMEIRA pintura, sem esperar o
 fetch. Segurar a página transformaria lentidão da API em tela branca.
@@ -64,11 +95,9 @@ inteiro, em vez de deixar um título vazio abrindo uma resposta órfã.
 ## O que ficou de fora de propósito
 
 - **Ícones e numeração** (o `01`..`04` de Como Funciona, os ícones dos cards da
-  Solução) continuam no código. Trocar texto não pode desalinhar o número
-  gigante do card com o passo que ele numera.
-- **Título de Origem**: o padrão tem quebras de linha feitas à mão pro celular.
-  Se o painel mandar título próprio não dá pra adivinhar onde quebrar — aí vale
-  o mesmo texto nas duas larguras e o navegador quebra sozinho.
+  Solução) continuam no código — viraram `NUMEROS` e `ICONES`, listas só com
+  isso. Trocar texto não pode desalinhar o número gigante do card com o passo
+  que ele numera.
 
 ## Planos mudou de lugar
 
