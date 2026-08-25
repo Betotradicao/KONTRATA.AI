@@ -1,9 +1,11 @@
 import { evento } from '../analytics';
 import { useTextos } from '../textos';
+import { useWhatsApp } from '../useWhatsApp';
 import especialista from '../assets/especialista.png';
 
 export default function CTABlock() {
   const { t } = useTextos('cta');
+  const zap = useWhatsApp();
 
   return (
     <section id="cta" className="py-12 lg:py-28 bg-white">
@@ -24,7 +26,8 @@ export default function CTABlock() {
                 )}
               </p>
               <a
-                href="#"
+                href={zap || '#'}
+                {...(zap ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 onClick={() => evento('clique_demo', { origem: 'cta_final' })}
                 className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 rounded-lg bg-amber-400 text-text-dark font-semibold text-base sm:text-lg hover:bg-amber-500 transition-all"
               >

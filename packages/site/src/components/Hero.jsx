@@ -1,5 +1,6 @@
 import { evento } from '../analytics';
 import { useTextos } from '../textos';
+import { useWhatsApp } from '../useWhatsApp';
 import dashboard from '../assets/dashboard.png';
 
 
@@ -43,6 +44,7 @@ function Marquee({ recursos }) {
 
 export default function Hero() {
   const { t, lista } = useTextos('hero');
+  const zap = useWhatsApp();
 
   return (
     <section id="hero" className="relative overflow-hidden bg-hero-bg pt-16">
@@ -87,7 +89,8 @@ export default function Hero() {
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <a
-                href="#cta"
+                href={zap || '#cta'}
+                {...(zap ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 onClick={() => evento('clique_demo', { origem: 'hero' })}
                 className="block text-center px-7 py-3.5 rounded-lg bg-amber-400 text-text-dark font-semibold text-base hover:bg-amber-500 transition-colors"
               >

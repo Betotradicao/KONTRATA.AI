@@ -25,9 +25,17 @@ const SECOES = [
     titulo: 'Menu do topo',
     campos: [
       { k: 'marca', r: 'Nome da marca' },
-      { k: 'entrar', r: 'Link "Entrar"' },
-      { k: 'treinamento', r: 'Botão "Treinamento"' },
+      { k: 'treinamento', r: 'Botão da área de membros' },
       { k: 'demo', r: 'Botão amarelo' },
+    ],
+  },
+  {
+    id: 'contato',
+    titulo: 'WhatsApp de contato',
+    dica: 'Para onde vão os botões de demonstração (o amarelo do topo, o do começo e o da chamada final). Sem número, eles voltam a apenas rolar a página.',
+    campos: [
+      { k: 'whatsapp', r: 'Número com DDD', p: '12988887777' },
+      { k: 'mensagem', r: 'Mensagem já escrita pro visitante', area: true },
     ],
   },
   {

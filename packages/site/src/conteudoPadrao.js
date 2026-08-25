@@ -11,9 +11,15 @@
 export const PADRAO = {
   topo: {
     marca: 'Kontrataai',
-    entrar: 'Entrar',
-    treinamento: 'Treinamento',
+    treinamento: 'Área de Membros',
     demo: 'Agendar demo',
+  },
+
+  // Nasce vazio: sem número, os botões de demonstração continuam rolando até
+  // a chamada final, como faziam antes. Preencheu, viram link do WhatsApp.
+  contato: {
+    whatsapp: '',
+    mensagem: 'Olá! Vim pelo site e quero ver uma demonstração do Kontrataai.',
   },
 
   hero: {

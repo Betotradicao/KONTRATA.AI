@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useTextos } from '../textos';
+import { useWhatsApp } from '../useWhatsApp';
 
 // Menu igual ao original. "Por que Kontrataai" e "Como funciona" apontam pro
 // mesmo ancora (#como-funciona) — era assim no site do Base44, mantido.
@@ -13,6 +14,7 @@ const LINKS = [
 
 export default function Header() {
   const { t } = useTextos('topo');
+  const zap = useWhatsApp();
   const [aberto, setAberto] = useState(false);
   // Topo transparente sobre o hero roxo; ao rolar vira branco solido.
   const [rolou, setRolou] = useState(false);
@@ -53,12 +55,6 @@ export default function Header() {
               </a>
             ))}
             <a
-              href="#"
-              className={`text-sm font-medium ${rolou ? 'text-purple-800' : 'text-white/90 hover:text-white'}`}
-            >
-              {t('entrar')}
-            </a>
-            <a
               href="/treinamento"
               className={`inline-flex items-center justify-center px-5 py-2 rounded-lg border font-semibold text-sm transition-all ${
                 rolou
@@ -69,7 +65,8 @@ export default function Header() {
               {t('treinamento')}
             </a>
             <a
-              href="#cta"
+              href={zap || '#cta'}
+              {...(zap ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-amber-400 text-text-dark font-semibold text-sm hover:bg-amber-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
             >
               {t('demo')}
@@ -100,9 +97,6 @@ export default function Header() {
               </a>
             ))}
             <hr className="border-border-light" />
-            <a href="#" className="block text-purple-800 font-medium py-2">
-              {t('entrar')}
-            </a>
             <a
               href="/treinamento"
               onClick={() => setAberto(false)}
@@ -111,7 +105,8 @@ export default function Header() {
               {t('treinamento')}
             </a>
             <a
-              href="#cta"
+              href={zap || '#cta'}
+              {...(zap ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               onClick={() => setAberto(false)}
               className="block text-center px-6 py-3 rounded-lg bg-amber-400 text-text-dark font-semibold hover:bg-amber-500 transition-colors"
             >
