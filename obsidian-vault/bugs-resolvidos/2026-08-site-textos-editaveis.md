@@ -49,8 +49,17 @@ Acrescente a chave na lista `SECOES` de
 `packages/site/src/admin/abas/SiteTextos.jsx` e use `t('chave', 'padrão')` na
 seção. **Sem migration por frase** — foi o ponto todo de usar jsonb.
 
-Seções já expostas: hero, números, dor, solução, como funciona, origem,
-chamada final, rodapé.
+Seções expostas: menu do topo, hero, números, dor, solução, como funciona,
+comparativo, origem, chamada final, FAQ e rodapé — o site inteiro.
+
+**Listas com mais de uma coluna** (a tabela do Comparativo) usam `|` como
+separador, uma linha por item: `Critério | RH Genérico | Kontrataai`. Linha
+torta é ignorada em vez de quebrar a seção.
+
+**Pares** (as perguntas do FAQ) viram `p1`/`r1` … `pN`/`rN`, com mais vagas do
+que a lista padrão pra dar pra acrescentar sem mexer no código. O par só
+aparece com os dois campos preenchidos — apagar a pergunta some com o item
+inteiro, em vez de deixar um título vazio abrindo uma resposta órfã.
 
 ## O que ficou de fora de propósito
 
@@ -67,15 +76,32 @@ Saiu do menu principal e entrou no grupo **Configurar Site**, junto com Textos.
 É conteúdo do site tanto quanto o resto — não faz sentido editar preço num
 canto e a frase acima do preço em outro.
 
-## Deploy (é diferente do resto)
+## 🚨 Deploy do site: use `packages/site/publicar.sh`
 
-O site é **estático**, servido direto pelo nginx — não tem container:
-1. `npx vite build` em `packages/site`
-2. `scp -r dist/* vps2-hostinger:/var/www/kontrata-site/`
+O site é **estático**, servido direto pelo nginx de `/var/www/kontrata-site` —
+não tem container. Publicar na mão deu **tela branca** em 25/08/2026, por dois
+motivos que não aparecem em nenhum log de build:
 
+**1. `scp` entrega o arquivo sem leitura pro `www-data`.** nginx responde 403 no
+JS e no CSS, o HTML carrega sozinho e o `<div id="root">` fica vazio. A tela
+fica branca **sem nenhum erro de JS** — parece bug de código, é permissão.
+Diagnóstico em 5 segundos: `tail /var/log/nginx/error.log` → *"Permission
+denied"*. Sempre `chown -R www-data:www-data` + `chmod -R a+rX` depois de subir.
+
+**2. O hash do Vite faz o build velho acumular.** `index-ABC.js` não é
+sobrescrito por `index-XYZ.js`; os dois ficam lá. Some `assets/` antes de
+copiar.
+
+O script faz os dois e ainda confere os códigos HTTP no fim — inclusive do JS e
+do CSS que o `index.html` recém-publicado referencia, que é a checagem que pega
+esse caso (o `/` responde 200 mesmo com a página quebrada).
+
+### admin-api
 O `/root/kontrata-repo` da VPS tem working copy suja e `packages/admin-api/`
 untracked, então `git pull` aborta ali. Pra mexer no admin-api: `scp` do
-arquivo + `docker compose build --no-cache api` em `/root/kontrata-admin`.
+arquivo pra `/root/kontrata-repo/packages/admin-api/src/` + `docker compose
+build --no-cache api` em `/root/kontrata-admin` (é de lá que vem o build
+context).
 
 ## Tags
 #feature #site #white-label #jsonb #admin-api #kontrataai
