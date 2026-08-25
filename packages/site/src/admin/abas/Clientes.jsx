@@ -417,6 +417,18 @@ function FormCliente({ registro, ativo, planos, aoFechar, aoSalvar }) {
                 </span>
               </span>
             </label>
+
+            {f.no_site && (
+              <div className="mt-2 flex items-center gap-2">
+                <label className="text-xs text-text-gray">Posição na faixa</label>
+                <input type="number" min="1" value={f.ordem_site ?? ''}
+                  onChange={mudar('ordem_site')} placeholder="1"
+                  className="w-20 border-2 border-gray-200 rounded-lg px-2 py-1 text-sm outline-none focus:border-purple-600" />
+                <span className="text-[11px] text-text-gray">
+                  1 aparece primeiro. Em branco, entra no fim.
+                </span>
+              </div>
+            )}
           </div>
           <div>
             <label className={rotulo}>Razão social</label>

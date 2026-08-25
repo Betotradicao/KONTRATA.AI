@@ -248,3 +248,8 @@ INSERT INTO site_config (id, dados) VALUES (1, '{}'::jsonb) ON CONFLICT (id) DO 
 -- ativos"). Nem todo cliente quer, ou convém, virar peça de propaganda — daí
 -- ser escolha por cliente, e não "todo mundo que está ativo".
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS no_site BOOLEAN NOT NULL DEFAULT false;
+
+-- Posição do cliente na vitrine do site. Menor primeiro; empate cai no
+-- critério antigo (mais lojas). Existe porque a ordem ali é decisão de
+-- vitrine — quem se quer ver primeiro — e não um dado do cliente.
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ordem_site INTEGER;

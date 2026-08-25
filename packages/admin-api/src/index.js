@@ -86,7 +86,7 @@ app.get('/api/publico/clientes', async (_req, res) => {
     const { rows } = await query(
       `SELECT id, nome FROM clientes
         WHERE no_site = true AND logo_url IS NOT NULL
-        ORDER BY qtd_lojas DESC NULLS LAST, nome`
+        ORDER BY ordem_site NULLS LAST, qtd_lojas DESC NULLS LAST, nome`
     );
     res.json(rows);
   } catch (e) {
@@ -264,7 +264,7 @@ const CAMPOS_CLIENTE = [
   'contato_nome', 'contato_cargo', 'telefone', 'email', 'cidade', 'estado', 'logo_url',
   'plano', 'valor_mensal', 'desconto', 'data_inicio', 'qtd_lojas', 'dia_vencimento',
   'estagio', 'origem', 'proxima_acao', 'data_proxima_acao',
-  'teste_inicio', 'teste_dias', 'no_site',
+  'teste_inicio', 'teste_dias', 'no_site', 'ordem_site',
   'asaas_customer_id', 'observacoes',
 ];
 
