@@ -23,6 +23,12 @@ async function buscarId() {
 }
 
 export async function iniciarAnalytics() {
+  // Prévia do painel e o próprio painel não são visita de ninguém — medir os
+  // dois inflaria o número de acessos com o nosso proprio trabalho.
+  const caminho = window.location.pathname;
+  const previa = new URLSearchParams(window.location.search).get('preview') === '1';
+  if (previa || caminho.startsWith('/admin')) return;
+
   idMedicao = await buscarId();
   if (!idMedicao) return;
 

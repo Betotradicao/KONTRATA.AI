@@ -1,29 +1,24 @@
 import { useTextos } from '../textos';
 
-const SITUACOES = [
-  'Vaga aberta há 30 dias e ninguém para começar segunda.',
-  'Caixa de e-mail entupida de currículo que ninguém lê.',
-  'Funcionário novo dura 60 dias e some.',
-  'Encarregado virou RH na marra.',
-];
+
 
 export default function SectionDor() {
   const { t, lista } = useTextos('dor');
 
   return (
-    <section className="py-14 lg:py-28 bg-purple-50">
+    <section id="dor" className="py-14 lg:py-28 bg-purple-50">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <span className="text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block">
-            {t('olho', 'O que todo dono de supermercado já viveu')}
+            {t('olho')}
           </span>
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            {t('titulo', 'Você reconhece alguma dessas situações?')}
+            {t('titulo')}
           </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {lista('situacoes', SITUACOES).map((s) => (
+          {lista('situacoes').map((s) => (
             <div
               key={s}
               className="bg-white rounded-2xl p-6 shadow-[0_4px_20px_rgba(91,33,182,0.08)] h-full flex flex-col"

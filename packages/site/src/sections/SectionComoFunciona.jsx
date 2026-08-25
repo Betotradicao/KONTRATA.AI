@@ -1,37 +1,16 @@
 import { useTextos } from '../textos';
 
-const PASSOS = [
-  {
-    num: '01',
-    title: 'Você cria a vaga em 1 minuto',
-    text: 'Cargo, salário, jornada, requisitos. Formato direto, sem campos chatos. O sistema atualiza automaticamente.',
-  },
-  {
-    num: '02',
-    title: 'A vaga fica ativa pelos seus canais',
-    text: 'Cola na bio do Instagram. Imprime QR Code na fachada. Manda no grupo de WhatsApp da cidade. O candidato clica ou escaneia o QR Code e vê as vagas em aberto.',
-  },
-  {
-    num: '03',
-    title: 'Candidatos se inscrevem pelo celular',
-    text: 'Formulário simples, direto no celular. Sem criar conta, sem burocracia. O candidato preenche em 2 minutos e entra no seu banco.',
-  },
-  {
-    num: '04',
-    title: 'Seu RH só fala com quem vale',
-    text: 'Os melhores candidatos sobem com tag verde. Os duvidosos com tag amarela. Os fora de perfil com tag vermelha. A decisão final é sempre sua — mas só com quem realmente importa.',
-  },
-];
+const NUMEROS = ['01', '02', '03', '04'];
 
 export default function SectionComoFunciona() {
   const { t } = useTextos('comofunciona');
 
   // A numeracao (01..04) fica no codigo — trocar o texto nao pode desalinhar
   // o "01" gigante do card com o passo que ele numera.
-  const passos = PASSOS.map((p, i) => ({
-    ...p,
-    title: t(`passo${i + 1}_titulo`, p.title),
-    text: t(`passo${i + 1}_texto`, p.text),
+  const passos = NUMEROS.map((num, i) => ({
+    num,
+    title: t(`passo${i + 1}_titulo`),
+    text: t(`passo${i + 1}_texto`),
   }));
 
   return (
@@ -39,10 +18,10 @@ export default function SectionComoFunciona() {
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <span className="text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block">
-            {t('olho', 'Como funciona?')}
+            {t('olho')}
           </span>
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            {t('titulo', 'Do currículo ao contratado em 4 passos.')}
+            {t('titulo')}
           </h2>
         </div>
 

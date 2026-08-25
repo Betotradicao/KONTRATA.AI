@@ -37,7 +37,7 @@ export default function Header() {
             href="/"
             className={`font-display font-bold text-xl ${rolou ? 'text-text-dark' : 'text-white'}`}
           >
-            {t('marca', 'Kontrataai')}
+            {t('marca')}
           </a>
 
           <nav className="hidden lg:flex items-center gap-8">
@@ -56,7 +56,7 @@ export default function Header() {
               href="#"
               className={`text-sm font-medium ${rolou ? 'text-purple-800' : 'text-white/90 hover:text-white'}`}
             >
-              {t('entrar', 'Entrar')}
+              {t('entrar')}
             </a>
             <a
               href="/treinamento"
@@ -66,13 +66,13 @@ export default function Header() {
                   : 'border-white/40 text-white hover:bg-white/10'
               }`}
             >
-              {t('treinamento', 'Treinamento')}
+              {t('treinamento')}
             </a>
             <a
               href="#cta"
               className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-amber-400 text-text-dark font-semibold text-sm hover:bg-amber-500 transition-all hover:shadow-lg hover:-translate-y-0.5"
             >
-              {t('demo', 'Agendar demo')}
+              {t('demo')}
             </a>
           </nav>
 
@@ -101,21 +101,21 @@ export default function Header() {
             ))}
             <hr className="border-border-light" />
             <a href="#" className="block text-purple-800 font-medium py-2">
-              {t('entrar', 'Entrar')}
+              {t('entrar')}
             </a>
             <a
               href="/treinamento"
               onClick={() => setAberto(false)}
               className="block text-center px-6 py-3 rounded-lg border border-purple-800 text-purple-800 font-semibold hover:bg-purple-50 transition-colors"
             >
-              {t('treinamento', 'Treinamento')}
+              {t('treinamento')}
             </a>
             <a
               href="#cta"
               onClick={() => setAberto(false)}
               className="block text-center px-6 py-3 rounded-lg bg-amber-400 text-text-dark font-semibold hover:bg-amber-500 transition-colors"
             >
-              {t('demo', 'Agendar demo')}
+              {t('demo')}
             </a>
           </div>
         </div>

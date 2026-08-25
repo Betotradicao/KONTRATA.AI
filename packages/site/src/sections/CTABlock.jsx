@@ -12,10 +12,10 @@ export default function CTABlock() {
           <div className="grid lg:grid-cols-2 gap-8 items-center">
             <div>
               <span className="inline-block text-amber-400 text-xs font-semibold uppercase tracking-[0.08em] mb-3">
-                {t('olho', 'Próximo passo')}
+                {t('olho')}
               </span>
               <h2 className="font-display font-bold text-white text-xl sm:text-3xl lg:text-5xl leading-[1.15] mb-4">
-                {t('titulo', 'Quer ver o Kontrataai funcionando na prática?')}
+                {t('titulo')}
               </h2>
               <p className="text-purple-300 text-sm sm:text-lg leading-relaxed mb-6">
                 {t(
@@ -28,7 +28,7 @@ export default function CTABlock() {
                 onClick={() => evento('clique_demo', { origem: 'cta_final' })}
                 className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 rounded-lg bg-amber-400 text-text-dark font-semibold text-base sm:text-lg hover:bg-amber-500 transition-all"
               >
-                {t('botao', 'Agendar demonstração →')}
+                {t('botao')}
               </a>
             </div>
 

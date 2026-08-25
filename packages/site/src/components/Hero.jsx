@@ -2,19 +2,7 @@ import { evento } from '../analytics';
 import { useTextos } from '../textos';
 import dashboard from '../assets/dashboard.png';
 
-// Faixa deslizante do hero. Padrao — o painel pode trocar a lista inteira.
-const RECURSOS = [
-  'Banco de currículos automático',
-  'Escala de Trabalho',
-  'Documentação digital',
-  'White label completo',
-  'Indicadores RH',
-  'Multi-loja e multi-empresa',
-  '100% LGPD',
-  'Suporte via WhatsApp',
-  'Implantação em 7 dias',
-  'Sem fidelidade',
-];
+
 
 /** Brilho dourado correndo na palavra "supermercado". */
 function Shimmer({ children }) {
@@ -57,7 +45,7 @@ export default function Hero() {
   const { t, lista } = useTextos('hero');
 
   return (
-    <section className="relative overflow-hidden bg-hero-bg pt-16">
+    <section id="hero" className="relative overflow-hidden bg-hero-bg pt-16">
       {/* Gradiente roxo que "respira" — 400% de tamanho pra ter pra onde andar */}
       <div
         aria-hidden="true"
@@ -80,15 +68,15 @@ export default function Hero() {
         <div className="grid lg:grid-cols-[0.8fr_1.2fr] gap-8 lg:gap-12 items-center">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-white leading-snug mb-4 text-[2rem] sm:text-5xl lg:text-[3.75rem]">
-              {t('titulo1', 'Acabe com o caos')}
+              {t('titulo1')}
               <br />
-              {t('titulo2', 'do RH do seu')}
+              {t('titulo2')}
               <br />
-              <Shimmer>{t('destaque', 'supermercado')}</Shimmer>.
+              <Shimmer>{t('destaque')}</Shimmer>.
             </h1>
 
             <p className="text-white/90 text-base lg:text-lg font-medium mb-2 break-words">
-              {t('sub1', 'O Kontrataai foi pensado exclusivamente para supermercado.')}
+              {t('sub1')}
             </p>
             <p className="text-purple-300 text-sm lg:text-base leading-relaxed mb-6 break-words">
               {t(
@@ -103,18 +91,18 @@ export default function Hero() {
                 onClick={() => evento('clique_demo', { origem: 'hero' })}
                 className="block text-center px-7 py-3.5 rounded-lg bg-amber-400 text-text-dark font-semibold text-base hover:bg-amber-500 transition-colors"
               >
-                {t('cta1', 'Quero ver uma demonstração →')}
+                {t('cta1')}
               </a>
               <a
                 href="#pricing"
                 onClick={() => evento('clique_planos', { origem: 'hero' })}
                 className="block text-center px-7 py-3.5 rounded-lg border-2 border-white/30 text-white font-semibold text-base hover:bg-white/10 transition-colors"
               >
-                {t('cta2', 'Ver os planos')}
+                {t('cta2')}
               </a>
             </div>
 
-            <Marquee recursos={lista('recursos', RECURSOS)} />
+            <Marquee recursos={lista('recursos')} />
           </div>
 
           <div className="hidden lg:block">

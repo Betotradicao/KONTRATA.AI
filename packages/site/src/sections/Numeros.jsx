@@ -90,7 +90,7 @@ export default function Numeros() {
   if (!dados) return null;
 
   return (
-    <section className="py-14 lg:py-20 bg-hero-bg">
+    <section id="numeros" className="py-14 lg:py-20 bg-hero-bg">
       <div className="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-12 text-center">
           <div>
@@ -98,7 +98,7 @@ export default function Numeros() {
               <NumeroQueRoda valor={dados.curriculos} />
             </p>
             <p className="text-white/90 text-sm sm:text-base mt-2">
-              {t('rotulo1', 'currículos captados')}
+              {t('rotulo1')}
             </p>
           </div>
           <div>
@@ -106,12 +106,12 @@ export default function Numeros() {
               <NumeroQueRoda valor={dados.contratados} />
             </p>
             <p className="text-white/90 text-sm sm:text-base mt-2">
-              {t('rotulo2', 'pessoas contratadas')}
+              {t('rotulo2')}
             </p>
           </div>
         </div>
         <p className="text-center text-purple-300 text-xs mt-8">
-          {t('rodape', 'Números reais dos supermercados que usam o Kontrataai.')}
+          {t('rodape')}
         </p>
       </div>
     </section>

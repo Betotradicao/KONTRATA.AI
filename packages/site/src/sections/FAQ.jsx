@@ -1,47 +1,22 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useTextos } from '../textos';
+import { VAGAS_FAQ } from '../conteudoPadrao';
 
-// Quantos pares pergunta/resposta o painel oferece. Maior que a lista padrao
-// de proposito: sobra espaco pra acrescentar pergunta sem mexer no codigo.
-const VAGAS = 8;
 
-const PERGUNTAS = [
-  {
-    q: 'Preciso integrar com meu sistema de PDV (Linx, Consinco, RP, Bluesoft, Avanço)?',
-    a: 'Não. O Kontrataai é independente. Você usa pelo navegador, sem mexer em nada do que já roda hoje. Isso é proposital — implantação rápida e zero dor de cabeça com TI.',
-  },
-  {
-    q: 'Como funciona o white label?',
-    a: 'Você nos envia seu logo, suas cores e seu domínio. Em até 48 horas o sistema sobe com a sua identidade. Para o seu candidato, é a sua marca recrutando — não o Kontrataai. Esse é um dos maiores diferenciais do produto.',
-  },
-  {
-    q: 'Quem cuida do suporte? Vou ficar perdido se algo quebrar?',
-    a: 'WhatsApp Business com SLA de resposta em até 4 horas em horário comercial. Sem call center, sem ticket número 47823, sem URA. Você fala direto com quem entende do sistema.',
-  },
-  {
-    q: 'E se eu quiser cancelar?',
-    a: 'Cancela. Sem multa, sem letra miúda, sem fidelidade. Você continuou porque te servia, não porque estava preso. Esse é o teste que toda boa empresa de software deveria passar.',
-  },
-  {
-    q: 'Quem está usando o Kontrataai hoje?',
-    a: 'O sistema nasceu dentro do Supermercado Tradição. Estamos validando agora com mais alguns mercados selecionados antes de abrir comercialmente em larga escala. Por isso nossas vagas de implementação são limitadas.',
-  },
-];
+
 
 export default function FAQ() {
-  const { t } = useTextos('faq');
+  const { t, ehPadrao } = useTextos('faq');
   // Sanfona de item único: abrir um fecha o outro. Clicar no aberto fecha.
   const [aberto, setAberto] = useState(null);
-
-  const titulo = t('titulo', '');
 
   // Um par por vaga. Cada campo cai no padrao daquela posicao, e o par so
   // aparece se tiver pergunta E resposta — assim apagar a pergunta some com o
   // item inteiro, em vez de deixar um titulo vazio abrindo uma resposta orfa.
-  const perguntas = Array.from({ length: VAGAS }, (_, i) => ({
-    q: t(`p${i + 1}`, PERGUNTAS[i]?.q || ''),
-    a: t(`r${i + 1}`, PERGUNTAS[i]?.a || ''),
+  const perguntas = Array.from({ length: VAGAS_FAQ }, (_, i) => ({
+    q: t(`p${i + 1}`),
+    a: t(`r${i + 1}`),
   })).filter((item) => item.q && item.a);
 
   return (
@@ -49,8 +24,8 @@ export default function FAQ() {
       <div className="max-w-3xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            {titulo ? (
-              titulo
+            {!ehPadrao('titulo') ? (
+              t('titulo')
             ) : (
               <>
                 <span className="sm:hidden">
@@ -60,9 +35,7 @@ export default function FAQ() {
                   <br />
                   mercado faz.
                 </span>
-                <span className="hidden sm:inline">
-                  As perguntas que todo dono de mercado faz.
-                </span>
+                <span className="hidden sm:inline">{t('titulo')}</span>
               </>
             )}
           </h2>

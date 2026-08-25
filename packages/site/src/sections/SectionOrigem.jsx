@@ -1,25 +1,21 @@
 import { useTextos } from '../textos';
 
-// Titulo padrao quebrado a mao pro celular. Se o painel mandar um titulo
-// proprio, nao da pra adivinhar onde quebrar — ai vale o mesmo texto nas duas
-// larguras e o navegador quebra sozinho.
-const TITULO_PADRAO =
-  'Não foi feito por programador. Foi feito por gente que vive supermercado todo dia.';
-
 export default function SectionOrigem() {
-  const { t } = useTextos('origem');
-  const titulo = t('titulo', '');
+  const { t, ehPadrao } = useTextos('origem');
 
   return (
-    <section className="py-14 lg:py-28 bg-purple-50">
+    <section id="origem" className="py-14 lg:py-28 bg-purple-50">
       <div className="max-w-3xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
           <span className="text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block">
-            {t('olho', 'De onde nasceu?')}
+            {t('olho')}
           </span>
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            {titulo ? (
-              titulo
+            {/* O titulo original vem quebrado a mao pro celular. Se foi
+                editado no painel, nao da pra adivinhar onde quebrar — ai vale o
+                mesmo texto nas duas larguras e o navegador quebra sozinho. */}
+            {!ehPadrao('titulo') ? (
+              t('titulo')
             ) : (
               <>
                 <span className="sm:hidden">
@@ -33,7 +29,7 @@ export default function SectionOrigem() {
                   <br />
                   todo dia.
                 </span>
-                <span className="hidden sm:inline">{TITULO_PADRAO}</span>
+                <span className="hidden sm:inline">{t('titulo')}</span>
               </>
             )}
           </h2>

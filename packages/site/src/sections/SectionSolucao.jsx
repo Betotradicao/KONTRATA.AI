@@ -1,41 +1,30 @@
 import { Link2, Zap } from 'lucide-react';
 import { useTextos } from '../textos';
 
-const CARDS = [
-  {
-    Icon: Link2,
-    title: 'Banco de currículos automático',
-    text: 'Você cria o link da vaga uma vez. Divulga onde quiser — fachada, Instagram, grupo de WhatsApp da cidade. Quem se interessa preenche o formulário no celular. Seu banco de currículos cresce todo dia, sem ninguém digitando nada.',
-  },
-  {
-    Icon: Zap,
-    title: 'Simples de usar',
-    text: 'Não exige integração com o sistema que você já tem. Não pede TI. Não tem servidor para configurar. Você usa pelo navegador, com a sua identidade visual. Implantação em 2 dias — sem dor de cabeça.',
-  },
-];
+const ICONES = [Link2, Zap];
 
 export default function SectionSolucao() {
   const { t } = useTextos('solucao');
 
-  // Os icones ficam no codigo; so o texto dos dois cards e editavel.
-  const cards = CARDS.map((c, i) => ({
-    ...c,
-    title: t(`card${i + 1}_titulo`, c.title),
-    text: t(`card${i + 1}_texto`, c.text),
+  // O icone fica no codigo; o texto dos dois cards vem do painel.
+  const cards = ICONES.map((Icon, i) => ({
+    Icon,
+    title: t(`card${i + 1}_titulo`),
+    text: t(`card${i + 1}_texto`),
   }));
 
   return (
-    <section className="py-14 lg:py-28 bg-white">
+    <section id="solucao" className="py-14 lg:py-28 bg-white">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <span className="text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block">
-            {t('olho', 'A solução')}
+            {t('olho')}
           </span>
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            {t('titulo', 'Um RH inteiro, feito para a sua realidade.')}
+            {t('titulo')}
           </h2>
           <p className="text-text-gray text-sm sm:text-lg max-w-2xl mx-auto">
-            {t('sub', 'O Kontrataai nasceu dentro de um supermercado, com uma dor real.')}
+            {t('sub')}
           </p>
         </div>
 

@@ -10,8 +10,6 @@ import { useTextos } from '../textos';
  * Sem nenhuma linha, a seção mostra só o título e o texto — cabeçalho de tabela
  * sem conteúdo fica com cara de bug.
  */
-const CRITERIOS = [];
-
 /** Converte "a | b | c" nas três colunas. Linha torta é ignorada, não quebra. */
 function lerCriterios(linhas) {
   return linhas
@@ -21,20 +19,21 @@ function lerCriterios(linhas) {
 }
 
 export default function SectionComparativo() {
-  const { t, lista } = useTextos('comparativo');
-  const titulo = t('titulo', '');
-  const criterios = lerCriterios(lista('criterios', []));
+  const { t, lista, ehPadrao } = useTextos('comparativo');
+  const criterios = lerCriterios(lista('criterios'));
 
   return (
-    <section className="py-14 lg:py-28 bg-white">
+    <section id="comparativo" className="py-14 lg:py-28 bg-white">
       <div className="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <span className="text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block">
-            {t('olho', 'Por que Kontrataai')}
+            {t('olho')}
           </span>
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            {titulo ? (
-              titulo
+            {/* Mesma ideia da secao "De onde nasceu": a quebra a mao so vale
+                enquanto o titulo nao foi editado. */}
+            {!ehPadrao('titulo') ? (
+              t('titulo')
             ) : (
               <>
                 <span className="sm:hidden">
@@ -42,9 +41,7 @@ export default function SectionComparativo() {
                   <br />
                   Somos do varejo alimentar.
                 </span>
-                <span className="hidden sm:inline">
-                  Não somos genéricos. Somos do varejo alimentar.
-                </span>
+                <span className="hidden sm:inline">{t('titulo')}</span>
               </>
             )}
           </h2>
@@ -71,14 +68,14 @@ export default function SectionComparativo() {
                     <div className="flex items-start gap-2 text-xs text-text-gray">
                       <X className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
                       <span>
-                        <span className="text-text-gray/60 font-medium">{t('coluna2', 'RH Genérico')}: </span>
+                        <span className="text-text-gray/60 font-medium">{t('coluna2')}: </span>
                         {c.generico}
                       </span>
                     </div>
                     <div className="flex items-start gap-2 text-xs text-text-dark font-medium">
                       <Check className="w-3.5 h-3.5 text-success flex-shrink-0 mt-0.5" />
                       <span>
-                        <span className="text-purple-800 font-semibold">{t('coluna3', 'Kontrataai')}: </span>
+                        <span className="text-purple-800 font-semibold">{t('coluna3')}: </span>
                         {c.kontrata}
                       </span>
                     </div>
@@ -93,13 +90,13 @@ export default function SectionComparativo() {
                 <thead>
                   <tr className="bg-purple-800 text-white">
                     <th className="text-left px-4 py-3 font-semibold text-sm">
-                      {t('coluna1', 'Critério')}
+                      {t('coluna1')}
                     </th>
                     <th className="text-left px-4 py-3 font-semibold text-sm">
-                      {t('coluna2', 'RH Genérico')}
+                      {t('coluna2')}
                     </th>
                     <th className="text-left px-4 py-3 font-semibold text-sm text-amber-400">
-                      {t('coluna3', 'Kontrataai')}
+                      {t('coluna3')}
                     </th>
                   </tr>
                 </thead>
