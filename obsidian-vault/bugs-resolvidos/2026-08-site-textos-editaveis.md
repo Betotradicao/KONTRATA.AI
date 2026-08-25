@@ -108,6 +108,26 @@ baixar quase 1 MB antes de desenhar qualquer coisa. `GET
 Esse endpoint também respeita o `no_site`: cliente não marcado dá 404, senão
 bastaria adivinhar um id pra puxar o logo de qualquer um.
 
+### 🪤 `useRef` + IntersectionObserver em coisa que só existe depois do fetch
+
+Os logos vinham no HTML e **nunca apareciam** — `opacity-0` pra sempre, sem
+erro nenhum no console. O hook de "entrou na tela" recebia um `useRef` e rodava
+o efeito na montagem, quando a faixa de logos ainda não existia (a lista só
+chega da API depois). Achava `ref.current === null`, desistia — e como **a
+identidade do objeto ref nunca muda**, o efeito nunca rodava de novo.
+
+Conserto: **ref de callback**. O React chama a função quando o elemento nasce,
+o `useState` guarda o nó e o efeito reage a isso.
+
+```jsx
+const [elemento, setElemento] = useState(null);
+useEffect(() => { if (!elemento) return; /* observa */ }, [elemento]);
+return [setElemento, entrou];   // <div ref={setElemento}>
+```
+
+Vale pra qualquer animação de entrada em lista carregada por fetch. Se o
+elemento não existe no primeiro render, `useRef` não serve.
+
 ## O que ficou de fora de propósito
 
 - **Ícones e numeração** (o `01`..`04` de Como Funciona, os ícones dos cards da
