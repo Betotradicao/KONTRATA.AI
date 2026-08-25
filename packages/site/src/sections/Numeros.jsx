@@ -2,14 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { useTextos } from '../textos';
 
 /**
- * Prova social: currículos captados e pessoas contratadas em toda a base.
+ * Prova social, em duas metades: os números à esquerda, os logos dos clientes
+ * à direita.
  *
  * Os números vêm do painel interno, que copia de tempos em tempos o que cada
  * cliente tem no Banco de Currículos. Não é ao vivo ao segundo — e não precisa
  * ser: o que convence é a ordem de grandeza, não o dígito da unidade.
  *
- * A seção some por completo se não houver número. Prova social com zero é
- * pior que prova social nenhuma.
+ * Cada metade some sozinha se não tiver o que mostrar, e a seção inteira some
+ * se as duas estiverem vazias. Prova social com zero é pior que prova social
+ * nenhuma.
  */
 
 const formatar = (n) => (Number(n) || 0).toLocaleString('pt-BR');
@@ -71,9 +73,71 @@ function NumeroQueRoda({ valor, duracaoMs = 1600 }) {
   );
 }
 
+/**
+ * Avisa quando o elemento entra na tela. Uma vez só — o efeito é de chegada,
+ * repetir a cada rolagem viraria enfeite piscando.
+ */
+function useEntrouNaTela(ref, margem = 0.25) {
+  const [entrou, setEntrou] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setEntrou(true); // navegador antigo: mostra tudo, sem animação
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        setEntrou(true);
+        obs.disconnect();
+      },
+      { threshold: margem }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [ref, margem]);
+
+  return entrou;
+}
+
+/**
+ * Um logo. Se a imagem não carregar, some — melhor que um ícone quebrado.
+ *
+ * Nasce invisível e surge quando a faixa entra na tela, com um atraso por
+ * posição pra virem em cascata em vez de piscarem todos juntos.
+ */
+function Logo({ cliente, aparecer, ordem }) {
+  const [falhou, setFalhou] = useState(false);
+  if (falhou) return null;
+
+  return (
+    <div
+      className={`flex items-center justify-center h-16 w-28 sm:h-20 sm:w-32 rounded-xl bg-white/95 px-3 py-2
+                  transition-all duration-700 ease-out ${
+                    aparecer ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                  }`}
+      style={{ transitionDelay: `${ordem * 120}ms` }}
+    >
+      <img
+        src={`/admin/api/publico/clientes/${cliente.id}/logo`}
+        alt={cliente.nome}
+        title={cliente.nome}
+        loading="lazy"
+        onError={() => setFalhou(true)}
+        className="max-h-full max-w-full object-contain"
+      />
+    </div>
+  );
+}
+
 export default function Numeros() {
   const { t } = useTextos('numeros');
   const [dados, setDados] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const faixaLogos = useRef(null);
+  const logosNaTela = useEntrouNaTela(faixaLogos);
 
   useEffect(() => {
     (async () => {
@@ -82,37 +146,71 @@ export default function Numeros() {
         const d = await r.json();
         if (d && (d.curriculos > 0 || d.contratados > 0)) setDados(d);
       } catch {
-        /* sem números, a seção simplesmente não aparece */
+        /* sem números, essa metade não aparece */
+      }
+    })();
+
+    (async () => {
+      try {
+        const r = await fetch('/admin/api/publico/clientes');
+        const lista = await r.json();
+        if (Array.isArray(lista)) setClientes(lista);
+      } catch {
+        /* sem clientes marcados, essa metade não aparece */
       }
     })();
   }, []);
 
-  if (!dados) return null;
+  if (!dados && !clientes.length) return null;
 
   return (
     <section id="numeros" className="py-14 lg:py-20 bg-hero-bg">
-      <div className="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 lg:gap-12 text-center">
-          <div>
-            <p className="font-display font-bold text-amber-400 text-4xl sm:text-5xl lg:text-6xl">
-              <NumeroQueRoda valor={dados.curriculos} />
-            </p>
-            <p className="text-white/90 text-sm sm:text-base mt-2">
-              {t('rotulo1')}
-            </p>
-          </div>
-          <div>
-            <p className="font-display font-bold text-amber-400 text-4xl sm:text-5xl lg:text-6xl">
-              <NumeroQueRoda valor={dados.contratados} />
-            </p>
-            <p className="text-white/90 text-sm sm:text-base mt-2">
-              {t('rotulo2')}
-            </p>
-          </div>
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8">
+        {/* Divisória só existe com as duas metades na tela: no celular vira
+            linha horizontal entre elas, no desktop, vertical no meio. */}
+        <div
+          className={`grid gap-10 ${
+            dados && clientes.length
+              ? 'lg:grid-cols-2 lg:gap-14 lg:divide-x divide-white/15'
+              : 'grid-cols-1'
+          }`}
+        >
+          {dados && (
+            <div>
+              <div className="grid grid-cols-2 gap-6 text-center">
+                <div>
+                  <p className="font-display font-bold text-amber-400 text-4xl sm:text-5xl">
+                    <NumeroQueRoda valor={dados.curriculos} />
+                  </p>
+                  <p className="text-white/90 text-sm sm:text-base mt-2">{t('rotulo1')}</p>
+                </div>
+                <div>
+                  <p className="font-display font-bold text-amber-400 text-4xl sm:text-5xl">
+                    <NumeroQueRoda valor={dados.contratados} />
+                  </p>
+                  <p className="text-white/90 text-sm sm:text-base mt-2">{t('rotulo2')}</p>
+                </div>
+              </div>
+              <p className="text-center text-purple-300 text-xs mt-6">{t('rodape')}</p>
+            </div>
+          )}
+
+          {clientes.length > 0 && (
+            <div className="lg:pl-14">
+              <p className="text-center text-amber-400 text-xs font-semibold uppercase tracking-[0.08em] mb-6">
+                {t('titulo_clientes')}
+              </p>
+              <div
+                ref={faixaLogos}
+                className="flex flex-wrap items-center justify-center gap-3 sm:gap-4"
+              >
+                {clientes.map((c, i) => (
+                  <Logo key={c.id} cliente={c} aparecer={logosNaTela} ordem={i} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <p className="text-center text-purple-300 text-xs mt-8">
-          {t('rodape')}
-        </p>
       </div>
     </section>
   );

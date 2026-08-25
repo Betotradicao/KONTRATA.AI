@@ -402,6 +402,21 @@ function FormCliente({ registro, ativo, planos, aoFechar, aoSalvar }) {
             <p className="text-[11px] text-text-gray mt-1">
               Aparece na bolinha ao lado do nome na lista. Sem link, mostra a inicial.
             </p>
+
+            {/* Sair na vitrine do site e escolha por cliente, nao consequencia
+                de estar ativo: nem todo mundo quer virar peca de propaganda. */}
+            <label className="mt-3 flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={!!f.no_site}
+                onChange={(e) => setF((v) => ({ ...v, no_site: e.target.checked }))}
+                className="mt-0.5 w-4 h-4 accent-purple-800" />
+              <span className="text-xs text-text-dark">
+                Mostrar o logo em kontrataai.com.br
+                <span className="block text-[11px] text-text-gray">
+                  Entra na faixa &ldquo;Alguns clientes ativos&rdquo;, ao lado dos números.
+                  Precisa ter logotipo.
+                </span>
+              </span>
+            </label>
           </div>
           <div>
             <label className={rotulo}>Razão social</label>

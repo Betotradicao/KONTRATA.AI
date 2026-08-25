@@ -243,3 +243,8 @@ CREATE TABLE IF NOT EXISTS site_config (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO site_config (id, dados) VALUES (1, '{}'::jsonb) ON CONFLICT (id) DO NOTHING;
+
+-- Cliente que aparece na vitrine de kontrataai.com.br (seção "Alguns clientes
+-- ativos"). Nem todo cliente quer, ou convém, virar peça de propaganda — daí
+-- ser escolha por cliente, e não "todo mundo que está ativo".
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS no_site BOOLEAN NOT NULL DEFAULT false;

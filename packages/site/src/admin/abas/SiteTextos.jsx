@@ -117,7 +117,9 @@ const SECOES = [
       { k: 'rotulo1', r: 'Rótulo do 1º número' },
       { k: 'rotulo2', r: 'Rótulo do 2º número' },
       { k: 'rodape', r: 'Frase abaixo dos números', area: true },
+      { k: 'titulo_clientes', r: 'Título da faixa de logos' },
     ],
+    dica: 'Os logos que aparecem ao lado dos números são os clientes marcados como "Mostrar o logo em kontrataai.com.br" no cadastro de cada um.',
   },
   {
     id: 'faq',

@@ -96,6 +96,7 @@ export const PADRAO = {
     rotulo1: 'currículos captados',
     rotulo2: 'pessoas contratadas',
     rodape: 'Números reais dos supermercados que usam o Kontrataai.',
+    titulo_clientes: 'Alguns clientes ativos',
   },
 
   faq: {

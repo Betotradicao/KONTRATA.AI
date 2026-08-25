@@ -76,6 +76,46 @@ app.get('/api/publico/numeros', async (_req, res) => {
   }
 });
 
+// ── Publico: vitrine de clientes do site ─────────────────────────────────
+// So quem foi marcado "aparece no site" no cadastro. O logo NAO vem aqui:
+// sao ate 250 KB de base64 cada um, e quatro deles na mesma resposta fariam
+// a home carregar 1 MB de JSON antes de desenhar. Vem por /logo, um a um,
+// como imagem de verdade — o navegador baixa em paralelo e guarda em cache.
+app.get('/api/publico/clientes', async (_req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, nome FROM clientes
+        WHERE no_site = true AND logo_url IS NOT NULL
+        ORDER BY qtd_lojas DESC NULLS LAST, nome`
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error('[clientes publico]', e.message);
+    res.json([]); // sem lista, a secao simplesmente nao aparece
+  }
+});
+
+// O logo esta guardado como data URI (data:image/png;base64,...) porque e
+// assim que o sistema do cliente grava. Aqui ele volta a ser imagem.
+app.get('/api/publico/clientes/:id/logo', async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT logo_url FROM clientes WHERE id = $1 AND no_site = true',
+      [Number(req.params.id) || 0]
+    );
+    const uri = rows[0]?.logo_url || '';
+    const m = /^data:([^;]+);base64,(.+)$/s.exec(uri);
+    if (!m) return res.status(404).end();
+
+    res.set('Content-Type', m[1]);
+    res.set('Cache-Control', 'public, max-age=86400'); // troca de logo e rara
+    res.send(Buffer.from(m[2], 'base64'));
+  } catch (e) {
+    console.error('[logo publico]', e.message);
+    res.status(404).end();
+  }
+});
+
 // ── Publico: textos do site ──────────────────────────────────────────────
 // So o que foi editado no painel. O site usa o texto do codigo pro resto.
 app.get('/api/publico/site', async (_req, res) => {
@@ -224,7 +264,7 @@ const CAMPOS_CLIENTE = [
   'contato_nome', 'contato_cargo', 'telefone', 'email', 'cidade', 'estado', 'logo_url',
   'plano', 'valor_mensal', 'desconto', 'data_inicio', 'qtd_lojas', 'dia_vencimento',
   'estagio', 'origem', 'proxima_acao', 'data_proxima_acao',
-  'teste_inicio', 'teste_dias',
+  'teste_inicio', 'teste_dias', 'no_site',
   'asaas_customer_id', 'observacoes',
 ];
 
