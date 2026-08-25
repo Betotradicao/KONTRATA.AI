@@ -16,6 +16,10 @@ import { useTextos } from '../textos';
 
 const formatar = (n) => (Number(n) || 0).toLocaleString('pt-BR');
 
+/** As duas metades usam o mesmo título pra faixa não ficar torta. */
+const TITULO =
+  'font-display font-bold text-white text-center text-xl sm:text-2xl lg:text-3xl mb-8';
+
 /**
  * Número que "roda" de zero até o valor final quando entra na tela.
  *
@@ -77,12 +81,24 @@ function NumeroQueRoda({ valor, duracaoMs = 1600 }) {
  * Avisa quando o elemento entra na tela. Uma vez só — o efeito é de chegada,
  * repetir a cada rolagem viraria enfeite piscando.
  */
-function useEntrouNaTela(ref, margem = 0.25) {
+/**
+ * ⚠️ Devolve uma REF DE CALLBACK, não um useRef.
+ *
+ * A faixa de logos só existe depois que a lista chega da API. Com `useRef`, o
+ * efeito rodava uma vez na montagem, achava `ref.current === null` e desistia
+ * — e como a identidade do objeto ref nunca muda, nunca rodava de novo. Os
+ * logos ficavam em `opacity-0` pra sempre: presentes no HTML, invisíveis na
+ * tela. Foi exatamente o que aconteceu em 25/08/2026.
+ *
+ * Como ref de callback, o React chama a função quando o elemento nasce, e o
+ * efeito reage a isso.
+ */
+function useEntrouNaTela(margem = 0.25) {
+  const [elemento, setElemento] = useState(null);
   const [entrou, setEntrou] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    if (!elemento) return;
     if (typeof IntersectionObserver === 'undefined') {
       setEntrou(true); // navegador antigo: mostra tudo, sem animação
       return;
@@ -95,11 +111,11 @@ function useEntrouNaTela(ref, margem = 0.25) {
       },
       { threshold: margem }
     );
-    obs.observe(el);
+    obs.observe(elemento);
     return () => obs.disconnect();
-  }, [ref, margem]);
+  }, [elemento, margem]);
 
-  return entrou;
+  return [setElemento, entrou];
 }
 
 /**
@@ -114,20 +130,25 @@ function Logo({ cliente, aparecer, ordem }) {
 
   return (
     <div
-      className={`flex items-center justify-center h-16 w-28 sm:h-20 sm:w-32 rounded-xl bg-white/95 px-3 py-2
-                  transition-all duration-700 ease-out ${
-                    aparecer ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                  }`}
+      className={`transition-all duration-700 ease-out ${
+        aparecer ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}
       style={{ transitionDelay: `${ordem * 120}ms` }}
     >
-      <img
-        src={`/admin/api/publico/clientes/${cliente.id}/logo`}
-        alt={cliente.nome}
-        title={cliente.nome}
-        loading="lazy"
-        onError={() => setFalhou(true)}
-        className="max-h-full max-w-full object-contain"
-      />
+      {/* Caixa branca de altura fixa: os logos vêm em proporções diferentes
+          (uns quadrados, outros deitados) e sem isso a fileira fica desalinhada. */}
+      <div className="flex items-center justify-center h-16 w-28 sm:h-20 sm:w-32 rounded-xl bg-white/95 px-3 py-2">
+        <img
+          src={`/admin/api/publico/clientes/${cliente.id}/logo`}
+          alt={cliente.nome}
+          loading="lazy"
+          onError={() => setFalhou(true)}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+      <p className="text-center text-white/80 text-xs mt-2 w-28 sm:w-32 truncate">
+        {cliente.nome}
+      </p>
     </div>
   );
 }
@@ -136,8 +157,7 @@ export default function Numeros() {
   const { t } = useTextos('numeros');
   const [dados, setDados] = useState(null);
   const [clientes, setClientes] = useState([]);
-  const faixaLogos = useRef(null);
-  const logosNaTela = useEntrouNaTela(faixaLogos);
+  const [faixaLogos, logosNaTela] = useEntrouNaTela();
 
   useEffect(() => {
     (async () => {
@@ -177,6 +197,7 @@ export default function Numeros() {
         >
           {dados && (
             <div>
+              <h2 className={TITULO}>{t('titulo_numeros')}</h2>
               <div className="grid grid-cols-2 gap-6 text-center">
                 <div>
                   <p className="font-display font-bold text-amber-400 text-4xl sm:text-5xl">
@@ -191,15 +212,12 @@ export default function Numeros() {
                   <p className="text-white/90 text-sm sm:text-base mt-2">{t('rotulo2')}</p>
                 </div>
               </div>
-              <p className="text-center text-purple-300 text-xs mt-6">{t('rodape')}</p>
             </div>
           )}
 
           {clientes.length > 0 && (
             <div className="lg:pl-14">
-              <p className="text-center text-amber-400 text-xs font-semibold uppercase tracking-[0.08em] mb-6">
-                {t('titulo_clientes')}
-              </p>
+              <h2 className={TITULO}>{t('titulo_clientes')}</h2>
               <div
                 ref={faixaLogos}
                 className="flex flex-wrap items-center justify-center gap-3 sm:gap-4"
