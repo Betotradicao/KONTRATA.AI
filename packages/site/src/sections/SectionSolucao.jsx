@@ -1,4 +1,5 @@
 import { Link2, Zap } from 'lucide-react';
+import { useTextos } from '../textos';
 
 const CARDS = [
   {
@@ -14,23 +15,32 @@ const CARDS = [
 ];
 
 export default function SectionSolucao() {
+  const { t } = useTextos('solucao');
+
+  // Os icones ficam no codigo; so o texto dos dois cards e editavel.
+  const cards = CARDS.map((c, i) => ({
+    ...c,
+    title: t(`card${i + 1}_titulo`, c.title),
+    text: t(`card${i + 1}_texto`, c.text),
+  }));
+
   return (
     <section className="py-14 lg:py-28 bg-white">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <span className="text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block">
-            A solução
+            {t('olho', 'A solução')}
           </span>
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            Um RH inteiro, feito para a sua realidade.
+            {t('titulo', 'Um RH inteiro, feito para a sua realidade.')}
           </h2>
           <p className="text-text-gray text-sm sm:text-lg max-w-2xl mx-auto">
-            O Kontrataai nasceu dentro de um supermercado, com uma dor real.
+            {t('sub', 'O Kontrataai nasceu dentro de um supermercado, com uma dor real.')}
           </p>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {CARDS.map(({ Icon, title, text }) => (
+          {cards.map(({ Icon, title, text }) => (
             <div
               key={title}
               className="bg-purple-50 rounded-2xl p-5 sm:p-8 flex flex-col gap-3 sm:gap-4"

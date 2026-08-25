@@ -1,9 +1,8 @@
 import { evento } from '../analytics';
+import { useTextos } from '../textos';
 import dashboard from '../assets/dashboard.png';
 
-// Faixa deslizante do hero. A lista e duplicada de proposito: o marquee anda
-// ate -50% e reinicia, entao a segunda copia cobre a emenda e o giro fica
-// continuo, sem "pulo".
+// Faixa deslizante do hero. Padrao — o painel pode trocar a lista inteira.
 const RECURSOS = [
   'Banco de currículos automático',
   'Escala de Trabalho',
@@ -33,8 +32,10 @@ function Shimmer({ children }) {
   );
 }
 
-function Marquee() {
-  const itens = [...RECURSOS, ...RECURSOS];
+// A lista e duplicada de proposito: o marquee anda ate -50% e reinicia, entao
+// a segunda copia cobre a emenda e o giro fica continuo, sem "pulo".
+function Marquee({ recursos }) {
+  const itens = [...recursos, ...recursos];
   return (
     <div className="mt-6 w-full overflow-hidden -mx-5">
       <div className="flex gap-3 w-max animate-marquee">
@@ -53,6 +54,8 @@ function Marquee() {
 }
 
 export default function Hero() {
+  const { t, lista } = useTextos('hero');
+
   return (
     <section className="relative overflow-hidden bg-hero-bg pt-16">
       {/* Gradiente roxo que "respira" — 400% de tamanho pra ter pra onde andar */}
@@ -77,19 +80,21 @@ export default function Hero() {
         <div className="grid lg:grid-cols-[0.8fr_1.2fr] gap-8 lg:gap-12 items-center">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-white leading-snug mb-4 text-[2rem] sm:text-5xl lg:text-[3.75rem]">
-              Acabe com o caos
+              {t('titulo1', 'Acabe com o caos')}
               <br />
-              do RH do seu
+              {t('titulo2', 'do RH do seu')}
               <br />
-              <Shimmer>supermercado</Shimmer>.
+              <Shimmer>{t('destaque', 'supermercado')}</Shimmer>.
             </h1>
 
             <p className="text-white/90 text-base lg:text-lg font-medium mb-2 break-words">
-              O Kontrataai foi pensado exclusivamente para supermercado.
+              {t('sub1', 'O Kontrataai foi pensado exclusivamente para supermercado.')}
             </p>
             <p className="text-purple-300 text-sm lg:text-base leading-relaxed mb-6 break-words">
-              Os candidatos se cadastram pelo seu link e você tem o banco de currículos
-              organizado o ano inteiro.
+              {t(
+                'sub2',
+                'Os candidatos se cadastram pelo seu link e você tem o banco de currículos organizado o ano inteiro.'
+              )}
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -98,18 +103,18 @@ export default function Hero() {
                 onClick={() => evento('clique_demo', { origem: 'hero' })}
                 className="block text-center px-7 py-3.5 rounded-lg bg-amber-400 text-text-dark font-semibold text-base hover:bg-amber-500 transition-colors"
               >
-                Quero ver uma demonstração →
+                {t('cta1', 'Quero ver uma demonstração →')}
               </a>
               <a
                 href="#pricing"
                 onClick={() => evento('clique_planos', { origem: 'hero' })}
                 className="block text-center px-7 py-3.5 rounded-lg border-2 border-white/30 text-white font-semibold text-base hover:bg-white/10 transition-colors"
               >
-                Ver os planos
+                {t('cta2', 'Ver os planos')}
               </a>
             </div>
 
-            <Marquee />
+            <Marquee recursos={lista('recursos', RECURSOS)} />
           </div>
 
           <div className="hidden lg:block">

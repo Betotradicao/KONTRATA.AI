@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
 import { api, guardarToken } from './api';
+import CampoSenha from './CampoSenha';
 
 export default function Login({ aoEntrar }) {
   const [usuario, setUsuario] = useState('');
@@ -49,14 +50,9 @@ export default function Login({ aoEntrar }) {
         />
 
         <label className="block text-xs font-semibold text-gray-600 mb-1">Senha</label>
-        <input
-          type="password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          autoComplete="current-password"
-          required
-          className="w-full border-2 border-gray-200 rounded-lg px-3 py-2.5 text-sm mb-4 outline-none focus:border-purple-600"
-        />
+        <div className="mb-4">
+          <CampoSenha value={senha} onChange={(e) => setSenha(e.target.value)} required />
+        </div>
 
         {erro && (
           <p className="text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs mb-4">

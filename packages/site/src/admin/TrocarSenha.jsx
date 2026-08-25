@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { api } from './api';
+import CampoSenha from './CampoSenha';
 
 /**
  * Tela obrigatória no primeiro acesso. Aparece porque a conta foi criada com
@@ -47,16 +48,21 @@ export default function TrocarSenha({ aoTrocar }) {
         </div>
 
         <label className="block text-xs font-semibold text-gray-600 mb-1">Senha temporária</label>
-        <input type="password" value={atual} onChange={(e) => setAtual(e.target.value)}
-          autoComplete="current-password" required className={campo} />
+        <div className="mb-4">
+          <CampoSenha value={atual} onChange={(e) => setAtual(e.target.value)} required />
+        </div>
 
         <label className="block text-xs font-semibold text-gray-600 mb-1">Nova senha</label>
-        <input type="password" value={nova} onChange={(e) => setNova(e.target.value)}
-          autoComplete="new-password" required className={campo} />
+        <div className="mb-4">
+          <CampoSenha value={nova} onChange={(e) => setNova(e.target.value)}
+            autoComplete="new-password" required />
+        </div>
 
         <label className="block text-xs font-semibold text-gray-600 mb-1">Repita a nova senha</label>
-        <input type="password" value={repetir} onChange={(e) => setRepetir(e.target.value)}
-          autoComplete="new-password" required className={campo} />
+        <div className="mb-4">
+          <CampoSenha value={repetir} onChange={(e) => setRepetir(e.target.value)}
+            autoComplete="new-password" required />
+        </div>
 
         {erro && (
           <p className="text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs mb-4">

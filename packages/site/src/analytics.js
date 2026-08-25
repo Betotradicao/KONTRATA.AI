@@ -1,41 +1,55 @@
 /**
  * Google Analytics 4.
  *
- * O ID vem da variavel de ambiente VITE_GA_ID (ex: G-XXXXXXXXXX), definida no
- * build. Sem ID, nada e carregado — assim rodar local nao suja as metricas de
- * producao com acesso de desenvolvimento.
+ * O ID de medição (G-XXXXXXXXXX) vem do PAINEL INTERNO
+ * (kontrataai.com.br/admin → Integrações), buscado quando a página abre.
  *
- * Onde por o ID: packages/site/.env.production  ->  VITE_GA_ID=G-XXXXXXXXXX
+ * POR QUE NÃO NO BUILD: antes o ID vinha de VITE_GA_ID, o que amarrava trocar
+ * a medição a republicar o site inteiro. Vindo do painel, muda na hora.
+ *
+ * Sem ID configurado, nada é carregado — rodar local não suja as métricas.
  */
-const GA_ID = import.meta.env.VITE_GA_ID;
+let idMedicao = null;
 
-export function iniciarAnalytics() {
-  if (!GA_ID) return; // sem ID configurado: nao mede nada
+async function buscarId() {
+  // Se o painel estiver fora do ar, o site continua funcionando sem medição.
+  try {
+    const r = await fetch('/admin/api/publico/config-site');
+    const d = await r.json();
+    return d?.googleAnalyticsId || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function iniciarAnalytics() {
+  idMedicao = await buscarId();
+  if (!idMedicao) return;
 
   const s = document.createElement('script');
   s.async = true;
-  s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${idMedicao}`;
   document.head.appendChild(s);
 
   window.dataLayer = window.dataLayer || [];
   function gtag() { window.dataLayer.push(arguments); }
   window.gtag = gtag;
   gtag('js', new Date());
-  gtag('config', GA_ID);
+  gtag('config', idMedicao);
 }
 
 /**
- * Registra um evento. Usado nos botoes que importam (agendar demo, ver planos,
- * assinar) pra saber o que converte — nao so quantos acessos entraram.
+ * Registra um evento. Usado nos botões que importam (agendar demo, ver planos,
+ * assinar) pra saber o que converte — não só quantos acessos entraram.
  */
 export function evento(nome, params = {}) {
-  if (!GA_ID || typeof window.gtag !== 'function') return;
+  if (!idMedicao || typeof window.gtag !== 'function') return;
   window.gtag('event', nome, params);
 }
 
-/** Troca de pagina numa SPA nao dispara pageview sozinho — precisa avisar. */
+/** Troca de página numa SPA não dispara pageview sozinho — precisa avisar. */
 export function pageview(caminho) {
-  if (!GA_ID || typeof window.gtag !== 'function') return;
+  if (!idMedicao || typeof window.gtag !== 'function') return;
   window.gtag('event', 'page_view', {
     page_path: caminho,
     page_location: window.location.href,

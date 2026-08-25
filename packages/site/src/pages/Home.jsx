@@ -1,5 +1,6 @@
 import Header from '../components/Header';
 import Hero from '../components/Hero';
+import Numeros from '../sections/Numeros';
 import SectionDor from '../sections/SectionDor';
 import SectionSolucao from '../sections/SectionSolucao';
 import SectionComoFunciona from '../sections/SectionComoFunciona';
@@ -23,6 +24,7 @@ export default function Home() {
       <SectionComoFunciona />
       <SectionComparativo />
       <SectionOrigem />
+      <Numeros />
       <Pricing />
       <FAQ />
       <CTABlock />

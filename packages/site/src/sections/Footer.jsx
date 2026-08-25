@@ -1,4 +1,5 @@
 import { Award, Shield } from 'lucide-react';
+import { useTextos } from '../textos';
 
 const COLUNAS = {
   Produto: ['Funcionalidades', 'Pricing', 'Para quem é', 'Demo'],
@@ -7,6 +8,8 @@ const COLUNAS = {
 };
 
 export default function Footer() {
+  const { t } = useTextos('rodape');
+
   return (
     <footer className="bg-hero-bg text-white">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-10 lg:py-20">
@@ -16,7 +19,10 @@ export default function Footer() {
               <span className="font-display font-bold text-xl text-white">Kontrataai</span>
             </div>
             <p className="text-purple-400 text-sm leading-relaxed mb-5 max-w-xs">
-              Recrutamento inteligente e gestão completa com a marca do seu supermercado.
+              {t(
+                'descricao',
+                'Recrutamento inteligente e gestão completa com a marca do seu supermercado.'
+              )}
             </p>
             <div className="flex flex-wrap gap-3">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-purple-600/50 text-xs">
@@ -54,7 +60,7 @@ export default function Footer() {
         <hr className="border-purple-600/20 my-8" />
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-purple-400">
-          <p>© 2026 Kontrataai. Todos os direitos reservados.</p>
+          <p>{t('copyright', '© 2026 Kontrataai. Todos os direitos reservados.')}</p>
           <div className="flex gap-5">
             <a href="#" className="hover:text-white transition-colors">
               Termos de Uso

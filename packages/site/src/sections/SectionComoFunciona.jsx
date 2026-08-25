@@ -1,3 +1,5 @@
+import { useTextos } from '../textos';
+
 const PASSOS = [
   {
     num: '01',
@@ -22,20 +24,30 @@ const PASSOS = [
 ];
 
 export default function SectionComoFunciona() {
+  const { t } = useTextos('comofunciona');
+
+  // A numeracao (01..04) fica no codigo — trocar o texto nao pode desalinhar
+  // o "01" gigante do card com o passo que ele numera.
+  const passos = PASSOS.map((p, i) => ({
+    ...p,
+    title: t(`passo${i + 1}_titulo`, p.title),
+    text: t(`passo${i + 1}_texto`, p.text),
+  }));
+
   return (
     <section id="como-funciona" className="py-14 lg:py-28 bg-purple-50">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
         <div className="text-center mb-8 lg:mb-14">
           <span className="text-purple-800 text-xs font-semibold uppercase tracking-[0.08em] mb-3 block">
-            Como funciona?
+            {t('olho', 'Como funciona?')}
           </span>
           <h2 className="font-display font-bold text-text-dark text-2xl sm:text-4xl lg:text-5xl mb-4">
-            Do currículo ao contratado em 4 passos.
+            {t('titulo', 'Do currículo ao contratado em 4 passos.')}
           </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {PASSOS.map((p) => (
+          {passos.map((p) => (
             <div key={p.num} className="relative">
               <div className="text-[64px] font-display font-bold text-purple-100 leading-none mb-4 select-none">
                 {p.num}

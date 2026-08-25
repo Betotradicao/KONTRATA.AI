@@ -89,7 +89,10 @@ export default function Usuarios({ euId }) {
                       className="p-1.5 rounded hover:bg-purple-100 text-purple-800" title="Editar">
                       <Pencil className="w-4 h-4" />
                     </button>
-                    {u.id !== euId && (
+                    {/* Sem lixeira em master nem na propria conta: apagar o
+                        dono do painel por engano nao tem desfazer. Pra excluir,
+                        tire o master antes — dois passos deliberados. */}
+                    {u.id !== euId && !u.master && (
                       <button onClick={() => excluir(u)}
                         className="p-1.5 rounded hover:bg-red-100 text-red-600" title="Excluir">
                         <Trash2 className="w-4 h-4" />

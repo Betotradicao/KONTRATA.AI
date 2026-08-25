@@ -42,6 +42,52 @@ app.get('/api/publico/treinamentos', async (_req, res) => {
   }
 });
 
+// ── Publico: configuracoes que o site precisa antes de qualquer login ────
+// Hoje so o Google Analytics. Fica publico porque o proprio site consome, e
+// o ID de medicao ja seria visivel no codigo da pagina de qualquer forma.
+app.get('/api/publico/config-site', async (_req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT valor FROM integracoes WHERE chave = 'google_analytics_id'`
+    );
+    res.json({ googleAnalyticsId: rows[0]?.valor || null });
+  } catch (e) {
+    // Falhar aqui nao pode derrubar o site: sem medicao e melhor que sem site.
+    console.error('[config-site]', e.message);
+    res.json({ googleAnalyticsId: null });
+  }
+});
+
+// ── Publico: numeros da plataforma (prova social do site) ────────────────
+// Soma de todos os clientes. Devolve SO os totais: nada de nome de cliente,
+// candidato ou qualquer dado pessoal.
+app.get('/api/publico/numeros', async (_req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT COALESCE(SUM(total_curriculos),0)::int  AS curriculos,
+              COALESCE(SUM(total_contratados),0)::int AS contratados,
+              MAX(stats_em)                           AS atualizado_em
+         FROM clientes`
+    );
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('[numeros]', e.message);
+    res.json({ curriculos: 0, contratados: 0, atualizado_em: null });
+  }
+});
+
+// ── Publico: textos do site ──────────────────────────────────────────────
+// So o que foi editado no painel. O site usa o texto do codigo pro resto.
+app.get('/api/publico/site', async (_req, res) => {
+  try {
+    const { rows } = await query('SELECT dados FROM site_config WHERE id = 1');
+    res.json(rows[0]?.dados || {});
+  } catch (e) {
+    console.error('[site publico]', e.message);
+    res.json({}); // vazio = site cai no texto do codigo, nunca quebra
+  }
+});
+
 // ── Publico: planos exibidos em kontrataai.com.br ────────────────────────
 // Sem login: e a secao de precos do site que consome.
 app.get('/api/publico/planos', async (_req, res) => {
@@ -140,7 +186,7 @@ app.use('/api', exigirLogin);
 // ── Resumo do topo ───────────────────────────────────────────────────────
 app.get('/api/resumo', async (_req, res) => {
   try {
-    const [ativos, prospects, receita, aReceber, vencidas] = await Promise.all([
+    const [ativos, prospects, receita, aReceber, vencidas, numeros] = await Promise.all([
       query("SELECT COUNT(*)::int n FROM clientes WHERE situacao = 'ativo'"),
       query("SELECT COUNT(*)::int n FROM clientes WHERE situacao = 'prospeccao' AND estagio NOT IN ('ganho','perdido')"),
       // Receita = valor do plano MENOS o desconto em R$ de cada um.
@@ -153,9 +199,14 @@ app.get('/api/resumo', async (_req, res) => {
       ),
       query("SELECT COALESCE(SUM(valor),0)::float v FROM cobrancas WHERE status = 'pendente'"),
       query("SELECT COUNT(*)::int n FROM cobrancas WHERE status = 'pendente' AND vencimento < CURRENT_DATE"),
+      query(`SELECT COALESCE(SUM(total_curriculos),0)::int c, COALESCE(SUM(total_contratados),0)::int k,
+                    MAX(stats_em) em FROM clientes`),
     ]);
     res.json({
       clientesAtivos: ativos.rows[0].n,
+      curriculos: numeros.rows[0].c,
+      contratados: numeros.rows[0].k,
+      statsEm: numeros.rows[0].em,
       prospects: prospects.rows[0].n,
       receitaMensal: receita.rows[0].v,
       aReceber: aReceber.rows[0].v,
@@ -246,6 +297,39 @@ app.delete('/api/clientes/:id', async (req, res) => {
   } catch (e) {
     console.error('[clientes excluir]', e.message);
     res.status(500).json({ erro: 'Erro ao excluir cliente' });
+  }
+});
+
+// ── Conteúdo do site ─────────────────────────────────────────────────────
+app.get('/api/site-config', async (_req, res) => {
+  const { rows } = await query('SELECT dados FROM site_config WHERE id = 1');
+  res.json(rows[0]?.dados || {});
+});
+
+/**
+ * Grava UMA seção por vez, mesclando com o que já existe.
+ * Assim salvar o hero não apaga os textos do FAQ — cada tela do painel
+ * manda só o pedaço dela.
+ */
+app.put('/api/site-config/:secao', async (req, res) => {
+  const secao = String(req.params.secao || "").replace(/[^a-z0-9_]/gi, "");
+  if (!secao) return res.status(400).json({ erro: 'Seção inválida' });
+  try {
+    // Upsert em vez de UPDATE: se a linha 1 nao existir, um UPDATE afetaria
+    // zero linhas e a tela diria "salvo" sem ter salvado nada.
+    const { rows } = await query(
+      `INSERT INTO site_config (id, dados)
+            VALUES (1, jsonb_build_object($1::text, $2::jsonb))
+       ON CONFLICT (id) DO UPDATE
+            SET dados = jsonb_set(site_config.dados, ARRAY[$1], $2::jsonb, true),
+                updated_at = now()
+         RETURNING dados`,
+      [secao, JSON.stringify(req.body || {})]
+    );
+    res.json(rows[0]?.dados || {});
+  } catch (e) {
+    console.error('[site-config]', e.message);
+    res.status(500).json({ erro: 'Erro ao salvar' });
   }
 });
 
@@ -592,6 +676,15 @@ app.delete('/api/usuarios/:id', exigirMaster, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (id === req.usuario.id) {
     return res.status(400).json({ erro: 'Você não pode excluir a própria conta' });
+  }
+
+  // Esconder o botão não basta: sem esta trava, uma chamada direta à API
+  // ainda apagaria o master e deixaria o painel sem dono.
+  const { rows: alvo } = await query('SELECT master FROM usuarios WHERE id = $1', [id]);
+  if (alvo[0]?.master) {
+    return res.status(400).json({
+      erro: 'Não dá para excluir um usuário master. Remova o master dele primeiro.',
+    });
   }
   await query('DELETE FROM usuarios WHERE id = $1', [id]);
   res.json({ ok: true });

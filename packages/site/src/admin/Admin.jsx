@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Building2, Target, DollarSign, GraduationCap, Plug, LogOut, Users, Menu, Tags,
+  Type, ExternalLink,
 } from 'lucide-react';
 import { api, pegarToken, limparToken } from './api';
 import Login from './Login';
@@ -12,6 +13,7 @@ import AcessosTreinamento from './abas/AcessosTreinamento';
 import Usuarios from './abas/Usuarios';
 import Integracoes from './abas/Integracoes';
 import Planos from './abas/Planos';
+import SiteTextos from './abas/SiteTextos';
 
 const MENU = [
   { id: 'ativos',       label: 'Clientes Ativos',      Icon: Building2 },
@@ -19,7 +21,13 @@ const MENU = [
   { id: 'financeiro',   label: 'Financeiro',           Icon: DollarSign },
   { id: 'treinamentos', label: 'Treinamentos',         Icon: GraduationCap },
   { id: 'integracoes',  label: 'Integrações',          Icon: Plug },
-  { id: 'planos',       label: 'Planos',               Icon: Tags },
+];
+
+// Tudo que muda a cara de kontrataai.com.br fica junto, num grupo só.
+// Planos veio pra cá: é conteúdo do site tanto quanto os textos.
+const GRUPO_SITE = [
+  { id: 'site_textos', label: 'Textos',  Icon: Type },
+  { id: 'planos',      label: 'Planos',  Icon: Tags },
 ];
 
 // Só o master enxerga. Fica no fim, separado do menu do dia a dia.
@@ -79,7 +87,7 @@ export default function Admin() {
 
   if (precisaTrocar) return <TrocarSenha aoTrocar={() => setPrecisaTrocar(false)} />;
 
-  const itens = [...MENU, ...(usuario.master ? [ITEM_MASTER] : [])];
+  const itens = [...MENU, ...GRUPO_SITE, ...(usuario.master ? [ITEM_MASTER] : [])];
   const atual = itens.find((i) => i.id === secao);
 
   const irPara = (id) => { setSecao(id); setMenuAberto(false); };
@@ -95,7 +103,7 @@ export default function Admin() {
                     ${menuAberto ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="px-5 py-5 border-b border-white/10">
-          <a href="/" className="font-display font-bold text-xl hover:text-amber-400 transition-colors">
+          <a href="/" className="font-display font-bold text-xl text-amber-400 hover:text-amber-300 transition-colors">
             Kontrataai
           </a>
           <p className="text-[10px] uppercase tracking-wider text-purple-300 mt-0.5">
@@ -105,6 +113,21 @@ export default function Admin() {
 
         <nav className="flex-1 overflow-y-auto py-3">
           {MENU.map(({ id, label, Icon }) => (
+            <ItemMenu key={id} ativo={secao === id} onClick={() => irPara(id)} Icon={Icon} label={label} />
+          ))}
+
+          <div className="mx-5 my-3 border-t border-white/10" />
+          <div className="px-5 pb-1 flex items-center justify-between gap-2">
+            <p className="text-[10px] uppercase tracking-wider text-purple-300/70">
+              Configurar Site
+            </p>
+            <a href="/" target="_blank" rel="noopener noreferrer"
+              title="Abrir o site numa nova aba"
+              className="text-purple-300/70 hover:text-white transition-colors">
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+          {GRUPO_SITE.map(({ id, label, Icon }) => (
             <ItemMenu key={id} ativo={secao === id} onClick={() => irPara(id)} Icon={Icon} label={label} />
           ))}
 
@@ -186,6 +209,7 @@ export default function Admin() {
             </div>
           )}
           {secao === 'integracoes' && <Integracoes />}
+          {secao === 'site_textos' && <SiteTextos />}
           {secao === 'planos' && <Planos />}
           {secao === 'usuarios' && usuario.master && <Usuarios euId={usuario.id} />}
         </main>

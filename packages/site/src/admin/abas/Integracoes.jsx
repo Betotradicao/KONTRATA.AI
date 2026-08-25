@@ -4,6 +4,10 @@ import { api } from '../api';
 
 // Rótulos amigáveis pras chaves cruas do banco.
 const DESCRICAO = {
+  google_analytics_id: {
+    titulo: 'Google Analytics — ID de medição',
+    ajuda: 'O código G-XXXXXXXXXX da propriedade do site. Cole aqui e a medição começa na hora, sem republicar o site. Vazio = nada é medido.',
+  },
   asaas_api_key: {
     titulo: 'Asaas — Chave de API',
     ajuda: 'Painel do Asaas → Integrações → Gerar chave. É com ela que dá pra puxar as cobranças e a baixa automática pro Financeiro.',
@@ -11,6 +15,10 @@ const DESCRICAO = {
   asaas_ambiente: {
     titulo: 'Asaas — Ambiente',
     ajuda: 'producao ou sandbox. Use sandbox para testar sem gerar boleto de verdade.',
+  },
+  whatsapp_evolution_instance: {
+    titulo: 'WhatsApp — Instância',
+    ajuda: 'Nome da instância na Evolution (ex: KONTRATAAI). Sem ele, a URL e a chave sozinhas não sabem por qual número mandar.',
   },
   whatsapp_evolution_url: {
     titulo: 'WhatsApp — URL da Evolution API',
@@ -41,7 +49,15 @@ export default function Integracoes() {
         valor: rascunho[item.chave] ?? '',
         secreto: item.secreto,
       });
-      setRascunho((r) => ({ ...r, [item.chave]: '' }));
+      // REMOVE a chave do rascunho em vez de zerar com "".
+      // Com `rascunho[chave] ?? item.valor`, uma string vazia NÃO cai pro
+      // valor guardado (?? só cai em null/undefined) — e o campo aparecia
+      // em branco mesmo com o dado salvo.
+      setRascunho((r) => {
+        const novo = { ...r };
+        delete novo[item.chave];
+        return novo;
+      });
       setSalvo(item.chave);
       setTimeout(() => setSalvo(null), 2500);
       carregar();

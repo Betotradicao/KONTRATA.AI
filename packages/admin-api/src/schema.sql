@@ -138,6 +138,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_cobrancas_cliente_competencia
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS teste_inicio DATE;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS teste_dias   INTEGER;
 
+-- Números do Banco de Currículos de cada cliente, copiados de tempos em
+-- tempos pelo scripts/sincronizar-estatisticas.sh.
+--
+-- POR QUE COPIAR e não consultar ao vivo: os dados moram no banco de cada
+-- cliente. Consultar na hora exigiria o painel guardar a senha dos nove
+-- bancos, ou subir código novo em todos eles. Copiar uma vez por dia dá o
+-- mesmo número na prática e não abre nada.
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS total_curriculos  INTEGER;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS total_contratados INTEGER;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS stats_em          TIMESTAMPTZ;
+
 -- Logotipo do cliente, exibido na lista. É uma URL (o logo já está hospedado
 -- no sistema do próprio cliente), então não guardamos arquivo aqui.
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS logo_url TEXT;
@@ -207,3 +218,28 @@ CREATE TABLE IF NOT EXISTS integracoes (
   secreto    BOOLEAN NOT NULL DEFAULT false,
   atualizado TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Chaves que aparecem na tela mesmo vazias, pra ficar claro o que dá pra
+-- configurar. `secreto = false` no Analytics: o ID de medição já fica visível
+-- no código de qualquer página, não é segredo nenhum.
+INSERT INTO integracoes (chave, valor, secreto) VALUES
+  ('google_analytics_id', NULL, false),
+  ('whatsapp_evolution_instance', NULL, false)
+ON CONFLICT (chave) DO NOTHING;
+
+-- ── CONTEÚDO DO SITE ─────────────────────────────────────────────────────
+-- Uma linha só, tudo em JSONB: os textos de kontrataai.com.br editáveis pelo
+-- painel, seção por seção, sem republicar o site.
+--
+-- POR QUE JSONB e não uma coluna por texto: o site muda de forma o tempo
+-- todo. Cada frase nova viraria uma migration; assim é só acrescentar a
+-- chave na tela.
+--
+-- Vazio = o site usa o texto que está no código. Ou seja: só o que for
+-- editado aqui sobrescreve, o resto continua funcionando.
+CREATE TABLE IF NOT EXISTS site_config (
+  id         INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  dados      JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO site_config (id, dados) VALUES (1, '{}'::jsonb) ON CONFLICT (id) DO NOTHING;
