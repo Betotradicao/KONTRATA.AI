@@ -1,5 +1,6 @@
 import { Award, Shield } from 'lucide-react';
 import { useTextos } from '../textos';
+import RedesSociais from '../components/RedesSociais';
 
 const COLUNAS = {
   Produto: ['Funcionalidades', 'Pricing', 'Para quem é', 'Demo'],
@@ -24,6 +25,8 @@ export default function Footer() {
                 'Recrutamento inteligente e gestão completa com a marca do seu supermercado.'
               )}
             </p>
+            <RedesSociais className="mb-5" />
+
             <div className="flex flex-wrap gap-3">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-purple-600/50 text-xs">
                 <Shield className="w-3.5 h-3.5 text-success" />

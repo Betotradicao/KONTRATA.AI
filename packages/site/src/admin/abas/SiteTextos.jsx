@@ -144,6 +144,17 @@ const SECOES = [
     ],
   },
   {
+    id: 'redes',
+    titulo: 'Redes sociais',
+    dica: 'Cole o link de cada rede. Só as preenchidas aparecem no rodapé do site — deixe em branco as que você não usa.',
+    campos: [
+      { k: 'instagram', r: 'Instagram', p: 'https://instagram.com/kontrataai' },
+      { k: 'facebook', r: 'Facebook', p: 'https://facebook.com/kontrataai' },
+      { k: 'youtube', r: 'YouTube', p: 'https://youtube.com/@kontrataai' },
+      { k: 'google', r: 'Google Meu Negócio', p: 'https://share.google/...' },
+    ],
+  },
+  {
     id: 'rodape',
     titulo: 'Rodapé',
     campos: [

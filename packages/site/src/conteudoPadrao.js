@@ -121,6 +121,15 @@ export const PADRAO = {
     botao: 'Agendar demonstração →',
   },
 
+  // Nascem VAZIAS de proposito: rede social sem link viraria ícone que não
+  // leva a lugar nenhum. Só aparece no site o que for preenchido no painel.
+  redes: {
+    instagram: '',
+    facebook: '',
+    youtube: '',
+    google: '',
+  },
+
   rodape: {
     descricao: 'Recrutamento inteligente e gestão completa com a marca do seu supermercado.',
     copyright: '© 2026 Kontrataai. Todos os direitos reservados.',
