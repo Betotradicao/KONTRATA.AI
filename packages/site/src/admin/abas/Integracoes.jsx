@@ -37,6 +37,7 @@ export default function Integracoes({ master = false }) {
   const [salvo, setSalvo] = useState(null);
   // Segredos que o master pediu pra ver: chave -> valor em texto.
   const [revelado, setRevelado] = useState({});
+  const [erroRevelar, setErroRevelar] = useState(null);
 
   const carregar = async () => {
     try { setLista(await api.get('/integracoes')); } catch { setLista([]); }
@@ -56,8 +57,19 @@ export default function Integracoes({ master = false }) {
     try {
       const { valor } = await api.get(`/integracoes/${item.chave}/revelar`);
       setRevelado((r) => ({ ...r, [item.chave]: valor }));
-    } catch {
-      /* sem permissão ou sem valor: o campo continua escondido */
+
+      // 🪤 O campo mostra `rascunho[chave] ?? revelado[chave]`, e `??` só cai
+      // pro lado direito em null/undefined. Quem clicou no campo e apagou o
+      // que digitou deixa uma string VAZIA no rascunho — que ganha do valor
+      // revelado e faz o olhinho "não funcionar". Some com a entrada.
+      setRascunho((r) => {
+        const novo = { ...r };
+        delete novo[item.chave];
+        return novo;
+      });
+    } catch (e) {
+      setErroRevelar({ chave: item.chave, texto: e.message });
+      setTimeout(() => setErroRevelar(null), 4000);
     }
   };
 
@@ -137,6 +149,15 @@ export default function Integracoes({ master = false }) {
                     placeholder={
                       item.secreto && item.preenchido ? '•••••••• (deixe em branco para manter)' : ''
                     }
+                    // O Chrome ve um type=password e oferece os logins salvos
+                    // numa lista que cobre o campo. Aqui nao e login de
+                    // ninguem: e uma chave de API.
+                    name={`integracao_${item.chave}`}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    data-1p-ignore
+                    data-lpignore="true"
                     className={`w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-600 ${
                       item.secreto && master ? 'pr-10' : ''
                     }`}
@@ -164,6 +185,12 @@ export default function Integracoes({ master = false }) {
                   {salvando === item.chave ? 'Salvando…' : salvo === item.chave ? 'Salvo!' : 'Salvar'}
                 </button>
               </div>
+
+              {erroRevelar?.chave === item.chave && (
+                <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
+                  Não consegui mostrar: {erroRevelar.texto}
+                </p>
+              )}
             </div>
           );
         })}
@@ -187,6 +214,19 @@ function TesteWhatsApp() {
   const [numero, setNumero] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState(null);
+
+  // Ja vem com o WhatsApp cadastrado em Configurar Site: quase sempre e pra
+  // ele que se manda o teste, e digitar onze digitos a cada tentativa cansa.
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await api.get('/site-config');
+        if (cfg?.contato?.whatsapp) setNumero(cfg.contato.whatsapp);
+      } catch {
+        /* sem numero cadastrado: a pessoa digita */
+      }
+    })();
+  }, []);
 
   const enviar = async () => {
     setEnviando(true);
@@ -217,6 +257,8 @@ function TesteWhatsApp() {
           onChange={(e) => setNumero(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && numero && enviar()}
           placeholder="Número com DDD (ex: 12988887777)"
+          name="whatsapp_teste"
+          autoComplete="off"
           className="flex-1 min-w-[220px] border-2 border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-600"
         />
         <button
