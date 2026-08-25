@@ -19,7 +19,7 @@ export const PADRAO = {
   // a chamada final, como faziam antes. Preencheu, viram link do WhatsApp.
   contato: {
     whatsapp: '',
-    mensagem: 'Olá! Vim pelo site e quero ver uma demonstração do Kontrataai.',
+    mensagem: 'Olá! Vim pelo site e quero conhecer melhor o Kontrataai.',
   },
 
   hero: {
