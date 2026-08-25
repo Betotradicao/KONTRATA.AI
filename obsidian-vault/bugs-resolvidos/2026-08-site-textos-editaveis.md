@@ -92,6 +92,22 @@ que a lista padrão pra dar pra acrescentar sem mexer no código. O par só
 aparece com os dois campos preenchidos — apagar a pergunta some com o item
 inteiro, em vez de deixar um título vazio abrindo uma resposta órfã.
 
+## Vitrine de clientes (faixa roxa, ao lado dos números)
+
+`clientes.no_site` decide quem aparece — escolha **por cliente**, com
+interruptor no cadastro. Não é "todo mundo que está ativo": nem todo cliente
+quer virar peça de propaganda, e descobrir isso depois de publicar é caro.
+
+⚠️ **O logo não viaja no JSON da lista.** Está guardado como data URI de até
+250 KB (o Da Mata tem 243 KB) — quatro deles na mesma resposta fariam a home
+baixar quase 1 MB antes de desenhar qualquer coisa. `GET
+/api/publico/clientes` devolve só `{id, nome}`, e
+`/api/publico/clientes/:id/logo` decodifica o base64 de volta pra imagem, com
+`Cache-Control: max-age=86400`. O navegador baixa em paralelo e uma vez só.
+
+Esse endpoint também respeita o `no_site`: cliente não marcado dá 404, senão
+bastaria adivinhar um id pra puxar o logo de qualquer um.
+
 ## O que ficou de fora de propósito
 
 - **Ícones e numeração** (o `01`..`04` de Como Funciona, os ícones dos cards da
