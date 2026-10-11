@@ -89,7 +89,7 @@ export default function PontoRhidTab() {
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">E-mail (login RHiD)</label>
         <input type="text" value={form.email} onChange={e => set('email', e.target.value)}
-          placeholder="ex: empresa@email.com"
+          placeholder="ex: empresa@email.com" autoComplete="off"
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
       </div>
 
@@ -97,7 +97,7 @@ export default function PontoRhidTab() {
         <label className="block text-sm font-medium text-gray-700 mb-2">Senha RHiD</label>
         <div className="relative">
           <input type={showSenha ? 'text' : 'password'} value={form.senha} onChange={e => set('senha', e.target.value)}
-            placeholder="Senha da conta RHiD"
+            placeholder="Senha da conta RHiD" autoComplete="new-password"
             className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           <button type="button" onClick={() => setShowSenha(s => !s)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-sm">

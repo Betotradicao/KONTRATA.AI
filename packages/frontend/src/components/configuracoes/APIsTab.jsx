@@ -760,6 +760,7 @@ AND ROWNUM &lt;= 5</pre>
           value={apiConfigs.intersolid.username}
           onChange={(e) => handleInputChange('intersolid', 'username', e.target.value)}
           placeholder="Nome de usuário"
+          autoComplete="off"
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
@@ -774,6 +775,7 @@ AND ROWNUM &lt;= 5</pre>
             value={apiConfigs.intersolid.password}
             onChange={(e) => handleInputChange('intersolid', 'password', e.target.value)}
             placeholder="Senha"
+            autoComplete="new-password"
             className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
@@ -1018,6 +1020,7 @@ AND ROWNUM &lt;= 5</pre>
           value={apiConfigs.evolution.apiUrl}
           onChange={(e) => handleInputChange('evolution', 'apiUrl', e.target.value)}
           placeholder="https://evolution.api.com.br"
+          autoComplete="off"
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
@@ -1032,6 +1035,7 @@ AND ROWNUM &lt;= 5</pre>
             value={apiConfigs.evolution.apiToken}
             onChange={(e) => handleInputChange('evolution', 'apiToken', e.target.value)}
             placeholder="Token de autenticação"
+            autoComplete="new-password"
             className="w-full px-4 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
