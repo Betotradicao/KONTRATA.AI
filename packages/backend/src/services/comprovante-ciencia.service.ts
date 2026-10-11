@@ -1,5 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import axios from 'axios';
 import { AppDataSource } from '../config/database';
+import { minioService } from './minio.service';
 
 /**
  * Comprovante de ciência eletrônica: anexa ao final do PDF do holerite uma página
@@ -17,6 +19,36 @@ const METODO: Record<string, string> = {
 
 // Helvetica padrão do pdf-lib é WinAnsi: tira o que não cabe (emoji etc.)
 const safe = (s: any) => String(s ?? '').replace(/[^\x20-\x7E -ÿ]/g, '');
+
+/**
+ * Grava na pasta do colaborador (mesma pasta do original) o PDF assinado:
+ * holerite + página do comprovante. Idempotente (não duplica). Falha aqui NÃO
+ * desfaz a ciência — é só a cópia de conveniência pro RH.
+ */
+export async function salvarVersaoAssinada(aceiteId: number): Promise<number | null> {
+  const [a] = await AppDataSource.query(
+    `SELECT a.id, a.status, a.documento_assinado_id, a.hash_sha256, d.id AS doc_id, d.pasta_id, d.arquivo_url, d.nome
+     FROM rh_documento_aceites a JOIN rh_documentos d ON d.id = a.documento_id WHERE a.id = $1`,
+    [aceiteId]
+  );
+  if (!a || a.status !== 'aceito' || !a.arquivo_url) return null;
+  if (a.documento_assinado_id) return a.documento_assinado_id;
+  const original = Buffer.from((await axios.get(a.arquivo_url, { responseType: 'arraybuffer', timeout: 30000 })).data);
+  const assinado = await anexarComprovante(aceiteId, original);
+  const nome = String(a.nome || 'holerite.pdf').replace(/\.pdf$/i, '') + '_ASSINADO.pdf';
+  const url = await minioService.uploadFile(`rh/documentos/${a.pasta_id}/${nome.replace(/\.pdf$/i, '').replace(/[^\w.-]+/g, '_')}_${Date.now()}.pdf`, assinado, 'application/pdf');
+  const [doc] = await AppDataSource.query(
+    `INSERT INTO rh_documentos (pasta_id, nome, arquivo_url, mime_type, tamanho_bytes, observacao)
+     VALUES ($1, $2, $3, 'application/pdf', $4, $5) RETURNING id`,
+    [a.pasta_id, nome, url, assinado.length, `✅ Assinado no Portal do Colaborador (ciência eletrônica). Original: documento ${a.doc_id} · SHA-256 ${a.hash_sha256}`]
+  );
+  await AppDataSource.query(`UPDATE rh_documento_aceites SET documento_assinado_id = $2, updated_at = NOW() WHERE id = $1`, [aceiteId, doc.id]);
+  await AppDataSource.query(
+    `UPDATE rh_documentos SET observacao = COALESCE(observacao, '') || ' · (original — versão assinada: documento ' || $2 || ')' WHERE id = $1`,
+    [a.doc_id, doc.id]
+  );
+  return doc.id;
+}
 
 export async function anexarComprovante(aceiteId: number, original: Buffer): Promise<Buffer> {
   const [a] = await AppDataSource.query(

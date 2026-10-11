@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { PortalColaboradorService, sha256 } from '../services/portal-colaborador.service';
-import { anexarComprovante } from '../services/comprovante-ciencia.service';
+import { anexarComprovante, salvarVersaoAssinada } from '../services/comprovante-ciencia.service';
 
 /**
  * Portal do Colaborador (/api/portal) — lado do COLABORADOR.
@@ -48,7 +48,8 @@ export class PortalColaboradorController {
       );
       const generico = { error: 'CPF ou senha inválidos' };
       if (!row || !row.senha_hash) return res.status(401).json(row ? { error: 'Você ainda não criou sua senha. Use o link de primeiro acesso enviado pelo RH.' } : generico);
-      if (row.ativo === false || row.status !== 'ativo') return res.status(403).json({ error: 'Acesso desativado. Procure o RH.' });
+      const pode = await PortalColaboradorService.podeAcessar(row.id);
+      if (!pode.ok) return res.status(403).json({ error: pode.motivo });
       if (row.bloqueado_ate && new Date(row.bloqueado_ate) > new Date()) {
         return res.status(429).json({ error: `Muitas tentativas. Tente de novo em ${BLOQUEIO_MIN} minutos.` });
       }
@@ -121,7 +122,8 @@ export class PortalColaboradorController {
         [Number(req.user!.id)]
       );
       if (!c) return res.status(404).json({ error: 'Colaborador não encontrado' });
-      res.json(c);
+      const pode = await PortalColaboradorService.podeAcessar(c.id);
+      res.json({ ...c, acesso_ate: pode.acesso_ate || null });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
@@ -217,6 +219,10 @@ export class PortalColaboradorController {
         [a.id, ip, ua, metodo]
       );
       await PortalColaboradorService.registrarEvento(a.id, 'aceito', { ip, user_agent: ua, detalhe: metodo });
+      // Cópia assinada (holerite + comprovante) na pasta HOLERITES — em segundo plano, não segura a resposta
+      salvarVersaoAssinada(a.id)
+        .then(async id => { if (id) await PortalColaboradorService.registrarEvento(a.id, 'assinado_arquivado', { detalhe: `documento ${id}` }); })
+        .catch(e => console.warn(`[Portal] versão assinada aceite ${a.id}:`, e.message));
       res.json({ ok: true, metodo });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }

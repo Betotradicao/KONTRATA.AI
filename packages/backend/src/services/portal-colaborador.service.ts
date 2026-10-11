@@ -65,6 +65,30 @@ export interface DocumentoParaPublicar {
 }
 
 export class PortalColaboradorService {
+  /**
+   * Quem pode entrar no portal. Decisão do Beto (11/10/2026): desligado continua
+   * acessando por N dias após data_desligamento (padrão 150 = 5 meses — LGPD art. 18: acesso aos
+   * próprios dados; baixar holerites/rescisão). Bloqueio manual (acessos.ativo=false)
+   * vale por cima de tudo. Checado no login E em toda requisição do portal.
+   */
+  static async podeAcessar(colaboradorId: number): Promise<{ ok: boolean; motivo?: string; acesso_ate?: string | null }> {
+    const dias = Math.max(0, parseInt(String(await ConfigurationService.get('portal_dias_acesso_desligado', '150')), 10) || 0);
+    const [r] = await AppDataSource.query(
+      `SELECT c.status, c.data_desligamento, ac.ativo,
+              (c.data_desligamento + ($2::int * interval '1 day'))::date AS acesso_ate
+       FROM rh_colaboradores c LEFT JOIN rh_colaborador_acessos ac ON ac.colaborador_id = c.id WHERE c.id = $1`,
+      [colaboradorId, dias]
+    );
+    if (!r) return { ok: false, motivo: 'Cadastro não encontrado.' };
+    if (r.ativo === false) return { ok: false, motivo: 'Acesso bloqueado pelo RH. Procure o RH.' };
+    if (r.status === 'ativo') return { ok: true, acesso_ate: null };
+    if (!r.data_desligamento || dias === 0) return { ok: false, motivo: 'Acesso encerrado. Procure o RH.' };
+    const ate = new Date(r.acesso_ate);
+    ate.setHours(23, 59, 59);
+    if (ate < new Date()) return { ok: false, motivo: 'O prazo de acesso após o desligamento terminou. Procure o RH.' };
+    return { ok: true, acesso_ate: r.acesso_ate };
+  }
+
   static async registrarEvento(aceiteId: number, evento: string, extra: { ip?: string; user_agent?: string; detalhe?: string } = {}) {
     await AppDataSource.query(
       `INSERT INTO rh_documento_aceite_eventos (aceite_id, evento, ip, user_agent, detalhe) VALUES ($1, $2, $3, $4, $5)`,

@@ -156,6 +156,11 @@ export default function PortalHolerites() {
           )}
         </div>
         {msg && <div className="p-3 rounded-lg bg-white border border-purple-200 text-sm text-purple-900">{msg}</div>}
+        {me?.acesso_ate && (
+          <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
+            Seu acesso ao portal fica disponível até <b>{new Date(me.acesso_ate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</b>. Baixe e guarde seus holerites até lá.
+          </div>
+        )}
 
         {loading && <p className="text-center text-gray-500 py-10">Carregando…</p>}
         {!loading && itens.length === 0 && (

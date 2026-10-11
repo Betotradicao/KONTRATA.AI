@@ -534,6 +534,22 @@ function AbaAcessos() {
   const carregar = async () => { try { const r = await api.get('/rh/holerites/acessos'); setRows(r.data || []); } catch { /* noop */ } };
   useEffect(() => { carregar(); }, []);
 
+  // Desligado continua acessando por N dias após o desligamento (padrão 150 = 5 meses)
+  const [diasDesligado, setDiasDesligado] = useState('150');
+  useEffect(() => {
+    api.get('/configurations/portal_dias_acesso_desligado').then(r => { if (r?.data?.value) setDiasDesligado(String(r.data.value)); }).catch(() => {});
+  }, []);
+  const salvarDias = async () => {
+    const n = Math.max(0, parseInt(diasDesligado, 10) || 0);
+    try { await api.put('/configurations/portal_dias_acesso_desligado', { value: String(n) }); setDiasDesligado(String(n)); toast.success(n ? `Desligados acessam por ${n} dias` : 'Desligados perdem o acesso na hora'); carregar(); }
+    catch { toast.error('Erro ao salvar'); }
+  };
+  const bloquear = async (r, bloquear) => {
+    if (bloquear && !window.confirm(`Bloquear o acesso de ${r.nome} ao portal? Ele perde o acesso na hora.`)) return;
+    try { await api.post(`/rh/holerites/acessos/${r.colaborador_id}/bloquear`, { bloquear }); toast.success(bloquear ? 'Acesso bloqueado' : 'Acesso liberado'); carregar(); }
+    catch { toast.error('Erro'); }
+  };
+
   const [linkModal, setLinkModal] = useState(null); // { r, link, primeiroAcesso }
   const [enviando, setEnviando] = useState(false);
 
@@ -568,7 +584,13 @@ function AbaAcessos() {
     <div className="bg-white rounded-lg shadow">
       <div className="px-4 py-3 border-b flex flex-wrap items-center gap-3">
         <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar colaborador…" className="border rounded px-3 py-1.5 text-sm w-64" />
-        <p className="text-xs text-gray-500">Link de 1º acesso: o colaborador confirma o CPF e cria a senha. O link também vai automaticamente no WhatsApp da 1ª publicação.</p>
+        <p className="text-xs text-gray-500 flex-1">Link de 1º acesso: o colaborador confirma o CPF e cria a senha. O link também vai automaticamente no WhatsApp da 1ª publicação.</p>
+        <div className="flex items-center gap-2 text-xs bg-gray-50 border rounded-lg px-3 py-1.5">
+          <span className="text-gray-600">Desligados acessam por</span>
+          <input type="number" min="0" value={diasDesligado} onChange={e => setDiasDesligado(e.target.value)} onBlur={salvarDias}
+            onKeyDown={e => e.key === 'Enter' && e.target.blur()} className="w-16 border rounded px-2 py-1 text-right" />
+          <span className="text-gray-600">dias após o desligamento</span>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -578,14 +600,19 @@ function AbaAcessos() {
           <tbody className="divide-y">
             {lista.map(r => (
               <tr key={r.colaborador_id}>
-                <td className="px-3 py-2 font-semibold text-gray-800">{r.nome}{r.matricula ? <span className="font-normal text-gray-500"> · nº {r.matricula}</span> : null}</td>
+                <td className="px-3 py-2 font-semibold text-gray-800">{r.nome}{r.matricula ? <span className="font-normal text-gray-500"> · nº {r.matricula}</span> : null}
+                  {r.status !== 'ativo' && <div className="font-normal text-[11px] text-amber-700">desligado em {r.data_desligamento ? new Date(r.data_desligamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'} · acessa até {r.acesso_ate ? new Date(r.acesso_ate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'}</div>}
+                </td>
                 <td className="px-3 py-2">{r.celular || <span className="text-amber-700">📵 sem celular</span>}</td>
-                <td className="px-3 py-2">{r.tem_senha ? <span className="text-green-700">✓ senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}{r.bloqueado_ate && new Date(r.bloqueado_ate) > new Date() && <span className="text-red-600 ml-1">bloqueado</span>}</td>
+                <td className="px-3 py-2">{r.tem_senha ? <span className="text-green-700">✓ senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}{r.bloqueado_ate && new Date(r.bloqueado_ate) > new Date() && <span className="text-red-600 ml-1">(senha errada 5x)</span>}{r.ativo === false && <span className="ml-1 font-bold text-red-700">⛔ bloqueado pelo RH</span>}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{fmtData(r.ultimo_login)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.tem_senha
                     ? <button onClick={() => gerar(r, true)} className="text-purple-700 hover:underline">🔁 novo link (reset)</button>
                     : <button onClick={() => gerar(r, false)} className="text-purple-700 hover:underline">🔗 gerar link 1º acesso</button>}
+                  {r.ativo === false
+                    ? <button onClick={() => bloquear(r, false)} className="ml-3 text-green-700 hover:underline">✅ liberar</button>
+                    : <button onClick={() => bloquear(r, true)} className="ml-3 text-red-600 hover:underline">⛔ bloquear</button>}
                 </td>
               </tr>
             ))}

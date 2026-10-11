@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
 import { AppDataSource } from '../config/database';
+import { ConfigurationService } from '../services/configuration.service';
 import { AuthRequest } from '../middleware/auth';
 import { HoleriteImportacaoService } from '../services/holerite-importacao.service';
 import { PortalColaboradorService } from '../services/portal-colaborador.service';
@@ -161,14 +162,31 @@ export class RhHoleritesController {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
+  /** Bloqueia/libera manualmente o acesso ao portal (vale por cima da regra de desligamento). */
+  static async bloquearAcesso(req: AuthRequest, res: Response) {
+    try {
+      const ativo = req.body?.bloquear !== true;
+      await AppDataSource.query(
+        `INSERT INTO rh_colaborador_acessos (colaborador_id, ativo) VALUES ($1, $2)
+         ON CONFLICT (colaborador_id) DO UPDATE SET ativo = EXCLUDED.ativo, updated_at = NOW()`,
+        [Number(req.params.colaboradorId), ativo]
+      );
+      res.json({ ok: true, ativo });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
   static async acessos(_req: AuthRequest, res: Response) {
     try {
+      const dias = Math.max(0, parseInt(String(await ConfigurationService.get('portal_dias_acesso_desligado', '150')), 10) || 0);
       res.json(await AppDataSource.query(
-        `SELECT c.id AS colaborador_id, c.nome, c.matricula, c.celular, c.status,
+        `SELECT c.id AS colaborador_id, c.nome, c.matricula, c.celular, c.status, c.data_desligamento,
+                (c.data_desligamento + ($1::int * interval '1 day'))::date AS acesso_ate,
                 (ac.senha_hash IS NOT NULL) AS tem_senha, ac.ultimo_login, ac.bloqueado_ate, ac.ativo,
                 (ac.setup_token IS NOT NULL AND ac.setup_usado_em IS NULL AND ac.setup_expira_em > NOW()) AS setup_pendente
          FROM rh_colaboradores c LEFT JOIN rh_colaborador_acessos ac ON ac.colaborador_id = c.id
-         WHERE c.status = 'ativo' ORDER BY c.nome`
+         WHERE c.status = 'ativo' OR (c.data_desligamento IS NOT NULL AND c.data_desligamento >= CURRENT_DATE - ($1::int * interval '1 day'))
+         ORDER BY (c.status = 'ativo') DESC, c.nome`,
+        [dias]
       ));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }

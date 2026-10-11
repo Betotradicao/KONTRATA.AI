@@ -304,6 +304,7 @@ router.get('/holerites/publicacoes/:id/comprovante', authenticateToken, RhHoleri
 router.get('/holerites/acessos', authenticateToken, lgpdDemoMask, RhHoleritesController.acessos);
 router.post('/holerites/acessos/:colaboradorId/link', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.linkAcesso);
 router.post('/holerites/acessos/:colaboradorId/enviar-link', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.enviarLinkAcesso);
+router.post('/holerites/acessos/:colaboradorId/bloquear', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.bloquearAcesso);
 router.post('/apontamentos/periodos/deletar', authenticateToken, RhApontamentosController.deletarPeriodo);
 router.post('/apontamentos/batch', authenticateToken, RhApontamentosController.salvarLote);
 router.get('/apontamentos/pdf', authenticateToken, RhApontamentosController.exportarPdf);
