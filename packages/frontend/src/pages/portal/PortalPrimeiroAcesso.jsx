@@ -5,6 +5,20 @@ import PasswordRequirements from '../../components/PasswordRequirements';
 import { isPasswordStrong } from '../../utils/passwordPolicy';
 import { portalApi, formatCpf } from '../../utils/portalApi';
 
+// Fora do componente: se ficasse dentro, o React recriaria o <form> a cada tecla
+// e o input perderia o foco (bug do 1o acesso em 11/10/2026).
+const Shell = ({ children }) => (
+  <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#F3EAFE' }}>
+    <div className="max-w-md w-full rounded-2xl shadow-2xl p-6 sm:p-8" style={{ backgroundColor: '#3D1B7E' }}>
+      <div className="text-center mb-6">
+        <div className="flex justify-center mb-2"><Logo size="large" /></div>
+        <p className="text-sm text-white/80 tracking-wide">Portal do Colaborador</p>
+      </div>
+      <div className="bg-white rounded-xl p-5 sm:p-6">{children}</div>
+    </div>
+  </div>
+);
+
 // Link de primeiro acesso (/portal/primeiro-acesso/:token): colaborador confirma o CPF e cria a senha.
 export default function PortalPrimeiroAcesso() {
   const { token } = useParams();
@@ -47,17 +61,6 @@ export default function PortalPrimeiroAcesso() {
     } finally { setEnviando(false); }
   };
 
-  const Shell = ({ children }) => (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#F3EAFE' }}>
-      <div className="max-w-md w-full rounded-2xl shadow-2xl p-6 sm:p-8" style={{ backgroundColor: '#3D1B7E' }}>
-        <div className="text-center mb-6">
-          <div className="flex justify-center mb-2"><Logo size="large" /></div>
-          <p className="text-sm text-white/80 tracking-wide">Portal do Colaborador</p>
-        </div>
-        <div className="bg-white rounded-xl p-5 sm:p-6">{children}</div>
-      </div>
-    </div>
-  );
 
   if (loading) return <Shell><p className="text-center text-gray-500 py-6">Carregando…</p></Shell>;
   if (erroInicial) return (
