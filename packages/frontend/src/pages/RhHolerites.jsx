@@ -526,14 +526,33 @@ function AbaAcessos() {
   const carregar = async () => { try { const r = await api.get('/rh/holerites/acessos'); setRows(r.data || []); } catch { /* noop */ } };
   useEffect(() => { carregar(); }, []);
 
+  const [linkModal, setLinkModal] = useState(null); // { r, link, primeiroAcesso }
+  const [enviando, setEnviando] = useState(false);
+
   const gerar = async (r, resetar) => {
     if (resetar && !window.confirm(`Gerar um NOVO link de primeiro acesso pra ${r.nome}? A senha atual continua valendo até ele criar outra.`)) return;
     try {
       const x = await api.post(`/rh/holerites/acessos/${r.colaborador_id}/link`, { resetar });
-      await navigator.clipboard.writeText(x.data.link);
-      toast.success('Link copiado! Vale 72h.');
+      setLinkModal({ r, link: x.data.link, primeiroAcesso: x.data.primeiroAcesso });
       carregar();
     } catch { toast.error('Erro ao gerar link'); }
+  };
+
+  const copiar = async (texto) => {
+    try { await navigator.clipboard.writeText(texto); toast.success('Link copiado'); }
+    catch { toast.error('Não consegui copiar — selecione o link e copie manualmente'); }
+  };
+
+  const enviarWhats = async () => {
+    if (!linkModal) return;
+    setEnviando(true);
+    try {
+      const x = await api.post(`/rh/holerites/acessos/${linkModal.r.colaborador_id}/enviar-link`, {});
+      if (x.data.whats === 'enviado') toast.success(`WhatsApp enviado pra ${linkModal.r.celular}`);
+      else if (x.data.whats === 'sem_celular') toast.error('Colaborador sem celular cadastrado');
+      else toast.error(x.data.erro || 'Falhou ao enviar');
+    } catch (e) { toast.error(e.response?.data?.error || 'Erro ao enviar'); }
+    finally { setEnviando(false); }
   };
 
   const lista = rows.filter(r => !busca || r.nome.toLowerCase().includes(busca.toLowerCase()));
@@ -565,6 +584,36 @@ function AbaAcessos() {
           </tbody>
         </table>
       </div>
+
+      {linkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setLinkModal(null)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b">
+              <h3 className="font-bold text-gray-800">🔗 {linkModal.primeiroAcesso ? 'Link de 1º acesso' : 'Link do portal'}</h3>
+              <p className="text-xs text-gray-500 mt-0.5">{linkModal.r.nome}{linkModal.r.celular ? ` · ${linkModal.r.celular}` : ' · 📵 sem celular'}</p>
+            </div>
+            <div className="p-4 space-y-3">
+              <input readOnly value={linkModal.link} onFocus={e => e.target.select()}
+                className="w-full border rounded px-3 py-2 text-xs font-mono bg-gray-50" />
+              <p className="text-xs text-gray-600">
+                {linkModal.primeiroAcesso
+                  ? 'Vale 72 h. O colaborador abre, confirma o CPF e cria a senha. Depois entra sempre em /portal com CPF e senha.'
+                  : 'Esse colaborador já tem senha — este é o link fixo do portal.'}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => copiar(linkModal.link)} className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm font-semibold">📋 Copiar</button>
+                <a href={linkModal.link} target="_blank" rel="noreferrer" className="px-3 py-2 rounded bg-gray-100 hover:bg-gray-200 text-sm font-semibold">↗ Abrir</a>
+                <button onClick={enviarWhats} disabled={enviando || !linkModal.r.celular}
+                  className="px-3 py-2 rounded bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-40"
+                  title={linkModal.r.celular ? 'Manda só o link no WhatsApp do colaborador' : 'Cadastre o celular primeiro'}>
+                  {enviando ? '…' : '📲 Enviar no WhatsApp'}
+                </button>
+                <button onClick={() => setLinkModal(null)} className="ml-auto px-3 py-2 text-sm text-gray-500 hover:underline">Fechar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

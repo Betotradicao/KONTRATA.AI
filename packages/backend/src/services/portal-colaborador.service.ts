@@ -226,6 +226,29 @@ export class PortalColaboradorService {
     }
   }
 
+  /** Manda só o link de acesso ao portal (1º acesso ou login) no WhatsApp do colaborador — sem holerite. */
+  static async enviarLinkAcesso(colaboradorId: number, baseUrl: string, forcarNovoToken = false): Promise<{ link: string; primeiroAcesso: boolean; whats: 'enviado' | 'sem_celular' | 'falhou'; erro?: string }> {
+    const [c] = await AppDataSource.query(
+      `SELECT c.nome, c.celular, COALESCE(e.apelido, e.nome_fantasia, e.razao_social, '') AS empresa
+       FROM rh_colaboradores c LEFT JOIN rh_empresas e ON e.id = c.company_id WHERE c.id = $1`,
+      [colaboradorId]
+    );
+    if (!c) throw new Error('Colaborador não encontrado');
+    const acesso = await this.garantirAcesso(colaboradorId, baseUrl, forcarNovoToken);
+    const numero = normalizarCelular(c.celular);
+    if (!numero) return { ...acesso, whats: 'sem_celular' };
+    const primeiro = String(c.nome || '').split(' ')[0];
+    const texto = acesso.primeiroAcesso
+      ? `Olá, *${primeiro}*! 👋\n\nSeu acesso ao *Portal do Colaborador*${c.empresa ? ` (${c.empresa})` : ''} está pronto.\n\n🔐 *Primeiro acesso:* confirme seu CPF e crie sua senha pelo link abaixo (vale ${SETUP_TOKEN_HORAS}h):\n${acesso.link}\n\nDepois é só entrar com CPF e senha. Lá ficam seus holerites e documentos.\n\n_Mensagem automática — Kontrata.ai_`
+      : `Olá, *${primeiro}*! 👋\n\nEste é o link do seu *Portal do Colaborador*${c.empresa ? ` (${c.empresa})` : ''}. Entre com seu CPF e senha:\n${acesso.link}\n\n_Mensagem automática — Kontrata.ai_`;
+    try {
+      await this.enviarWhats(numero, texto, null, '');
+      return { ...acesso, whats: 'enviado' };
+    } catch (e: any) {
+      return { ...acesso, whats: 'falhou', erro: `WhatsApp: ${e.response?.data?.message || e.response?.data?.error || e.message}` };
+    }
+  }
+
   /** Reenvia o WhatsApp de um aceite já publicado (baixa o PDF do MinIO de novo). */
   static async reenviar(aceiteId: number, baseUrl: string): Promise<ResultadoPublicacao> {
     const [a] = await AppDataSource.query(

@@ -136,6 +136,14 @@ export class RhHoleritesController {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
+  /** Manda o link de acesso (sem holerite) no WhatsApp do colaborador. */
+  static async enviarLinkAcesso(req: AuthRequest, res: Response) {
+    try {
+      const forcar = req.body?.resetar === true;
+      res.json(await PortalColaboradorService.enviarLinkAcesso(Number(req.params.colaboradorId), baseUrlPortal(req), forcar));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
   static async acessos(_req: AuthRequest, res: Response) {
     try {
       res.json(await AppDataSource.query(

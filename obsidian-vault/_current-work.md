@@ -1,20 +1,21 @@
 # Trabalho atual (11/10/2026)
 
-## 🚧 Portal do Colaborador + importação de holerites — codado, aguardando Beto testar na tela
-Spec/arquitetura em [[modulos/portal-colaborador]]. Ambiente local: front http://localhost:3004 (rede: http://10.6.1.171:3004), back :3010.
-Tudo **sem commit** ainda. Arquivos novos/alterados:
-- backend: `migrations/1787600000000-*`, `1787700000000-*`, `services/{holerite,holerite-importacao,portal-colaborador}.service.ts`, `controllers/{rh-holerites,portal-colaborador}.controller.ts`, `routes/portal-colaborador.routes.ts`, `middleware/auth.ts` (authenticateColaborador + 403 pra token de colaborador no painel), `middleware/access-log.middleware.ts` (mask senha), `controllers/rh-folha.controller.ts` (holerite usa service), `controllers/rh.controller.ts` (CRUD tipos holerite), `routes/rh.routes.ts`, `index.ts`, `package.json` (+pdf-lib).
-- frontend: `pages/RhHolerites.jsx`, `pages/portal/{PortalLogin,PortalPrimeiroAcesso,PortalHolerites}.jsx`, `utils/portalApi.js`, `App.jsx`, `Sidebar.jsx`, `ModulosTab.jsx`, `modulesConfig.js`, `RhConfiguracoes.jsx` (aba Tipos Holerite).
-- PDF de amostra: `Holerites 092026 - Tradição Comercial -Atualizado 1.pdf` (raiz do repo, não commitar).
+## ✅ Portal do Colaborador + Holerites — commitado, push feito, DEPLOY na Tradição (8c75720)
+Ver [[modulos/portal-colaborador]]. Migrations rodaram na Tradição (3 novas + 2 do Atendente Virtual), `/portal` responde 200.
+Backup dos 7 arquivos soltos do Atendente que travavam o pull: `/root/kontrata-repo-untracked-20261011` (eram idênticos aos commitados — pode apagar).
 
-Próximo passo: Beto testa em Financeiro RH → HOLERITES (importar o PDF, classificar, publicar) e abre /portal. Depois: commit + deploy (Tradição primeiro).
+### Próximo: Beto testar na Tradição
+1. Config. de REDE → APIs → Evolution: instância `KONTRATAAI` ainda `connecting` (QR) — ou apontar pra `RECURSOS` (…6060590) que está `open`.
+2. Cadastrar celular nos colaboradores que vão receber.
+3. Financeiro RH → HOLERITES → importar PDF da contabilidade → classificar → publicar.
+4. Se HOLERITES não aparecer no menu: Config. de REDE → Módulos → ativar "Holerites (Portal do Colaborador)".
+Depois validar: propagar pros outros clientes **um por vez** (Castrioto precisa celulares + Evolution antes).
 
-## ✅ Castrioto instalado + carga inicial feita (ver [[clientes/castrioto]])
+### Dev local (não vai pra produção)
+- Colaborador de teste id 99 "ROBERTO BASTOS RUIVO" CPF 529.982.247-25 celular 12988426869 em `kontrata_dev`; aceite 3.
+- `configurations` de dev apontam Evolution → `RECURSOS`; `.env` tem `FRONTEND_URL=http://10.6.1.171:3004`.
 
-## Feito local (sem commit): autofill do Chrome em Config. de REDE
-`APIsTab.jsx` + `PontoRhidTab.jsx` com `autoComplete="off"`/`"new-password"`.
-
-## Ainda em aberto (sessões anteriores)
-- WhatsApp Tradição: instância `KONTRATAAI` caiu 08/09, QR novo; token `C508ABA4…`; Atendente Virtual → instância `TESTE` inexistente. Ver [[tradicao]].
-- 21 commits locais do site/painel sem push (desde `1203da0`).
+## Ainda em aberto
+- WhatsApp Tradição: instância `KONTRATAAI` precisa QR. Ver [[tradicao]].
 - 🚨 `/api/config/configurations` responde 200 sem login em todos os clientes.
+- Atendente Virtual subiu junto, desligado/não testado em produção.
