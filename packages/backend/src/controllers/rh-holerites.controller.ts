@@ -4,6 +4,7 @@ import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { HoleriteImportacaoService } from '../services/holerite-importacao.service';
 import { PortalColaboradorService } from '../services/portal-colaborador.service';
+import { anexarComprovante } from '../services/comprovante-ciencia.service';
 
 /**
  * RH → Holerites: importar PDF da contabilidade, classificar, publicar no Portal do
@@ -110,6 +111,22 @@ export class RhHoleritesController {
   static async reenviar(req: AuthRequest, res: Response) {
     try { res.json(await PortalColaboradorService.reenviar(Number(req.params.id), baseUrlPortal(req))); }
     catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** PDF do holerite + página do comprovante de ciência (pra imprimir/juntar em processo). */
+  static async comprovante(req: AuthRequest, res: Response) {
+    try {
+      const [a] = await AppDataSource.query(
+        `SELECT a.id, a.status, d.arquivo_url, d.nome FROM rh_documento_aceites a LEFT JOIN rh_documentos d ON d.id = a.documento_id WHERE a.id = $1`,
+        [Number(req.params.id)]
+      );
+      if (!a?.arquivo_url) return res.status(404).json({ error: 'Documento não encontrado' });
+      const r = await axios.get(a.arquivo_url, { responseType: 'arraybuffer', timeout: 30000 });
+      const pdf = await anexarComprovante(a.id, Buffer.from(r.data));
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="comprovante_${a.nome || 'holerite.pdf'}"`);
+      res.send(pdf);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
   static async eventos(req: AuthRequest, res: Response) {

@@ -47,16 +47,50 @@ export default function PortalHolerites() {
     } catch { setMsg('Não foi possível abrir o PDF. Tente novamente.'); }
   };
 
+  // Ciência = assinatura: pede código de 6 dígitos no WhatsApp (2º fator). Se não der pra
+  // enviar (sem celular / WhatsApp da loja fora), o backend libera a confirmação simples.
+  const [ciencia, setCiencia] = useState(null); // { it, para, simples, codigo, erro, aguarde }
+
   const darCiencia = async (it) => {
-    if (!window.confirm(`Confirmar que você recebeu e conferiu o holerite de ${fmtComp(it.competencia)}?`)) return;
     setAceitando(it.id);
     try {
-      await portalApi.post(`/portal/holerites/${it.id}/ciencia`);
-      setItens(prev => prev.map(x => x.id === it.id ? { ...x, status: 'aceito', aceito_em: new Date().toISOString() } : x));
-      setMsg('✅ Recebimento registrado. Obrigado!');
-    } catch (err) { setMsg(err.response?.data?.error || 'Erro ao registrar'); }
-    finally { setAceitando(null); setTimeout(() => setMsg(''), 4000); }
+      const { data } = await portalApi.post(`/portal/holerites/${it.id}/ciencia/codigo`);
+      if (data.ja_aceito) { marcarAceito(it); return; }
+      setCiencia({ it, para: data.para, simples: !data.enviado, codigo: '', erro: '', aguarde: data.aguarde || 60 });
+    } catch (err) { setMsg(err.response?.data?.error || 'Erro ao pedir o código'); }
+    finally { setAceitando(null); }
   };
+
+  const marcarAceito = (it) => {
+    setItens(prev => prev.map(x => x.id === it.id ? { ...x, status: 'aceito', aceito_em: new Date().toISOString() } : x));
+    setMsg('✅ Recebimento registrado. Obrigado!');
+    setTimeout(() => setMsg(''), 4000);
+  };
+
+  const confirmarCiencia = async () => {
+    const c = ciencia;
+    if (!c.simples && c.codigo.length !== 6) { setCiencia({ ...c, erro: 'Digite os 6 números' }); return; }
+    setCiencia({ ...c, enviando: true, erro: '' });
+    try {
+      await portalApi.post(`/portal/holerites/${c.it.id}/ciencia`, c.simples ? {} : { codigo: c.codigo });
+      setCiencia(null);
+      marcarAceito(c.it);
+    } catch (err) { setCiencia({ ...c, enviando: false, erro: err.response?.data?.error || 'Erro ao registrar' }); }
+  };
+
+  const reenviarCodigo = async () => {
+    const c = ciencia;
+    try {
+      const { data } = await portalApi.post(`/portal/holerites/${c.it.id}/ciencia/codigo`);
+      setCiencia({ ...c, para: data.para, simples: !data.enviado, aguarde: data.aguarde || 60, erro: data.enviado ? '' : c.erro });
+    } catch (err) { setCiencia({ ...c, erro: err.response?.data?.error || 'Erro ao reenviar' }); }
+  };
+
+  useEffect(() => {
+    if (!ciencia || ciencia.simples || !ciencia.aguarde) return;
+    const t = setTimeout(() => setCiencia(c => c && ({ ...c, aguarde: Math.max(0, (c.aguarde || 0) - 1) })), 1000);
+    return () => clearTimeout(t);
+  }, [ciencia]);
 
   const sair = () => { portalLogout(); navigate('/portal', { replace: true }); };
 
@@ -148,7 +182,7 @@ export default function PortalHolerites() {
             </div>
             <div className="mt-3 flex gap-2">
               <button onClick={() => abrirPdf(it)} className="flex-1 py-2.5 rounded-lg border border-purple-300 text-purple-800 font-semibold text-sm hover:bg-purple-50">
-                📄 Abrir PDF
+                📄 {it.status === 'aceito' ? 'PDF + comprovante' : 'Abrir PDF'}
               </button>
               {it.status !== 'aceito' ? (
                 <button onClick={() => darCiencia(it)} disabled={aceitando === it.id}
@@ -170,6 +204,46 @@ export default function PortalHolerites() {
       </main>
 
       {showSenha && <TrocarSenhaModal onClose={() => setShowSenha(false)} />}
+
+      {ciencia && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3" onClick={() => !ciencia.enviando && setCiencia(null)}>
+          <div className="bg-white rounded-xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900">Confirmar recebimento</h3>
+            <p className="text-sm text-gray-600 mt-1">Holerite de <b>{fmtComp(ciencia.it.competencia)}</b> · {ciencia.it.tipo_nome || 'PAGAMENTO'}</p>
+
+            {!ciencia.simples ? (
+              <>
+                <p className="text-sm text-gray-700 mt-4">Enviamos um código de 6 números para o seu WhatsApp <b>{ciencia.para}</b>.</p>
+                <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={ciencia.codigo}
+                  onChange={e => setCiencia({ ...ciencia, codigo: e.target.value.replace(/\D/g, '').slice(0, 6), erro: '' })}
+                  onKeyDown={e => e.key === 'Enter' && confirmarCiencia()}
+                  placeholder="000000"
+                  className="w-full mt-3 text-center tracking-[0.5em] text-2xl font-bold py-3 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                <div className="text-center mt-2">
+                  {ciencia.aguarde > 0
+                    ? <span className="text-xs text-gray-400">Reenviar código em {ciencia.aguarde}s</span>
+                    : <button onClick={reenviarCodigo} className="text-xs text-purple-700 font-semibold">Não chegou? Reenviar código</button>}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-700 mt-4">Ao confirmar, você declara que recebeu e conferiu este holerite.</p>
+            )}
+
+            {ciencia.erro && <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">{ciencia.erro}</div>}
+
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setCiencia(null)} disabled={ciencia.enviando} className="flex-1 py-2.5 rounded-lg bg-gray-100 text-sm font-semibold">Cancelar</button>
+              <button onClick={confirmarCiencia} disabled={ciencia.enviando || (!ciencia.simples && ciencia.codigo.length !== 6)}
+                className="flex-1 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-50">
+                {ciencia.enviando ? '…' : '✓ Ciente / Recebi'}
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-3 leading-snug">
+              Será registrado data, hora, dispositivo{!ciencia.simples ? ', o código de confirmação' : ''} e a impressão digital (SHA-256) do documento, como comprovante de recebimento.
+            </p>
+          </div>
+        </div>
+      )}
 
       {showIos && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3" onClick={() => setShowIos(false)}>

@@ -36,6 +36,12 @@ export function normalizarCelular(raw: string | null | undefined): string | null
   return d;
 }
 
+/** "12988426869" → "(12) *****-6869" */
+export function mascararCelular(raw: string | null | undefined): string {
+  const d = String(raw || '').replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  return d.length >= 10 ? `(${d.slice(0, 2)}) *****-${d.slice(-4)}` : '—';
+}
+
 export interface ResultadoPublicacao {
   colaborador_id: number;
   nome: string;
@@ -224,6 +230,46 @@ export class PortalColaboradorService {
       r.erro = `WhatsApp: ${e.response?.data?.message || e.response?.data?.error || e.message}`;
       await this.registrarEvento(aceiteId, 'whats_falhou', { detalhe: r.erro });
     }
+  }
+
+  /**
+   * Código de 6 dígitos pra dar ciência (assinatura avançada). Vale 10 min, só pro
+   * documento `aceiteId`. Se não dá pra enviar (sem celular / WhatsApp fora), marca
+   * otp_falhou_aceite_id e o controller libera a ciência simples pra esse documento.
+   */
+  static async enviarCodigoCiencia(colaboradorId: number, aceiteId: number): Promise<{ enviado: boolean; para?: string; motivo?: string; aguarde?: number }> {
+    const [c] = await AppDataSource.query(
+      `SELECT c.nome, c.celular, ac.otp_enviado_em, ac.otp_aceite_id FROM rh_colaboradores c
+       LEFT JOIN rh_colaborador_acessos ac ON ac.colaborador_id = c.id WHERE c.id = $1`,
+      [colaboradorId]
+    );
+    if (!c) throw new Error('Colaborador não encontrado');
+    // anti-spam: 1 código por minuto pro mesmo documento
+    if (c.otp_aceite_id === aceiteId && c.otp_enviado_em) {
+      const passou = (Date.now() - new Date(c.otp_enviado_em).getTime()) / 1000;
+      if (passou < 60) return { enviado: true, para: mascararCelular(c.celular), aguarde: Math.ceil(60 - passou) };
+    }
+    const falhou = async (motivo: string) => {
+      await AppDataSource.query(`UPDATE rh_colaborador_acessos SET otp_falhou_aceite_id = $2, updated_at = NOW() WHERE colaborador_id = $1`, [colaboradorId, aceiteId]);
+      await this.registrarEvento(aceiteId, 'codigo_falhou', { detalhe: motivo });
+      return { enviado: false, motivo };
+    };
+    const numero = normalizarCelular(c.celular);
+    if (!numero) return falhou('sem celular cadastrado');
+    const codigo = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    const primeiro = String(c.nome || '').split(' ')[0];
+    try {
+      await this.enviarWhats(numero, `🔐 *${codigo}* é o seu código pra confirmar o recebimento do holerite no Portal do Colaborador.\n\nVale 10 minutos. Não compartilhe com ninguém — nem com o RH.\n\n_${primeiro}, se não foi você que pediu, ignore esta mensagem._`, null, '');
+    } catch (e: any) {
+      return falhou(`WhatsApp: ${e.response?.data?.message || e.message}`);
+    }
+    await AppDataSource.query(
+      `UPDATE rh_colaborador_acessos SET otp_hash = $2, otp_expira_em = NOW() + interval '10 minutes', otp_tentativas = 0,
+              otp_aceite_id = $3, otp_enviado_em = NOW(), otp_falhou_aceite_id = NULL, updated_at = NOW() WHERE colaborador_id = $1`,
+      [colaboradorId, sha256(codigo), aceiteId]
+    );
+    await this.registrarEvento(aceiteId, 'codigo_enviado', { detalhe: mascararCelular(c.celular) });
+    return { enviado: true, para: mascararCelular(c.celular) };
   }
 
   /** Manda só o link de acesso ao portal (1º acesso ou login) no WhatsApp do colaborador — sem holerite. */

@@ -23,6 +23,7 @@ router.use(authenticateColaborador);
 router.get('/me', PortalColaboradorController.me);
 router.get('/holerites', PortalColaboradorController.holerites);
 router.get('/holerites/:id/pdf', PortalColaboradorController.pdf);
+router.post('/holerites/:id/ciencia/codigo', PortalColaboradorController.codigoCiencia);
 router.post('/holerites/:id/ciencia', PortalColaboradorController.ciencia);
 router.post('/senha', PortalColaboradorController.trocarSenha);
 

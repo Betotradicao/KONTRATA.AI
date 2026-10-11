@@ -300,6 +300,7 @@ router.post('/holerites/publicar-gerado', authenticateToken, lgpdDemoReadOnly, R
 router.get('/holerites/publicacoes', authenticateToken, lgpdDemoMask, RhHoleritesController.listarPublicacoes);
 router.post('/holerites/publicacoes/:id/reenviar', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.reenviar);
 router.get('/holerites/publicacoes/:id/eventos', authenticateToken, RhHoleritesController.eventos);
+router.get('/holerites/publicacoes/:id/comprovante', authenticateToken, RhHoleritesController.comprovante);
 router.get('/holerites/acessos', authenticateToken, lgpdDemoMask, RhHoleritesController.acessos);
 router.post('/holerites/acessos/:colaboradorId/link', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.linkAcesso);
 router.post('/holerites/acessos/:colaboradorId/enviar-link', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.enviarLinkAcesso);

@@ -488,6 +488,13 @@ function AbaPublicacoes() {
 }
 
 function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) {
+  const abrirComprovante = async (row) => {
+    try {
+      const x = await api.get(`/rh/holerites/publicacoes/${row.id}/comprovante`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([x.data], { type: 'application/pdf' }));
+      window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch { toast.error('Erro ao gerar comprovante'); }
+  };
   return (
     <>
       <tr>
@@ -497,11 +504,12 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) 
         <td className="px-3 py-2"><Badge map={STATUS_PUB} k={r.status} /></td>
         <td className="px-3 py-2 whitespace-nowrap">{r.enviado_em ? `${fmtData(r.enviado_em)}` : <span className="text-gray-400">não enviado</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">{fmtData(r.visualizado_em)}</td>
-        <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}</div></> : '—'}</td>
+        <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}{r.aceite_metodo === 'cpf_senha_otp_whatsapp' ? ' · 🔐 código WhatsApp' : r.aceite_metodo ? ' · só senha' : ''}</div></> : '—'}</td>
         <td className="px-3 py-2 whitespace-nowrap">{r.tem_senha ? <span className="text-green-700">senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">
           <button onClick={onReenviar} disabled={reenviando} className="text-purple-700 hover:underline mr-2 disabled:opacity-50">{reenviando ? '…' : '📲 reenviar'}</button>
           <button onClick={onLink} className="text-gray-600 hover:underline mr-2" title="Copiar link de acesso">🔗 link</button>
+          {r.status === 'aceito' && <button onClick={() => abrirComprovante(r)} className="text-green-700 hover:underline mr-2" title="Holerite + página do comprovante de ciência">📄 comprovante</button>}
           <button onClick={onEventos} className="text-gray-500 hover:underline" title="Trilha de auditoria">{eventos ? '▲' : '▼'} trilha</button>
         </td>
       </tr>

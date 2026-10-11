@@ -4,7 +4,8 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { AppDataSource } from '../config/database';
 import { AuthRequest } from '../middleware/auth';
-import { PortalColaboradorService } from '../services/portal-colaborador.service';
+import { PortalColaboradorService, sha256 } from '../services/portal-colaborador.service';
+import { anexarComprovante } from '../services/comprovante-ciencia.service';
 
 /**
  * Portal do Colaborador (/api/portal) — lado do COLABORADOR.
@@ -151,29 +152,72 @@ export class PortalColaboradorController {
         await AppDataSource.query(`UPDATE rh_documento_aceites SET status = 'visualizado', visualizado_em = NOW(), updated_at = NOW() WHERE id = $1`, [a.id]);
         await PortalColaboradorService.registrarEvento(a.id, 'visualizado', { ip: getIp(req), user_agent: String(req.headers['user-agent'] || '') });
       }
+      // Depois do "Ciente", o PDF sai com a página do comprovante de ciência no fim
+      const pdf = a.status === 'aceito' ? await anexarComprovante(a.id, Buffer.from(r.data)) : Buffer.from(r.data);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${a.nome || 'holerite.pdf'}"`);
-      res.send(Buffer.from(r.data));
+      res.send(pdf);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
-  static async ciencia(req: AuthRequest, res: Response) {
+  /** Pede o código de 6 dígitos (WhatsApp) pra dar ciência neste documento. */
+  static async codigoCiencia(req: AuthRequest, res: Response) {
     try {
-      const ip = getIp(req);
-      const ua = String(req.headers['user-agent'] || '');
       const [a] = await AppDataSource.query(
         `SELECT id, status FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2`,
         [Number(req.params.id), Number(req.user!.id)]
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
-      if (a.status === 'aceito') return res.json({ ok: true, ja_aceito: true });
-      await AppDataSource.query(
-        `UPDATE rh_documento_aceites SET status = 'aceito', aceito_em = NOW(), aceite_ip = $2, aceite_user_agent = $3, aceite_metodo = 'cpf_senha',
-                visualizado_em = COALESCE(visualizado_em, NOW()), updated_at = NOW() WHERE id = $1`,
-        [a.id, ip, ua]
+      if (a.status === 'aceito') return res.json({ ja_aceito: true });
+      res.json(await PortalColaboradorService.enviarCodigoCiencia(Number(req.user!.id), a.id));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /**
+   * Ciência. Com código válido → 'cpf_senha_otp_whatsapp' (avançada). Sem código, só
+   * quando o envio do código FALHOU pra este documento (sem celular / WhatsApp fora)
+   * → 'cpf_senha' (simples). Nunca aceita pular o código se ele foi enviado.
+   */
+  static async ciencia(req: AuthRequest, res: Response) {
+    try {
+      const ip = getIp(req);
+      const ua = String(req.headers['user-agent'] || '');
+      const colabId = Number(req.user!.id);
+      const [a] = await AppDataSource.query(
+        `SELECT id, status FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2`,
+        [Number(req.params.id), colabId]
       );
-      await PortalColaboradorService.registrarEvento(a.id, 'aceito', { ip, user_agent: ua, detalhe: 'cpf_senha' });
-      res.json({ ok: true });
+      if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
+      if (a.status === 'aceito') return res.json({ ok: true, ja_aceito: true });
+
+      const [ac] = await AppDataSource.query(
+        `SELECT otp_hash, otp_expira_em, otp_tentativas, otp_aceite_id, otp_falhou_aceite_id FROM rh_colaborador_acessos WHERE colaborador_id = $1`,
+        [colabId]
+      );
+      const codigo = String(req.body?.codigo || '').replace(/\D/g, '');
+      let metodo: string;
+      if (codigo) {
+        if (!ac?.otp_hash || ac.otp_aceite_id !== a.id) return res.status(400).json({ error: 'Peça um novo código' });
+        if (new Date(ac.otp_expira_em) < new Date()) return res.status(400).json({ error: 'Código expirado. Peça um novo.' });
+        if ((ac.otp_tentativas || 0) >= 5) return res.status(429).json({ error: 'Muitas tentativas. Peça um novo código.' });
+        if (sha256(codigo) !== ac.otp_hash) {
+          await AppDataSource.query(`UPDATE rh_colaborador_acessos SET otp_tentativas = otp_tentativas + 1 WHERE colaborador_id = $1`, [colabId]);
+          return res.status(400).json({ error: 'Código incorreto' });
+        }
+        await AppDataSource.query(`UPDATE rh_colaborador_acessos SET otp_hash = NULL, otp_aceite_id = NULL, otp_tentativas = 0 WHERE colaborador_id = $1`, [colabId]);
+        metodo = 'cpf_senha_otp_whatsapp';
+      } else {
+        if (ac?.otp_falhou_aceite_id !== a.id) return res.status(400).json({ error: 'Digite o código enviado no seu WhatsApp' });
+        metodo = 'cpf_senha';
+      }
+
+      await AppDataSource.query(
+        `UPDATE rh_documento_aceites SET status = 'aceito', aceito_em = NOW(), aceite_ip = $2, aceite_user_agent = $3, aceite_metodo = $4,
+                visualizado_em = COALESCE(visualizado_em, NOW()), updated_at = NOW() WHERE id = $1`,
+        [a.id, ip, ua, metodo]
+      );
+      await PortalColaboradorService.registrarEvento(a.id, 'aceito', { ip, user_agent: ua, detalhe: metodo });
+      res.json({ ok: true, metodo });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
