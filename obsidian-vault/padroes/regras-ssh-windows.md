@@ -46,6 +46,17 @@ ssh vps2-hostinger 'docker exec X grep -c -e SEM.VALIDADE /caminho/bundle.js'
 ⚠️ Vale também pro **glob**: `docker exec` roda **sem shell**, então `index-*.js` não expande.
 Listar primeiro (`docker exec X ls .../assets/`) e usar o nome completo do arquivo.
 
+## 🪤 Pegadinha 2: comando "trava pra sempre" = algo ficou lendo stdin
+Como as aspas somem, `grep -E "a|b" arquivo` vira `grep -E a | b arquivo` → o grep **sem arquivo lê stdin** e pendura o ssh.
+Mesma coisa com `||` dentro de SQL (`nome like $$%||%$$`). Regras:
+- Nunca usar `|` / `||` dentro do comando remoto fora de um pipe intencional.
+- SQL via `echo select ... | docker exec -i X psql ...` — sem aspas; parênteses escapados `\(\*\)`; strings com `\$\$texto\$\$`.
+- Envolver psql em `timeout 15` quando estiver investigando.
+- Pra coisa complexa: escrever script local, `scp` pra VPS, rodar `bash /root/script.sh` (e `sed -i 's/\r$//'` antes — CRLF do Windows).
+
+## 🛡️ Classificador do auto mode bloqueia escrita em banco de produção
+No auto mode, `ssh ... psql` com INSERT/UPDATE é negado ("Modify Shared Resources"). Saídas: usuário muda pro **modo manual** e aprova o comando, ou roda ele mesmo no terminal da VPS. Regra `PowerShell(ssh *)` liberaria tudo — evitar.
+
 ## 🔗 Relacionados
 - [[../arquitetura/deploy|Deploy]]
 - [[../arquitetura/estrutura-vps|Estrutura VPS]]

@@ -10,6 +10,7 @@ Atalho: **Ctrl + G** ou clica no ícone de 3 bolinhas ligadas na barra lateral e
 - [[clientes/tradicao|Tradição]] — Loja única, rede local, Oracle Intersolid
 - [[clientes/maxvalle|MaxValle]] — Oracle Intersolid
 - [[clientes/nunes|Nunes]] — ⚠️ ERP diferente (RP INFO PostgreSQL)
+- [[clientes/castrioto|Castrioto]] — Kontrata.ai, 2 lojas, instalado 11/10/2026 (carga inicial por SQL)
 
 ## ⚖️ Legalidade Jurídica
 - [[LEGALIDADE JURIDICA/00-INDICE|Legalidade Jurídica — Índice]] — assinatura eletrônica, eSocial, fundamentos legais
@@ -59,6 +60,7 @@ Atalho: **Ctrl + G** ou clica no ícone de 3 bolinhas ligadas na barra lateral e
 - [[modulos/lgpd-compliance|⚖️ LGPD Compliance — plano pendente]]
 - [[modulos/rh-escala-planejamento|📅 Escala de Trabalho — especificação pronta pra codar]]
 - [[modulos/rh-ia-recrutadora|🤖 IA Recrutadora — entrevistas por vídeo automatizadas (ideia validada)]]
+- [[modulos/portal-colaborador|📱 Portal do Colaborador — importar holerites PDF, classificar, publicar com ciência (MVP 11/10/2026)]]
 
 ### Outros
 - [[modulos/metas-rankings|Metas e Rankings]]

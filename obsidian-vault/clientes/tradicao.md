@@ -42,3 +42,29 @@ Backend `prevencao-tradicao-backend` vira-mexe fica **Up X days (unhealthy)** e 
 
 ## 🏷️ Tags
 #cliente #oracle #loja-unica #vps46 #rede-local
+
+## WhatsApp / Evolution (evolution.kontrataai.com.br, VPS 46)
+
+Instâncias que existem nesse servidor e quem usa cada uma (levantado em 09/09/2026):
+
+| Instância | Número | Usada por |
+|---|---|---|
+| `KONTRATAAI` | 5512996896418 | Tradição (`evolution_instance`, notificações/disparos) **e** o painel interno kontrataai.com.br |
+| `TRADICAO`, `RADAR360`, `NUNES`, `GARIMPAFACIL` | 5512988474416 | 4 aparelhos vinculados do mesmo número (legado Radar) |
+| `MARKETING` | 5512988996258 | chatbot de marketing |
+
+⚠️ **`atendente_evolution_instance = TESTE`** — essa instância **não existe mais** no servidor
+(foi criada em 08/2026 pra testar e apagada). O Atendente Virtual está `ativo = true` apontando
+pro nada. Precisa de instância própria (nunca a dos disparos — ver
+[[2026-08-25-atendente-virtual-whatsapp]]).
+
+### 🪤 Diagnóstico de "instância não conectada (estado: close)"
+- `GET /instance/connectionState/<nome>` com a chave da instância → `close`.
+- `GET /instance/connect/<nome>` devolvendo um `code` de QR = **sessão perdida, precisa
+  escanear de novo no celular do número**. Reiniciar a instância NÃO resolve nesse caso.
+- Log típico da queda: `Error: Connection Closed` + `statusCode 428` em `ChannelStartupService`.
+- Chave global da Evolution: `docker exec evolution-api printenv AUTHENTICATION_API_KEY`
+  — só com ela o `fetchInstances` lista TODAS; com a chave da instância só aparece ela mesma.
+- Conferir SEMPRE se o token salvo no cliente ainda vale: em 09/09 o `evolution_api_token`
+  da Tradição dava **401** (token antigo `5c941c8d…`); o da instância é `C508ABA4…`.
+  A tela mostrava o certo porque tinha sido digitado e não salvo.
