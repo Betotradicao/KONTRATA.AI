@@ -9,6 +9,9 @@ const uploadArte = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 // GET /api/whatsapp/connection-status — testa conexao com a Evolution API
 router.get('/connection-status', authenticateToken, WhatsappController.connectionStatus);
 
+// POST /api/whatsapp/testar-conexao — testa credenciais avulsas (Atendente Virtual)
+router.post('/testar-conexao', authenticateToken, WhatsappController.testarConexaoAvulsa);
+
 // GET /api/whatsapp/fetch-groups — lista os grupos da instancia
 router.get('/fetch-groups', authenticateToken, WhatsappController.fetchGroups);
 

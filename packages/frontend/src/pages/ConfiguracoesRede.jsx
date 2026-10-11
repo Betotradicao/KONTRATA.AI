@@ -11,6 +11,7 @@ import ResetSenhaAdminTab from '../components/configuracoes/ResetSenhaAdminTab';
 import EmpresaConfigTab from '../components/configuracoes/EmpresaConfigTab';
 import LgpdTab from '../components/configuracoes/LgpdTab';
 import LogsAcessoTab from '../components/configuracoes/LogsAcessoTab';
+import AtendenteVirtualTab from '../components/configuracoes/AtendenteVirtualTab';
 
 export default function ConfiguracoesRede() {
   const { user, logout } = useAuth();
@@ -104,6 +105,7 @@ export default function ConfiguracoesRede() {
             {activeTab === 'personalizacao' && <EmpresaConfigTab />}
             {activeTab === 'lgpd' && <LgpdTab />}
             {activeTab === 'logs-acesso' && <LogsAcessoTab />}
+            {activeTab === 'atendente-virtual' && <AtendenteVirtualTab />}
           </div>
         </div>
       </div>

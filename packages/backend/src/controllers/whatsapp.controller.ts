@@ -46,6 +46,39 @@ export class WhatsappController {
     }
   }
 
+  /**
+   * POST /api/whatsapp/testar-conexao
+   * Testa credenciais da Evolution PASSADAS NO CORPO, sem depender do que
+   * esta salvo. Necessario porque o Atendente Virtual roda numa instancia
+   * DIFERENTE da usada pelos disparos — o connection-status so olha a
+   * principal e sempre responderia sobre o numero errado.
+   */
+  static async testarConexaoAvulsa(req: Request, res: Response) {
+    const { apiUrl, apiToken, instance } = (req.body || {}) as {
+      apiUrl?: string; apiToken?: string; instance?: string;
+    };
+    if (!apiUrl || !apiToken || !instance) {
+      return res.json({
+        success: false,
+        connected: false,
+        error: 'Preencha URL, Token e Instancia antes de testar'
+      });
+    }
+    try {
+      const base = String(apiUrl).replace(/\/+$/, '');
+      const url = `${base}/instance/connectionState/${encodeURIComponent(instance)}`;
+      const resp = await axios.get(url, { headers: { apikey: apiToken }, timeout: 10000 });
+      const state = resp.data?.instance?.state || 'unknown';
+      return res.json({ success: true, connected: state === 'open', state });
+    } catch (error: any) {
+      const status = error.response?.status;
+      const detail = status === 404
+        ? 'Instancia nao encontrada na Evolution API (confira o nome da Instancia)'
+        : (error.response?.data?.message || error.message || 'erro desconhecido');
+      console.error('[whatsapp] testar-conexao:', detail);
+      return res.json({ success: false, connected: false, error: detail });
+    }
+  }
   // GET /api/whatsapp/fetch-groups — lista os grupos da instancia (Carregar Grupos)
   static async fetchGroups(_req: Request, res: Response) {
     try {

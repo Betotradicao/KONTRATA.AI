@@ -8,7 +8,8 @@ export default function TabsNavigation({ activeTab, onChange, pageType = 'config
     { id: 'modulos', label: 'Módulos' },
     { id: 'personalizacao', label: 'Personalização' },
     { id: 'lgpd', label: '🛡️ Privacidade e LGPD' },
-    { id: 'logs-acesso', label: '📋 Logs de Acesso' }
+    { id: 'logs-acesso', label: '📋 Logs de Acesso' },
+    { id: 'atendente-virtual', label: '🤖 Atendente Virtual' }
   ];
 
   // Abas para Configurações normais
