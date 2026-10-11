@@ -281,6 +281,27 @@ router.get('/apontamentos/periodos', authenticateToken, RhApontamentosController
 router.get('/folha/indicadores', authenticateToken, lgpdDemoMask, RhFolhaController.indicadores);
 router.get('/folha/resumo-anual', authenticateToken, RhFolhaController.resumoAnual);
 router.get('/folha/holerite', authenticateToken, RhFolhaController.holerite);
+
+// Holerites — importar PDF da contabilidade, classificar, publicar no Portal do Colaborador
+import { RhHoleritesController } from '../controllers/rh-holerites.controller';
+router.get('/configuracoes/tipos-holerite', authenticateToken, RhController.listarTiposHolerite);
+router.post('/configuracoes/tipos-holerite', authenticateToken, RhController.criarTipoHolerite);
+router.put('/configuracoes/tipos-holerite/:id', authenticateToken, RhController.atualizarTipoHolerite);
+router.delete('/configuracoes/tipos-holerite/:id', authenticateToken, RhController.deletarTipoHolerite);
+router.post('/holerites/lotes', authenticateToken, lgpdDemoReadOnly, uploadDoc.single('arquivo'), RhHoleritesController.importar);
+router.get('/holerites/lotes', authenticateToken, RhHoleritesController.listarLotes);
+router.get('/holerites/lotes/:id', authenticateToken, lgpdDemoMask, RhHoleritesController.obterLote);
+router.delete('/holerites/lotes/:id', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.excluirLote);
+router.put('/holerites/lotes/:id', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.atualizarLote);
+router.put('/holerites/lotes/:id/itens/:itemId', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.atualizarItem);
+router.get('/holerites/itens/:itemId/pdf', authenticateToken, RhHoleritesController.itemPdf);
+router.post('/holerites/lotes/:id/publicar', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.publicarLote);
+router.post('/holerites/publicar-gerado', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.publicarGerado);
+router.get('/holerites/publicacoes', authenticateToken, lgpdDemoMask, RhHoleritesController.listarPublicacoes);
+router.post('/holerites/publicacoes/:id/reenviar', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.reenviar);
+router.get('/holerites/publicacoes/:id/eventos', authenticateToken, RhHoleritesController.eventos);
+router.get('/holerites/acessos', authenticateToken, lgpdDemoMask, RhHoleritesController.acessos);
+router.post('/holerites/acessos/:colaboradorId/link', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.linkAcesso);
 router.post('/apontamentos/periodos/deletar', authenticateToken, RhApontamentosController.deletarPeriodo);
 router.post('/apontamentos/batch', authenticateToken, RhApontamentosController.salvarLote);
 router.get('/apontamentos/pdf', authenticateToken, RhApontamentosController.exportarPdf);

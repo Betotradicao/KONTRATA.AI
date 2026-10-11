@@ -8,13 +8,34 @@ export interface AuthRequest extends Request {
     id: string;
     email?: string;
     username?: string;
-    type: 'admin' | 'employee';
+    type: 'admin' | 'employee' | 'colaborador';
     role?: UserRole;
     isMaster?: boolean;
     companyId?: string | null;
+    nome?: string;
   };
   userId?: string; // Para compatibilidade com controllers existentes
 }
+
+/**
+ * Portal do Colaborador: JWT com type 'colaborador' (id = rh_colaboradores.id).
+ * Separado do authenticateToken pra um token de colaborador NUNCA abrir rota do painel
+ * e vice-versa — o portal só enxerga /api/portal/*.
+ */
+export const authenticateColaborador = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = (authHeader && authHeader.split(' ')[1]) || (req.query.token as string);
+  if (!token) return res.status(401).json({ error: 'Faça login no portal' });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'development-secret', (err: any, payload: any) => {
+    if (err || !payload || payload.type !== 'colaborador') {
+      return res.status(401).json({ error: 'Sessão inválida ou expirada. Entre novamente.' });
+    }
+    req.user = payload;
+    req.userId = String(payload.id);
+    next();
+  });
+};
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
   console.log('🔐 AUTHENTICATE TOKEN - Path:', req.path, 'Method:', req.method);
@@ -31,6 +52,11 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     if (err) {
       console.log('❌ AUTHENTICATE TOKEN - Token inválido:', err.message);
       return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    // Token do Portal do Colaborador (type 'colaborador') NAO vale aqui — so em /api/portal
+    if (user?.type === 'colaborador') {
+      console.log('❌ AUTHENTICATE TOKEN - Token de colaborador em rota do painel');
+      return res.status(403).json({ error: 'Acesso negado' });
     }
     console.log('✅ AUTHENTICATE TOKEN - Sucesso! User:', user.email, 'Role:', user.role, 'isMaster:', user.isMaster);
     req.user = user;
@@ -92,6 +118,7 @@ export const authenticateWebhook = (req: AuthRequest, res: Response, next: NextF
     if (err) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
+    if (user?.type === 'colaborador') return res.status(403).json({ error: 'Acesso negado' });
     req.user = user;
     next();
   });

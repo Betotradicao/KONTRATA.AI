@@ -59,6 +59,7 @@
     "nodemailer": "^7.0.11",
     "oracledb": "^6.10.0",
     "papaparse": "^5.5.3",
+    "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.15.2",
     "pg": "^8.11.3",

@@ -28,6 +28,7 @@ const SECTIONS = [
         { id: 'rh-curriculo-banco', name: 'Banco de Currículos' },
         { id: 'rh-entrevistas-ia', name: 'Entrevistas Realizadas I.A' },
       ]},
+      { id: 'atendente-virtual', name: 'Atendente Virtual', icon: '🤖' },
       { id: 'rh-pesquisa-clima', name: 'Pesquisa de Clima', icon: '😊', subs: [
         { id: 'rh-clima-analise', name: 'Análise Pesquisas' },
         { id: 'rh-clima-criar', name: 'Criar Pesquisas' },
@@ -40,6 +41,7 @@ const SECTIONS = [
       { id: 'rh-financeiro', name: 'Financeiro RH', icon: '💵', subs: [
         { id: 'rh-lancamentos', name: 'Lançamentos' },
         { id: 'rh-folha', name: 'Folha de Pagamento' },
+        { id: 'rh-holerites', name: 'Holerites (Portal do Colaborador)' },
       ]},
       { id: 'rh-escala', name: 'Escala de Trabalho', icon: '📅', subs: [
         { id: 'rh-escala-grid', name: 'Grid Mensal' },

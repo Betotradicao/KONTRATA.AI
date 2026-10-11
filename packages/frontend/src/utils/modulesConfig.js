@@ -138,6 +138,7 @@ const PARENT_OF = {
   'rh-certificados':         'rh-treinamentos',
   'rh-lancamentos':          'rh-financeiro',
   'rh-folha':                'rh-financeiro',
+  'rh-holerites':            'rh-financeiro',
   'rh-escala-grid':          'rh-escala',
   'rh-escala-eventos':       'rh-escala',
 };
@@ -195,6 +196,7 @@ const ROUTE_MODULE_MAP = [
   { path: '/rh/treinamentos',          moduleId: 'rh-cadastro-treinamento' },
   { path: '/rh/lancamentos',           moduleId: 'rh-lancamentos' },
   { path: '/rh/folha',                 moduleId: 'rh-folha' },
+  { path: '/rh/holerites',             moduleId: 'rh-holerites' },
   { path: '/rh/escala',                moduleId: 'rh-escala-grid' },
   { path: '/rh/escala/eventos',        moduleId: 'rh-escala-eventos' },
   { path: '/rh/departamento-pessoal',  moduleId: 'rh-dp' },

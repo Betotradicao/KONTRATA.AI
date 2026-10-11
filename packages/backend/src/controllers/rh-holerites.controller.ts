@@ -1,0 +1,150 @@
+import { Request, Response } from 'express';
+import axios from 'axios';
+import { AppDataSource } from '../config/database';
+import { AuthRequest } from '../middleware/auth';
+import { HoleriteImportacaoService } from '../services/holerite-importacao.service';
+import { PortalColaboradorService } from '../services/portal-colaborador.service';
+
+/**
+ * RH → Holerites: importar PDF da contabilidade, classificar, publicar no Portal do
+ * Colaborador e acompanhar ciência. Rotas em /api/rh/holerites/*.
+ */
+
+// Link que vai no WhatsApp. FRONTEND_URL é gravado pelo instalador (https://<cliente>);
+// fallback pro host da requisição (dev: localhost:3010 → front em 3004).
+export function baseUrlPortal(req: Request): string {
+  const env = (process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+  if (env) return env;
+  const host = req.get('host') || 'localhost:3004';
+  return `${req.protocol}://${host.replace(':3010', ':3004')}`;
+}
+
+const quemPublicou = (req: AuthRequest) => req.user?.username || req.user?.email || null;
+
+export class RhHoleritesController {
+  // ---- Lotes ----
+  static async importar(req: AuthRequest, res: Response) {
+    try {
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ error: 'Envie o PDF no campo "arquivo"' });
+      if (!/pdf$/i.test(file.mimetype || '') && !/\.pdf$/i.test(file.originalname || '')) return res.status(400).json({ error: 'Só PDF' });
+      const companyId = req.body?.company_id ? String(req.body.company_id) : null;
+      // multer entrega o nome em latin1 ("TradiÃ§Ã£o") — volta pra UTF-8
+      let nomeArquivo = file.originalname || 'holerites.pdf';
+      try { nomeArquivo = Buffer.from(nomeArquivo, 'latin1').toString('utf8'); } catch { /* mantém */ }
+      const lote = await HoleriteImportacaoService.importar(file.buffer, nomeArquivo, quemPublicou(req), companyId);
+      return res.status(201).json(lote);
+    } catch (e: any) {
+      console.error('[Holerites] importar:', e);
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  static async listarLotes(_req: AuthRequest, res: Response) {
+    try { res.json(await HoleriteImportacaoService.listarLotes()); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async obterLote(req: AuthRequest, res: Response) {
+    try {
+      const lote = await HoleriteImportacaoService.obterLote(Number(req.params.id));
+      if (!lote) return res.status(404).json({ error: 'Lote não encontrado' });
+      res.json(lote);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async atualizarLote(req: AuthRequest, res: Response) {
+    try {
+      const row = await HoleriteImportacaoService.atualizarLote(Number(req.params.id), req.body || {});
+      if (!row) return res.status(400).json({ error: 'Nada pra atualizar' });
+      res.json(await HoleriteImportacaoService.obterLote(Number(req.params.id)));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async excluirLote(req: AuthRequest, res: Response) {
+    try { await HoleriteImportacaoService.excluirLote(Number(req.params.id)); res.json({ ok: true }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async atualizarItem(req: AuthRequest, res: Response) {
+    try {
+      const row = await HoleriteImportacaoService.atualizarItem(Number(req.params.itemId), req.body || {});
+      if (!row) return res.status(400).json({ error: 'Nada pra atualizar ou item já publicado' });
+      res.json(row);
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** Preview do PDF fatiado (proxy do MinIO pra não expor a URL do bucket). */
+  static async itemPdf(req: AuthRequest, res: Response) {
+    try {
+      const [it] = await AppDataSource.query(`SELECT arquivo_url, ordem FROM rh_holerite_lote_itens WHERE id = $1`, [Number(req.params.itemId)]);
+      if (!it) return res.status(404).json({ error: 'Item não encontrado' });
+      const r = await axios.get(it.arquivo_url, { responseType: 'arraybuffer', timeout: 30000 });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="item_${it.ordem}.pdf"`);
+      res.send(Buffer.from(r.data));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async publicarLote(req: AuthRequest, res: Response) {
+    try {
+      const { item_ids, enviar_whats } = req.body || {};
+      const ids = Array.isArray(item_ids) && item_ids.length ? item_ids.map(Number) : null;
+      const out = await HoleriteImportacaoService.publicar(Number(req.params.id), ids, baseUrlPortal(req), quemPublicou(req), enviar_whats !== false);
+      res.json({ resultados: out, lote: await HoleriteImportacaoService.obterLote(Number(req.params.id)) });
+    } catch (e: any) {
+      console.error('[Holerites] publicar:', e);
+      res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ---- Publicações / ciência ----
+  static async listarPublicacoes(req: AuthRequest, res: Response) {
+    try {
+      const competencia = (req.query.competencia as string) || undefined;
+      const colaboradorId = req.query.colaborador_id ? Number(req.query.colaborador_id) : undefined;
+      res.json(await PortalColaboradorService.listarPublicacoes(competencia, colaboradorId));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async reenviar(req: AuthRequest, res: Response) {
+    try { res.json(await PortalColaboradorService.reenviar(Number(req.params.id), baseUrlPortal(req))); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async eventos(req: AuthRequest, res: Response) {
+    try { res.json(await PortalColaboradorService.eventos(Number(req.params.id))); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** Holerite gerado pela Folha do sistema (alternativa à importação). */
+  static async publicarGerado(req: AuthRequest, res: Response) {
+    try {
+      const { competencia, colaborador_ids, enviar_whats } = req.body || {};
+      if (!/^\d{4}-\d{2}$/.test(competencia || '')) return res.status(400).json({ error: 'competencia YYYY-MM obrigatória' });
+      if (!Array.isArray(colaborador_ids) || !colaborador_ids.length) return res.status(400).json({ error: 'colaborador_ids obrigatório' });
+      res.json(await PortalColaboradorService.publicarGerado(competencia, colaborador_ids.map(Number), baseUrlPortal(req), quemPublicou(req), enviar_whats !== false));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  // ---- Acesso do colaborador (lado RH) ----
+  /** Gera/renova o link de primeiro acesso (RH copia e manda por onde quiser). */
+  static async linkAcesso(req: AuthRequest, res: Response) {
+    try {
+      const forcar = req.body?.resetar === true;
+      res.json(await PortalColaboradorService.garantirAcesso(Number(req.params.colaboradorId), baseUrlPortal(req), forcar));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async acessos(_req: AuthRequest, res: Response) {
+    try {
+      res.json(await AppDataSource.query(
+        `SELECT c.id AS colaborador_id, c.nome, c.matricula, c.celular, c.status,
+                (ac.senha_hash IS NOT NULL) AS tem_senha, ac.ultimo_login, ac.bloqueado_ate, ac.ativo,
+                (ac.setup_token IS NOT NULL AND ac.setup_usado_em IS NULL AND ac.setup_expira_em > NOW()) AS setup_pendente
+         FROM rh_colaboradores c LEFT JOIN rh_colaborador_acessos ac ON ac.colaborador_id = c.id
+         WHERE c.status = 'ativo' ORDER BY c.nome`
+      ));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+}

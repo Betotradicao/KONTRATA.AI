@@ -723,6 +723,20 @@ export class RhController {
     return RhController.deletarConfig(req, res, 'rh_tipos_desligamento');
   }
 
+  // --- Tipos de Holerite (Pagamento, Adiantamento, Ferias, 13o...) ---
+  static async listarTiposHolerite(req: AuthRequest, res: Response) {
+    return RhController.listarConfig(req, res, 'rh_tipos_holerite', 'ordem, nome');
+  }
+  static async criarTipoHolerite(req: AuthRequest, res: Response) {
+    return RhController.criarConfig(req, res, 'rh_tipos_holerite', ['nome', 'descricao', 'palavras_chave']);
+  }
+  static async atualizarTipoHolerite(req: AuthRequest, res: Response) {
+    return RhController.atualizarConfig(req, res, 'rh_tipos_holerite', ['nome', 'descricao', 'palavras_chave']);
+  }
+  static async deletarTipoHolerite(req: AuthRequest, res: Response) {
+    return RhController.deletarConfig(req, res, 'rh_tipos_holerite');
+  }
+
   // --- Motivos de Desligamento ---
   static async listarMotivosDesligamento(req: AuthRequest, res: Response) {
     return RhController.listarConfig(req, res, 'rh_motivos_desligamento');

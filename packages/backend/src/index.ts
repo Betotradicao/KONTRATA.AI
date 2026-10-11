@@ -31,6 +31,8 @@ import lgpdRouter from './routes/lgpd.routes';
 import accessLogsRouter from './routes/access-logs.routes';
 import denunciasRouter from './routes/denuncias.routes';
 import whatsappRouter from './routes/whatsapp.routes';
+import atendenteVirtualRouter from './routes/atendente-virtual.routes';
+import portalColaboradorRouter from './routes/portal-colaborador.routes';
 import { startVagasAbertasCron } from './crons/vagas-abertas.cron';
 import { startAsoVencimentosCron } from './crons/aso-vencimentos.cron';
 import { startDpDocsCron } from './crons/dp-docs.cron';
@@ -139,6 +141,8 @@ app.use('/api/lgpd', lgpdRouter);
 app.use('/api/access-logs', accessLogsRouter);
 app.use('/api/denuncias', denunciasRouter);
 app.use('/api/whatsapp', whatsappRouter);
+app.use('/api/atendente-virtual', atendenteVirtualRouter);
+app.use('/api/portal', portalColaboradorRouter); // Portal do Colaborador (JWT proprio)
 
 // Endpoint generico de upload de imagem usado por varios formularios
 // (foto da empresa, foto do colaborador, foto da loja, etc).

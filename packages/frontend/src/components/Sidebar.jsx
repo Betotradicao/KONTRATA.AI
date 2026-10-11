@@ -411,6 +411,13 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           ]
         },
         {
+          id: 'atendente-virtual',
+          submenuId: 'atendente-virtual',
+          title: 'ATENDENTE VIRTUAL',
+          icon: (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 3v-3z"/></svg>),
+          path: '/atendente-virtual',
+        },
+        {
           id: 'rh-pesquisa-clima',
           moduleId: 'rh-pesquisa-clima',
           title: 'PESQUISA DE CLIMA',
@@ -444,6 +451,7 @@ export default function Sidebar({ user, onLogout, isMobileMenuOpen, setIsMobileM
           subItems: [
             { id: 'rh-lancamentos', submenuId: 'rh-lancamentos', title: 'LANÇAMENTOS', path: '/rh/lancamentos' },
             { id: 'rh-folha', submenuId: 'rh-folha', title: 'FOLHA DE PAGAMENTO', path: '/rh/folha' },
+            { id: 'rh-holerites', submenuId: 'rh-holerites', title: 'HOLERITES', path: '/rh/holerites' },
             { id: 'rh-performance-setor', submenuId: 'rh-folha', title: 'PERFORMANCE POR SETOR', path: '/rh/performance-setor' }
           ]
         },

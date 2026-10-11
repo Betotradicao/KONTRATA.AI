@@ -34,6 +34,7 @@ const TABS = [
   { key: 'tipos_treinamento', label: 'Tipos Trein.', endpoint: '/rh/configuracoes/tipos-treinamento', fields: ['nome', 'categoria'] },
   { key: 'status_treinamento', label: 'Status Trein.', endpoint: '/rh/configuracoes/status-treinamento', fields: ['nome', 'cor'] },
   { key: 'beneficios', label: 'Benefícios', endpoint: '/rh/configuracoes/beneficios', fields: ['nome', 'descricao', 'valor'] },
+  { key: 'tipos_holerite', label: 'Tipos Holerite', endpoint: '/rh/configuracoes/tipos-holerite', fields: ['nome', 'descricao', 'palavras_chave'] },
   { key: 'feriados', label: 'Feriados', custom: true },
   { key: 'epis_epcs', label: 'EPIs e EPCs', custom: true },
   { key: 'docs_padronizados', label: '📄 Docs Padronizados', custom: true },
@@ -44,6 +45,7 @@ const TABS = [
 ];
 
 const FIELD_LABELS = {
+  palavras_chave: 'Palavras-chave (no título do PDF, separadas por vírgula)',
   nome: 'Nome',
   descricao: 'Descricao',
   cnpj: 'CNPJ',

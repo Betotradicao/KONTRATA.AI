@@ -17,7 +17,7 @@ export function accessLogMiddleware(req: Request, res: Response, next: NextFunct
     let bodyMeta: any = null;
     if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
       bodyMeta = { ...req.body };
-      ['password', 'newPassword', 'currentPassword', 'token', 'masterPassword'].forEach(k => {
+      ['password', 'newPassword', 'currentPassword', 'token', 'masterPassword', 'senha', 'senha_atual', 'nova_senha'].forEach(k => {
         if (bodyMeta[k]) bodyMeta[k] = '***';
       });
     }

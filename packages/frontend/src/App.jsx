@@ -7,6 +7,7 @@ import LgpdDemoBanner from './components/LgpdDemoBanner';
 
 // Auth / Core
 import Login from './pages/Login';
+import AtendenteVirtual from './pages/AtendenteVirtual';
 import AdminSetup from './pages/AdminSetup';
 import CadastroColaborador from './pages/CadastroColaborador';
 import ForgotPassword from './pages/ForgotPassword';
@@ -23,6 +24,10 @@ import PesquisaPublica from './pages/PesquisaPublica';
 import DenunciaPublica from './pages/DenunciaPublica';
 import RecrutamentoPublico from './pages/RecrutamentoPublico';
 import AdmissaoPublica from './pages/AdmissaoPublica';
+import PortalLogin from './pages/portal/PortalLogin';
+import PortalPrimeiroAcesso from './pages/portal/PortalPrimeiroAcesso';
+import PortalHolerites from './pages/portal/PortalHolerites';
+import RhHolerites from './pages/RhHolerites';
 
 // RH (todas as páginas Rh*)
 import RhDashboard from './pages/RhDashboard';
@@ -101,6 +106,10 @@ function App() {
               <Route path="/recrutamento/:token" element={<RecrutamentoPublico />} />
               <Route path="/admissao/:token" element={<AdmissaoPublica />} />
               <Route path="/denuncia/:empresaId" element={<DenunciaPublica />} />
+              {/* Portal do Colaborador (login proprio por CPF+senha, token separado do painel) */}
+              <Route path="/portal" element={<PortalLogin />} />
+              <Route path="/portal/primeiro-acesso/:token" element={<PortalPrimeiroAcesso />} />
+              <Route path="/portal/holerites" element={<PortalHolerites />} />
 
               {/* Protected — Auth & Perfil */}
               <Route path="/perfil" element={<ProtectedRoute><Perfil /></ProtectedRoute>} />
@@ -130,6 +139,7 @@ function App() {
               <Route path="/rh/entrevistas-ia" element={<ProtectedRoute moduleId="rh-curriculo-banco"><RhEntrevistasIA /></ProtectedRoute>} />
               <Route path="/rh/modelo-curriculo" element={<ProtectedRoute moduleId="rh-curriculo-modelo"><ModeloCurriculo /></ProtectedRoute>} />
               <Route path="/rh/vagas" element={<ProtectedRoute moduleId="rh-vagas"><RhVagas /></ProtectedRoute>} />
+              <Route path="/atendente-virtual" element={<ProtectedRoute moduleId="atendente-virtual"><AtendenteVirtual /></ProtectedRoute>} />
               <Route path="/rh/recrutador" element={<ProtectedRoute moduleId="rh-recrutador-ia"><RhRecrutadorIA /></ProtectedRoute>} />
               <Route path="/rh/recrutador/:tab" element={<ProtectedRoute moduleId="rh-recrutador-ia"><RhRecrutadorIA /></ProtectedRoute>} />
 
@@ -147,6 +157,7 @@ function App() {
               {/* RH — Financeiro */}
               <Route path="/rh/lancamentos" element={<ProtectedRoute moduleId="rh-lancamentos"><RhLancamentos /></ProtectedRoute>} />
               <Route path="/rh/folha" element={<ProtectedRoute moduleId="rh-folha"><RhFolhaPagamento /></ProtectedRoute>} />
+              <Route path="/rh/holerites" element={<ProtectedRoute moduleId="rh-holerites"><RhHolerites /></ProtectedRoute>} />
               <Route path="/rh/performance-setor" element={<ProtectedRoute moduleId="rh-folha"><RhPerformanceSetor /></ProtectedRoute>} />
 
               {/* RH — Escala de Trabalho */}
