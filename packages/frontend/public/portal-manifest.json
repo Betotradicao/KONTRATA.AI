@@ -1,0 +1,17 @@
+{
+  "name": "Portal do Colaborador",
+  "short_name": "Meu RH",
+  "description": "Holerites e documentos do colaborador",
+  "id": "/portal",
+  "start_url": "/portal",
+  "scope": "/portal",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3EAFE",
+  "theme_color": "#3D1B7E",
+  "icons": [
+    { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

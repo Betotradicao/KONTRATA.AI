@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../../components/Logo';
 import PasswordRequirements from '../../components/PasswordRequirements';
 import { isPasswordStrong } from '../../utils/passwordPolicy';
-import { portalApi, portalLogado, portalLogout, PORTAL_TOKEN_KEY } from '../../utils/portalApi';
+import { portalApi, portalLogado, portalLogout } from '../../utils/portalApi';
+import { usePortalInstall } from '../../utils/portalPwa';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const fmtComp = (c) => { const [y, m] = String(c || '').split('-'); return m ? `${MESES[parseInt(m) - 1]} / ${y}` : c; };
@@ -18,6 +19,10 @@ export default function PortalHolerites() {
   const [aceitando, setAceitando] = useState(null);
   const [msg, setMsg] = useState('');
   const [showSenha, setShowSenha] = useState(false);
+  const [ano, setAno] = useState('');
+  const [mes, setMes] = useState('');
+  const [showIos, setShowIos] = useState(false);
+  const { podeInstalar, instalar } = usePortalInstall();
 
   useEffect(() => { if (!portalLogado()) navigate('/portal', { replace: true }); }, [navigate]);
 
@@ -55,6 +60,17 @@ export default function PortalHolerites() {
 
   const sair = () => { portalLogout(); navigate('/portal', { replace: true }); };
 
+  const anos = useMemo(() => [...new Set(itens.map(i => String(i.competencia || '').slice(0, 4)).filter(Boolean))].sort().reverse(), [itens]);
+  const filtrados = useMemo(() => itens.filter(i => {
+    const [y, m] = String(i.competencia || '').split('-');
+    return (!ano || y === ano) && (!mes || m === mes);
+  }), [itens, ano, mes]);
+
+  const clicarInstalar = async () => {
+    const r = await instalar();
+    if (r === 'ios') setShowIos(true);
+  };
+
   const badge = (s) => ({
     pendente:    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">NOVO</span>,
     visualizado: <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">VISTO</span>,
@@ -78,7 +94,33 @@ export default function PortalHolerites() {
       </header>
 
       <main className="max-w-xl mx-auto p-4 space-y-3">
-        <h1 className="text-base font-bold text-purple-900">Meus holerites</h1>
+        {podeInstalar && (
+          <button onClick={clicarInstalar}
+            className="w-full flex items-center gap-3 bg-white border-2 border-purple-300 rounded-xl p-3 text-left hover:bg-purple-50">
+            <span className="text-2xl">📲</span>
+            <span className="flex-1">
+              <span className="block font-bold text-purple-900 text-sm">Instalar app no celular</span>
+              <span className="block text-[11px] text-gray-500">Fica um ícone na tela inicial — abre direto, sem procurar o link</span>
+            </span>
+            <span className="text-purple-700 font-bold text-sm">Instalar</span>
+          </button>
+        )}
+
+        <div className="flex items-end justify-between gap-2 flex-wrap">
+          <h1 className="text-base font-bold text-purple-900">Meus holerites</h1>
+          {itens.length > 0 && (
+            <div className="flex gap-2">
+              <select value={ano} onChange={e => setAno(e.target.value)} className="border border-purple-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                <option value="">Todos os anos</option>
+                {anos.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <select value={mes} onChange={e => setMes(e.target.value)} className="border border-purple-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                <option value="">Todos os meses</option>
+                {MESES.map((nome, i) => <option key={i} value={String(i + 1).padStart(2, '0')}>{nome}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
         {msg && <div className="p-3 rounded-lg bg-white border border-purple-200 text-sm text-purple-900">{msg}</div>}
 
         {loading && <p className="text-center text-gray-500 py-10">Carregando…</p>}
@@ -89,7 +131,13 @@ export default function PortalHolerites() {
           </div>
         )}
 
-        {itens.map(it => (
+        {!loading && itens.length > 0 && filtrados.length === 0 && (
+          <div className="bg-white rounded-xl p-6 text-center text-gray-500 text-sm">Nenhum holerite nesse período.
+            <button onClick={() => { setAno(''); setMes(''); }} className="block mx-auto mt-2 text-purple-700 font-semibold">Limpar filtro</button>
+          </div>
+        )}
+
+        {filtrados.map(it => (
           <div key={it.id} className="bg-white rounded-xl shadow-sm p-4">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -122,6 +170,22 @@ export default function PortalHolerites() {
       </main>
 
       {showSenha && <TrocarSenhaModal onClose={() => setShowSenha(false)} />}
+
+      {showIos && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3" onClick={() => setShowIos(false)}>
+          <div className="bg-white rounded-xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900 mb-3">📲 Instalar no iPhone</h3>
+            <ol className="text-sm text-gray-700 space-y-3 list-decimal pl-5">
+              <li>Abra esta página no <b>Safari</b>.</li>
+              <li>Toque no botão <b>Compartilhar</b> <span className="inline-block border rounded px-1">⬆️</span> na barra de baixo.</li>
+              <li>Role e toque em <b>"Adicionar à Tela de Início"</b>.</li>
+              <li>Toque em <b>Adicionar</b>. Pronto — o ícone <b>Meu RH</b> aparece na tela.</li>
+            </ol>
+            <p className="text-[11px] text-gray-500 mt-3">Na primeira vez que abrir pelo ícone, entre com CPF e senha de novo.</p>
+            <button onClick={() => setShowIos(false)} className="w-full mt-4 py-2.5 rounded-lg bg-purple-700 text-white font-bold text-sm">Entendi</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

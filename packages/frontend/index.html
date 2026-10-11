@@ -9,8 +9,16 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.json" id="app-manifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Portal do Colaborador vira app instalável próprio (abre em /portal, nome "Meu RH").
+         Troca o manifest ANTES do navegador avaliar a página — é o que libera o "Instalar app". -->
+    <script>
+      if (location.pathname.indexOf('/portal') === 0) {
+        document.getElementById('app-manifest').setAttribute('href', '/portal-manifest.json');
+        document.write('<meta name="theme-color" content="#3D1B7E"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Meu RH"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">');
+      }
+    </script>
 
     <!-- NUNCA CACHEAR - SEMPRE VERSÃO MAIS RECENTE -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />

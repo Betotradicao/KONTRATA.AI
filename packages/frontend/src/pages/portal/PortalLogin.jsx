@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../../components/Logo';
 import { portalApi, portalLogado, formatCpf, PORTAL_TOKEN_KEY, PORTAL_USER_KEY } from '../../utils/portalApi';
+import { usePortalInstall } from '../../utils/portalPwa';
 
 // Portal do Colaborador — login por CPF + senha (link fixo /portal, chega pelo WhatsApp)
 export default function PortalLogin() {
@@ -11,6 +12,8 @@ export default function PortalLogin() {
   const [showPwd, setShowPwd] = useState(false);
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const { podeInstalar, ios, instalar } = usePortalInstall();
+  const [dicaIos, setDicaIos] = useState(false);
 
   useEffect(() => { if (portalLogado()) navigate('/portal/holerites', { replace: true }); }, [navigate]);
 
@@ -73,6 +76,15 @@ export default function PortalLogin() {
             Esqueceu a senha ou ainda não criou? Peça ao RH um novo <strong>link de primeiro acesso</strong>.
           </p>
         </div>
+        {podeInstalar && (
+          <div className="mt-4 text-center">
+            <button onClick={async () => { if ((await instalar()) === 'ios') setDicaIos(v => !v); }}
+              className="text-sm font-semibold text-white bg-white/15 hover:bg-white/25 rounded-lg px-4 py-2">📲 Instalar app no celular</button>
+            {dicaIos && ios && (
+              <p className="text-[11px] text-white/80 mt-2 leading-snug">No Safari: toque em <b>Compartilhar ⬆️</b> e depois em <b>"Adicionar à Tela de Início"</b>.</p>
+            )}
+          </div>
+        )}
         <p className="text-[10px] text-white/50 text-center mt-4">Kontrata.ai · acesso pessoal e intransferível</p>
       </div>
     </div>
