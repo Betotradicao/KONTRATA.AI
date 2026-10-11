@@ -399,6 +399,21 @@ function AbaImportar({ colaboradores, tipos, empresas }) {
   );
 }
 
+
+// Dossiê pra processo: ZIP com originais, assinados, trilha, termo de adesão e acessos
+async function baixarDossie(colaboradorId, nome) {
+  const t = toast.loading('Montando dossiê…');
+  try {
+    const r = await api.get(`/rh/holerites/dossie/${colaboradorId}`, { responseType: 'blob', timeout: 300000 });
+    const url = URL.createObjectURL(new Blob([r.data], { type: 'application/zip' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `dossie_${String(nome || colaboradorId).replace(/\s+/g, '_')}.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    toast.success('Dossiê baixado', { id: t });
+  } catch { toast.error('Erro ao gerar dossiê', { id: t }); }
+}
+
 /* ============================ PUBLICAÇÕES ============================ */
 function AbaPublicacoes() {
   const [competencia, setCompetencia] = useState('');
@@ -511,6 +526,7 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) 
           <button onClick={onLink} className="text-gray-600 hover:underline mr-2" title="Copiar link de acesso">🔗 link</button>
           {r.status === 'aceito' && <button onClick={() => abrirComprovante(r)} className="text-green-700 hover:underline mr-2" title="Holerite + página do comprovante de ciência">📄 comprovante</button>}
           <button onClick={onEventos} className="text-gray-500 hover:underline" title="Trilha de auditoria">{eventos ? '▲' : '▼'} trilha</button>
+          <button onClick={() => baixarDossie(r.colaborador_id, r.nome)} className="ml-2 text-gray-700 hover:underline" title="ZIP com todos os holerites, comprovantes e trilha deste colaborador — pra processo">📦 dossiê</button>
         </td>
       </tr>
       {eventos && (
@@ -610,6 +626,7 @@ function AbaAcessos() {
                   {r.tem_senha
                     ? <button onClick={() => gerar(r, true)} className="text-purple-700 hover:underline">🔁 novo link (reset)</button>
                     : <button onClick={() => gerar(r, false)} className="text-purple-700 hover:underline">🔗 gerar link 1º acesso</button>}
+                  <button onClick={() => baixarDossie(r.colaborador_id, r.nome)} className="ml-3 text-gray-700 hover:underline" title="Dossiê pra processo (ZIP)">📦 dossiê</button>
                   {r.ativo === false
                     ? <button onClick={() => bloquear(r, false)} className="ml-3 text-green-700 hover:underline">✅ liberar</button>
                     : <button onClick={() => bloquear(r, true)} className="ml-3 text-red-600 hover:underline">⛔ bloquear</button>}

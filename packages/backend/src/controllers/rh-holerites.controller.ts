@@ -6,6 +6,7 @@ import { AuthRequest } from '../middleware/auth';
 import { HoleriteImportacaoService } from '../services/holerite-importacao.service';
 import { PortalColaboradorService } from '../services/portal-colaborador.service';
 import { anexarComprovante } from '../services/comprovante-ciencia.service';
+import { gerarDossie } from '../services/dossie-holerites.service';
 
 /**
  * RH → Holerites: importar PDF da contabilidade, classificar, publicar no Portal do
@@ -128,6 +129,19 @@ export class RhHoleritesController {
       res.setHeader('Content-Disposition', `inline; filename="comprovante_${a.nome || 'holerite.pdf'}"`);
       res.send(pdf);
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** ZIP "dossiê pra processo" de um colaborador (originais, assinados, trilha, termo, acessos). */
+  static async dossie(req: AuthRequest, res: Response) {
+    try {
+      const { stream, fileName } = await gerarDossie(Number(req.params.colaboradorId), quemPublicou(req));
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      stream.pipe(res);
+    } catch (e: any) {
+      console.error('[Holerites] dossie:', e);
+      if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
   }
 
   static async eventos(req: AuthRequest, res: Response) {

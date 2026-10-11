@@ -9,9 +9,13 @@ export function accessLogMiddleware(req: Request, res: Response, next: NextFunct
     if (req.path.startsWith('/api/health') || req.path.startsWith('/api-docs') || req.path.startsWith('/api/access-logs')) return;
 
     const u = (req as any).user || {};
-    const userId = u.id || (req as any).userId || null;
+    // Colaborador do portal tem id INTEIRO (rh_colaboradores) e user_id é UUID: o insert
+    // falhava e o acesso não era logado. Vai no user_name como "NOME (#id)" — é o que o
+    // dossiê pra processo busca.
+    const ehColaborador = u.type === 'colaborador';
+    const userId = ehColaborador ? null : (u.id || (req as any).userId || null);
     const userType = u.type || (u.isMaster ? 'master' : u.role || null);
-    const userName = u.username || u.name || null;
+    const userName = ehColaborador ? `${u.nome || 'COLABORADOR'} (#${u.id})` : (u.username || u.name || null);
 
     // Sanitiza body — nao guarda senha/token
     let bodyMeta: any = null;

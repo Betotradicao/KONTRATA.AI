@@ -20,6 +20,15 @@ O motor (documento + hash + ciência com trilha) é genérico pra depois servir 
 | Prova de recebimento | Botão **"Ciente / Recebi"** grava SHA-256 do PDF + IP + user-agent + hora + método `cpf_senha` | CLT 464 § único + MP 2.200-2. Assinatura "simples" (sem 2FA) — OTP é fase 2 |
 | Termo de adesão ao meio eletrônico | Doc Padronizado fase 1 (protegido) + subpasta TERMO MEIO ELETRÔNICO em DOCS CONTRATAÇÃO | MP 2.200-2 exige que as partes aceitem o método; assinado em papel na admissão |
 
+## Assinatura (ciência) — como funciona e o que mostrar a um juiz (11/10/2026)
+- "Ciente / Recebi" pede **código de 6 dígitos no WhatsApp** (10 min, 5 tentativas, 1/min, só vale pro documento, guardado como SHA-256) → método `cpf_senha_otp_whatsapp` = assinatura **avançada** (Lei 14.063). Se o envio falha (sem celular / Evolution fora) libera ciência simples `cpf_senha` **só pra aquele documento** (`otp_falhou_aceite_id`) — backend nunca deixa pular o código se ele foi enviado.
+- Após a ciência: `<holerite>_ASSINADO.pdf` (holerite + página "Comprovante de Ciência Eletrônica") vai pra pasta HOLERITES. **Original fica** — é ele que o SHA-256 impresso confere. RH também baixa em Publicações → 📄 comprovante.
+- **Prova em juízo** = (1) PDF assinado com comprovante; (2) arquivo original → qualquer perito recalcula o SHA-256 e bate com o impresso; (3) trilha `rh_documento_aceite_eventos` (publicado, código enviado, visualizado, aceito, IP/UA); (4) termo de adesão ao meio eletrônico assinado na admissão; (5) `access_logs`; (6) comprovante do depósito bancário (CLT 464 § ún.) — continua sendo a prova principal do pagamento.
+
+## Desligado
+- Acessa por `portal_dias_acesso_desligado` dias após `data_desligamento` (padrão **150 = 5 meses**, editável na aba Acessos; 0 = corta). Sem data de desligamento = bloqueado.
+- Bloqueio manual `rh_colaborador_acessos.ativo=false` vale por cima. Checado no login e **em toda requisição** (`PortalColaboradorService.podeAcessar`).
+
 ## Como o PDF da contabilidade é lido (calibrado com Tradição 09/2026, 39 págs)
 Cada página tem `Periodo : 09/2026 Nro 111 Nome FULANO Admissão … CPF 15015202881 Função …` e o conteúdo repetido 2x (2 vias).
 - **CPF** → casa com `rh_colaboradores.cpf` (dígitos) = confiança *alta*; nome exato normalizado = *média*; 2 primeiros nomes = *baixa*; senão *não identificado* (vermelho, RH escolhe).
