@@ -283,7 +283,7 @@ export class PortalColaboradorService {
     const codigo = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     const primeiro = String(c.nome || '').split(' ')[0];
     try {
-      await this.enviarWhats(numero, `🔐 *${codigo}* é o seu código pra confirmar o recebimento do holerite no Portal do Colaborador.\n\nVale 10 minutos. Não compartilhe com ninguém — nem com o RH.\n\n_${primeiro}, se não foi você que pediu, ignore esta mensagem._`, null, '');
+      await this.enviarWhats(numero, `🔐 *${codigo}* é o seu código pra abrir o holerite no Portal do Colaborador.\n\nVale 10 minutos. Não compartilhe com ninguém — nem com o RH.\n\n_${primeiro}, se não foi você que pediu, ignore esta mensagem._`, null, '');
     } catch (e: any) {
       return falhou(`WhatsApp: ${e.response?.data?.message || e.message}`);
     }

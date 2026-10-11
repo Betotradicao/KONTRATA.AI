@@ -36,30 +36,70 @@ export default function PortalHolerites() {
   };
   useEffect(() => { carregar(); }, []);
 
-  // PDF abre em aba nova via blob (precisa do token no header; não dá pra linkar direto)
+  // Código do WhatsApp é pedido pra ABRIR holerite ainda não confirmado (decisão do Beto,
+  // 11/10/2026). Validado, libera aquele documento por 30 min: abrir de novo e "Ciente"
+  // sem código. Depois do Ciente abre só com o login (PDF + comprovante).
+  const [codigoModal, setCodigoModal] = useState(null); // { it, para, codigo, erro, aguarde, enviando }
+
+  // A aba precisa abrir NO clique (senão o celular bloqueia o pop-up); o PDF entra depois.
+  const abrirJanela = () => { try { return window.open('', '_blank'); } catch { return null; } };
+  const carregarPdfNa = async (it, janela) => {
+    const r = await portalApi.get(`/portal/holerites/${it.id}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+    if (janela && !janela.closed) janela.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+    if (it.status === 'pendente') setItens(prev => prev.map(x => x.id === it.id ? { ...x, status: 'visualizado' } : x));
+  };
+
   const abrirPdf = async (it) => {
+    const janela = abrirJanela();
     try {
-      const r = await portalApi.get(`/portal/holerites/${it.id}/pdf`, { responseType: 'blob' });
-      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      if (it.status === 'pendente') setItens(prev => prev.map(x => x.id === it.id ? { ...x, status: 'visualizado' } : x));
-    } catch { setMsg('Não foi possível abrir o PDF. Tente novamente.'); }
+      if (it.status !== 'aceito') {
+        const { data } = await portalApi.post(`/portal/holerites/${it.id}/codigo`);
+        if (!data.liberado && data.enviado) {
+          // precisa digitar o código: fecha a aba vazia e abre o modal
+          if (janela) janela.close();
+          setCodigoModal({ it, para: data.para, codigo: '', erro: '', aguarde: data.aguarde || 60 });
+          return;
+        }
+        if (!data.liberado && !data.enviado) setMsg('Não conseguimos enviar o código pelo WhatsApp agora — liberado só com sua senha.');
+      }
+      await carregarPdfNa(it, janela);
+    } catch (err) {
+      if (janela) janela.close();
+      setMsg(err.response?.data?.error || 'Não foi possível abrir o PDF. Tente novamente.');
+    }
   };
 
-  // Ciência = assinatura: pede código de 6 dígitos no WhatsApp (2º fator). Se não der pra
-  // enviar (sem celular / WhatsApp da loja fora), o backend libera a confirmação simples.
-  const [ciencia, setCiencia] = useState(null); // { it, para, simples, codigo, erro, aguarde }
-
-  const darCiencia = async (it) => {
-    setAceitando(it.id);
+  const validarEAbrir = async () => {
+    const c = codigoModal;
+    if (c.codigo.length !== 6) { setCodigoModal({ ...c, erro: 'Digite os 6 números' }); return; }
+    const janela = abrirJanela();
+    setCodigoModal({ ...c, enviando: true, erro: '' });
     try {
-      const { data } = await portalApi.post(`/portal/holerites/${it.id}/ciencia/codigo`);
-      if (data.ja_aceito) { marcarAceito(it); return; }
-      setCiencia({ it, para: data.para, simples: !data.enviado, codigo: '', erro: '', aguarde: data.aguarde || 60 });
-    } catch (err) { setMsg(err.response?.data?.error || 'Erro ao pedir o código'); }
-    finally { setAceitando(null); }
+      await portalApi.post(`/portal/holerites/${c.it.id}/codigo/validar`, { codigo: c.codigo });
+      setCodigoModal(null);
+      await carregarPdfNa(c.it, janela);
+    } catch (err) {
+      if (janela) janela.close();
+      setCodigoModal({ ...c, enviando: false, erro: err.response?.data?.error || 'Erro ao validar' });
+    }
   };
+
+  const reenviarCodigo = async () => {
+    const c = codigoModal;
+    try {
+      const { data } = await portalApi.post(`/portal/holerites/${c.it.id}/codigo`);
+      setCodigoModal({ ...c, para: data.para || c.para, aguarde: data.aguarde || 60, erro: '' });
+    } catch (err) { setCodigoModal({ ...c, erro: err.response?.data?.error || 'Erro ao reenviar' }); }
+  };
+
+  useEffect(() => {
+    if (!codigoModal || !codigoModal.aguarde) return;
+    const t = setTimeout(() => setCodigoModal(c => c && ({ ...c, aguarde: Math.max(0, (c.aguarde || 0) - 1) })), 1000);
+    return () => clearTimeout(t);
+  }, [codigoModal]);
 
   const marcarAceito = (it) => {
     setItens(prev => prev.map(x => x.id === it.id ? { ...x, status: 'aceito', aceito_em: new Date().toISOString() } : x));
@@ -67,30 +107,18 @@ export default function PortalHolerites() {
     setTimeout(() => setMsg(''), 4000);
   };
 
-  const confirmarCiencia = async () => {
-    const c = ciencia;
-    if (!c.simples && c.codigo.length !== 6) { setCiencia({ ...c, erro: 'Digite os 6 números' }); return; }
-    setCiencia({ ...c, enviando: true, erro: '' });
+  const darCiencia = async (it) => {
+    if (it.status === 'pendente') { setMsg('Abra o holerite e confira antes de confirmar o recebimento.'); return; }
+    if (!window.confirm(`Confirmar que você recebeu e conferiu o holerite de ${fmtComp(it.competencia)}?`)) return;
+    setAceitando(it.id);
     try {
-      await portalApi.post(`/portal/holerites/${c.it.id}/ciencia`, c.simples ? {} : { codigo: c.codigo });
-      setCiencia(null);
-      marcarAceito(c.it);
-    } catch (err) { setCiencia({ ...c, enviando: false, erro: err.response?.data?.error || 'Erro ao registrar' }); }
+      await portalApi.post(`/portal/holerites/${it.id}/ciencia`);
+      marcarAceito(it);
+    } catch (err) {
+      if (err.response?.data?.precisa_codigo) setMsg('Seu acesso a este holerite expirou (30 min). Toque em "Abrir PDF" de novo para receber um novo código.');
+      else setMsg(err.response?.data?.error || 'Erro ao registrar');
+    } finally { setAceitando(null); }
   };
-
-  const reenviarCodigo = async () => {
-    const c = ciencia;
-    try {
-      const { data } = await portalApi.post(`/portal/holerites/${c.it.id}/ciencia/codigo`);
-      setCiencia({ ...c, para: data.para, simples: !data.enviado, aguarde: data.aguarde || 60, erro: data.enviado ? '' : c.erro });
-    } catch (err) { setCiencia({ ...c, erro: err.response?.data?.error || 'Erro ao reenviar' }); }
-  };
-
-  useEffect(() => {
-    if (!ciencia || ciencia.simples || !ciencia.aguarde) return;
-    const t = setTimeout(() => setCiencia(c => c && ({ ...c, aguarde: Math.max(0, (c.aguarde || 0) - 1) })), 1000);
-    return () => clearTimeout(t);
-  }, [ciencia]);
 
   const sair = () => { portalLogout(); navigate('/portal', { replace: true }); };
 
@@ -210,42 +238,31 @@ export default function PortalHolerites() {
 
       {showSenha && <TrocarSenhaModal onClose={() => setShowSenha(false)} />}
 
-      {ciencia && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3" onClick={() => !ciencia.enviando && setCiencia(null)}>
+      {codigoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-3" onClick={() => !codigoModal.enviando && setCodigoModal(null)}>
           <div className="bg-white rounded-xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-gray-900">Confirmar recebimento</h3>
-            <p className="text-sm text-gray-600 mt-1">Holerite de <b>{fmtComp(ciencia.it.competencia)}</b> · {ciencia.it.tipo_nome || 'PAGAMENTO'}</p>
-
-            {!ciencia.simples ? (
-              <>
-                <p className="text-sm text-gray-700 mt-4">Enviamos um código de 6 números para o seu WhatsApp <b>{ciencia.para}</b>.</p>
-                <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={ciencia.codigo}
-                  onChange={e => setCiencia({ ...ciencia, codigo: e.target.value.replace(/\D/g, '').slice(0, 6), erro: '' })}
-                  onKeyDown={e => e.key === 'Enter' && confirmarCiencia()}
-                  placeholder="000000"
-                  className="w-full mt-3 text-center tracking-[0.5em] text-2xl font-bold py-3 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                <div className="text-center mt-2">
-                  {ciencia.aguarde > 0
-                    ? <span className="text-xs text-gray-400">Reenviar código em {ciencia.aguarde}s</span>
-                    : <button onClick={reenviarCodigo} className="text-xs text-purple-700 font-semibold">Não chegou? Reenviar código</button>}
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-700 mt-4">Ao confirmar, você declara que recebeu e conferiu este holerite.</p>
-            )}
-
-            {ciencia.erro && <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">{ciencia.erro}</div>}
-
+            <h3 className="font-bold text-gray-900">🔐 Código de acesso</h3>
+            <p className="text-sm text-gray-600 mt-1">Holerite de <b>{fmtComp(codigoModal.it.competencia)}</b> · {codigoModal.it.tipo_nome || 'PAGAMENTO'}</p>
+            <p className="text-sm text-gray-700 mt-4">Enviamos um código de 6 números para o seu WhatsApp <b>{codigoModal.para}</b>.</p>
+            <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codigoModal.codigo}
+              onChange={e => setCodigoModal({ ...codigoModal, codigo: e.target.value.replace(/\D/g, '').slice(0, 6), erro: '' })}
+              onKeyDown={e => e.key === 'Enter' && validarEAbrir()}
+              placeholder="000000"
+              className="w-full mt-3 text-center tracking-[0.5em] text-2xl font-bold py-3 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+            <div className="text-center mt-2">
+              {codigoModal.aguarde > 0
+                ? <span className="text-xs text-gray-400">Reenviar código em {codigoModal.aguarde}s</span>
+                : <button onClick={reenviarCodigo} className="text-xs text-purple-700 font-semibold">Não chegou? Reenviar código</button>}
+            </div>
+            {codigoModal.erro && <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">{codigoModal.erro}</div>}
             <div className="flex gap-2 mt-4">
-              <button onClick={() => setCiencia(null)} disabled={ciencia.enviando} className="flex-1 py-2.5 rounded-lg bg-gray-100 text-sm font-semibold">Cancelar</button>
-              <button onClick={confirmarCiencia} disabled={ciencia.enviando || (!ciencia.simples && ciencia.codigo.length !== 6)}
-                className="flex-1 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-50">
-                {ciencia.enviando ? '…' : '✓ Ciente / Recebi'}
+              <button onClick={() => setCodigoModal(null)} disabled={codigoModal.enviando} className="flex-1 py-2.5 rounded-lg bg-gray-100 text-sm font-semibold">Cancelar</button>
+              <button onClick={validarEAbrir} disabled={codigoModal.enviando || codigoModal.codigo.length !== 6}
+                className="flex-1 py-2.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white text-sm font-bold disabled:opacity-50">
+                {codigoModal.enviando ? '…' : '📄 Abrir holerite'}
               </button>
             </div>
-            <p className="text-[10px] text-gray-400 mt-3 leading-snug">
-              Será registrado data, hora, dispositivo{!ciencia.simples ? ', o código de confirmação' : ''} e a impressão digital (SHA-256) do documento, como comprovante de recebimento.
-            </p>
+            <p className="text-[10px] text-gray-400 mt-3 leading-snug">O código protege seu holerite: só quem está com o seu celular consegue abrir. Ele também é registrado como comprovante quando você confirmar o recebimento.</p>
           </div>
         </div>
       )}

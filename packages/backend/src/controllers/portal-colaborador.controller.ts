@@ -16,6 +16,7 @@ import { anexarComprovante, salvarVersaoAssinada } from '../services/comprovante
 const JWT_SECRET = process.env.JWT_SECRET || 'development-secret';
 const MAX_TENTATIVAS = 5;
 const BLOQUEIO_MIN = 15;
+const JANELA_CODIGO_MS = 30 * 60 * 1000; // código validado libera o documento por 30 min
 
 // Mesma política dos usuários do painel (employees.controller.ts)
 const SENHA_FORTE = (s: string) => s.length >= 8 && /[A-Z]/.test(s) && /[a-z]/.test(s) && /\d/.test(s) && /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?~`]/.test(s);
@@ -139,16 +140,38 @@ export class PortalColaboradorController {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
-  /** PDF via backend (bucket é público, mas a URL nunca sai daqui). 1ª abertura = 'visualizado'. */
+  /**
+   * Situação do 2º fator pra um documento: 'validado' (código certo há < 30 min),
+   * 'falhou' (não deu pra enviar código → libera sem), ou 'precisa'.
+   */
+  private static async estadoCodigo(colabId: number, aceiteId: number): Promise<'validado' | 'falhou' | 'precisa'> {
+    const [ac] = await AppDataSource.query(
+      `SELECT otp_validado_aceite_id, otp_validado_em, otp_falhou_aceite_id FROM rh_colaborador_acessos WHERE colaborador_id = $1`,
+      [colabId]
+    );
+    if (ac?.otp_validado_aceite_id === aceiteId && ac.otp_validado_em && Date.now() - new Date(ac.otp_validado_em).getTime() < JANELA_CODIGO_MS) return 'validado';
+    if (ac?.otp_falhou_aceite_id === aceiteId) return 'falhou';
+    return 'precisa';
+  }
+
+  /**
+   * PDF via backend (bucket é público, mas a URL nunca sai daqui).
+   * Decisão do Beto (11/10/2026): o código do WhatsApp é pedido pra ABRIR holerite ainda
+   * não confirmado. Depois do "Ciente", abre só com o login (com a página do comprovante).
+   */
   static async pdf(req: AuthRequest, res: Response) {
     try {
+      const colabId = Number(req.user!.id);
       const [a] = await AppDataSource.query(
         `SELECT a.id, a.status, d.arquivo_url, d.nome FROM rh_documento_aceites a LEFT JOIN rh_documentos d ON d.id = a.documento_id
          WHERE a.id = $1 AND a.colaborador_id = $2`,
-        [Number(req.params.id), Number(req.user!.id)]
+        [Number(req.params.id), colabId]
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
       if (!a.arquivo_url) return res.status(410).json({ error: 'Arquivo não está mais disponível' });
+      if (a.status !== 'aceito' && (await PortalColaboradorController.estadoCodigo(colabId, a.id)) === 'precisa') {
+        return res.status(403).json({ error: 'Digite o código enviado no seu WhatsApp', precisa_codigo: true });
+      }
       const r = await axios.get(a.arquivo_url, { responseType: 'arraybuffer', timeout: 30000 });
       if (a.status === 'pendente') {
         await AppDataSource.query(`UPDATE rh_documento_aceites SET status = 'visualizado', visualizado_em = NOW(), updated_at = NOW() WHERE id = $1`, [a.id]);
@@ -162,23 +185,57 @@ export class PortalColaboradorController {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
-  /** Pede o código de 6 dígitos (WhatsApp) pra dar ciência neste documento. */
-  static async codigoCiencia(req: AuthRequest, res: Response) {
+  /** Pede o código de 6 dígitos (WhatsApp) pra abrir este documento. */
+  static async pedirCodigo(req: AuthRequest, res: Response) {
     try {
+      const colabId = Number(req.user!.id);
       const [a] = await AppDataSource.query(
         `SELECT id, status FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2`,
-        [Number(req.params.id), Number(req.user!.id)]
+        [Number(req.params.id), colabId]
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
-      if (a.status === 'aceito') return res.json({ ja_aceito: true });
-      res.json(await PortalColaboradorService.enviarCodigoCiencia(Number(req.user!.id), a.id));
+      if (a.status === 'aceito') return res.json({ liberado: true });
+      if ((await PortalColaboradorController.estadoCodigo(colabId, a.id)) === 'validado') return res.json({ liberado: true });
+      res.json(await PortalColaboradorService.enviarCodigoCiencia(colabId, a.id));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** Valida o código → libera ESTE documento por 30 min (abrir + dar ciência). */
+  static async validarCodigo(req: AuthRequest, res: Response) {
+    try {
+      const colabId = Number(req.user!.id);
+      const [a] = await AppDataSource.query(
+        `SELECT id FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2`,
+        [Number(req.params.id), colabId]
+      );
+      if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
+      const [ac] = await AppDataSource.query(
+        `SELECT otp_hash, otp_expira_em, otp_tentativas, otp_aceite_id FROM rh_colaborador_acessos WHERE colaborador_id = $1`,
+        [colabId]
+      );
+      const codigo = String(req.body?.codigo || '').replace(/\D/g, '');
+      if (codigo.length !== 6) return res.status(400).json({ error: 'Digite os 6 números' });
+      if (!ac?.otp_hash || ac.otp_aceite_id !== a.id) return res.status(400).json({ error: 'Peça um novo código' });
+      if (new Date(ac.otp_expira_em) < new Date()) return res.status(400).json({ error: 'Código expirado. Peça um novo.' });
+      if ((ac.otp_tentativas || 0) >= 5) return res.status(429).json({ error: 'Muitas tentativas. Peça um novo código.' });
+      if (sha256(codigo) !== ac.otp_hash) {
+        await AppDataSource.query(`UPDATE rh_colaborador_acessos SET otp_tentativas = otp_tentativas + 1 WHERE colaborador_id = $1`, [colabId]);
+        return res.status(400).json({ error: 'Código incorreto' });
+      }
+      await AppDataSource.query(
+        `UPDATE rh_colaborador_acessos SET otp_hash = NULL, otp_aceite_id = NULL, otp_tentativas = 0,
+                otp_validado_aceite_id = $2, otp_validado_em = NOW(), updated_at = NOW() WHERE colaborador_id = $1`,
+        [colabId, a.id]
+      );
+      await PortalColaboradorService.registrarEvento(a.id, 'codigo_validado', { ip: getIp(req), user_agent: String(req.headers['user-agent'] || '') });
+      res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
   /**
-   * Ciência. Com código válido → 'cpf_senha_otp_whatsapp' (avançada). Sem código, só
-   * quando o envio do código FALHOU pra este documento (sem celular / WhatsApp fora)
-   * → 'cpf_senha' (simples). Nunca aceita pular o código se ele foi enviado.
+   * Ciência. Se o código foi validado pra este documento nos últimos 30 min →
+   * 'cpf_senha_otp_whatsapp' (avançada). Se o envio do código falhou → 'cpf_senha'
+   * (simples). Senão, precisa abrir o holerite (com código) antes.
    */
   static async ciencia(req: AuthRequest, res: Response) {
     try {
@@ -192,26 +249,9 @@ export class PortalColaboradorController {
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
       if (a.status === 'aceito') return res.json({ ok: true, ja_aceito: true });
 
-      const [ac] = await AppDataSource.query(
-        `SELECT otp_hash, otp_expira_em, otp_tentativas, otp_aceite_id, otp_falhou_aceite_id FROM rh_colaborador_acessos WHERE colaborador_id = $1`,
-        [colabId]
-      );
-      const codigo = String(req.body?.codigo || '').replace(/\D/g, '');
-      let metodo: string;
-      if (codigo) {
-        if (!ac?.otp_hash || ac.otp_aceite_id !== a.id) return res.status(400).json({ error: 'Peça um novo código' });
-        if (new Date(ac.otp_expira_em) < new Date()) return res.status(400).json({ error: 'Código expirado. Peça um novo.' });
-        if ((ac.otp_tentativas || 0) >= 5) return res.status(429).json({ error: 'Muitas tentativas. Peça um novo código.' });
-        if (sha256(codigo) !== ac.otp_hash) {
-          await AppDataSource.query(`UPDATE rh_colaborador_acessos SET otp_tentativas = otp_tentativas + 1 WHERE colaborador_id = $1`, [colabId]);
-          return res.status(400).json({ error: 'Código incorreto' });
-        }
-        await AppDataSource.query(`UPDATE rh_colaborador_acessos SET otp_hash = NULL, otp_aceite_id = NULL, otp_tentativas = 0 WHERE colaborador_id = $1`, [colabId]);
-        metodo = 'cpf_senha_otp_whatsapp';
-      } else {
-        if (ac?.otp_falhou_aceite_id !== a.id) return res.status(400).json({ error: 'Digite o código enviado no seu WhatsApp' });
-        metodo = 'cpf_senha';
-      }
+      const estado = await PortalColaboradorController.estadoCodigo(colabId, a.id);
+      if (estado === 'precisa') return res.status(403).json({ error: 'Abra o holerite (com o código do WhatsApp) antes de confirmar', precisa_codigo: true });
+      const metodo = estado === 'validado' ? 'cpf_senha_otp_whatsapp' : 'cpf_senha';
 
       await AppDataSource.query(
         `UPDATE rh_documento_aceites SET status = 'aceito', aceito_em = NOW(), aceite_ip = $2, aceite_user_agent = $3, aceite_metodo = $4,

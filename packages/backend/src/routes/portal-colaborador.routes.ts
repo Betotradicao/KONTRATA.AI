@@ -32,7 +32,8 @@ router.use(async (req: AuthRequest, res, next) => {
 router.get('/me', PortalColaboradorController.me);
 router.get('/holerites', PortalColaboradorController.holerites);
 router.get('/holerites/:id/pdf', PortalColaboradorController.pdf);
-router.post('/holerites/:id/ciencia/codigo', PortalColaboradorController.codigoCiencia);
+router.post('/holerites/:id/codigo', PortalColaboradorController.pedirCodigo);
+router.post('/holerites/:id/codigo/validar', PortalColaboradorController.validarCodigo);
 router.post('/holerites/:id/ciencia', PortalColaboradorController.ciencia);
 router.post('/senha', PortalColaboradorController.trocarSenha);
 
