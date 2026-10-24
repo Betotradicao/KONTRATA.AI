@@ -26,6 +26,7 @@ const CAMPOS_EXTRAS_COLAB = [
   'pais_nacionalidade', 'condicao_ingresso_brasil', 'data_chegada_brasil',
   'filhos_brasileiros', 'filhos_brasileiros_qtd', 'casado_brasileiro',
   'portaria_naturalizacao', 'data_naturalizacao',
+  'salario_final', // referência do RH: o que de fato é pago (registro fica em `salario`)
 ];
 
 async function gravarCamposExtrasColab(colaboradorId: number, body: any) {

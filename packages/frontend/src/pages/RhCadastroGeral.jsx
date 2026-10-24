@@ -231,6 +231,7 @@ export default function RhCadastroGeral() {
     tipo_desligamento_id: '',
     motivo_desligamento_id: '',
     salario: '',
+    salario_final: '',
     status: 'ativo',
     // Cartão de Ponto
     nao_bate_ponto: false,
@@ -517,6 +518,7 @@ export default function RhCadastroGeral() {
         tipo_desligamento_id: colaborador.tipo_desligamento_id || '',
         motivo_desligamento_id: colaborador.motivo_desligamento_id || '',
         salario: colaborador.salario || '',
+        salario_final: colaborador.salario_final || '',
         status: colaborador.status || 'ativo',
         nao_bate_ponto: colaborador.nao_bate_ponto || false,
         ctps: colaborador.ctps || '',
@@ -1610,6 +1612,10 @@ export default function RhCadastroGeral() {
                       <div>
                         <label className={labelClass}>Salario (R$) *</label>
                         <input type="number" step="0.01" className={inputClass} value={formData.salario} onChange={(e) => handleChange('salario', e.target.value)} placeholder="0,00" />
+                      </div>
+                      <div>
+                        <label className={labelClass} title="O que a empresa de fato paga (inclui valores fora do registro). Só referência do RH.">Salario final (R$)</label>
+                        <input type="number" step="0.01" className={inputClass} value={formData.salario_final} onChange={(e) => handleChange('salario_final', e.target.value)} placeholder="igual ao salário se vazio" />
                       </div>
                     </div>
 
