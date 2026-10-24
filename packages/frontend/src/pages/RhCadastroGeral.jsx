@@ -67,7 +67,7 @@ export default function RhCadastroGeral() {
         const vazio = (x) => x == null || String(x).trim() === '';
         if (vazio(va)) return 1;   // vazios sempre por ultimo
         if (vazio(vb)) return -1;
-        if (sortField === 'salario') {
+        if (sortField === 'salario' || sortField === 'salario_final') {
           return (Number(va) - Number(vb)) * mult;
         }
         return String(va).localeCompare(String(vb), 'pt-BR', { sensitivity: 'base', numeric: true }) * mult;
@@ -1002,6 +1002,7 @@ export default function RhCadastroGeral() {
                       <th onClick={() => toggleSort('escolaridade_nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Escolaridade{sortIcon('escolaridade_nome')}</th>
                       <th onClick={() => toggleSort('empresa_nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Empresa{sortIcon('empresa_nome')}</th>
                       <th onClick={() => toggleSort('salario')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Salario{sortIcon('salario')}</th>
+                      <th onClick={() => toggleSort('salario_final')} title="O que a empresa de fato paga (inclui valores fora do registro)" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Salario final{sortIcon('salario_final')}</th>
                       <th onClick={() => toggleSort('jornada_nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Jornada{sortIcon('jornada_nome')}</th>
                       <th onClick={() => toggleSort('escala_nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Escala{sortIcon('escala_nome')}</th>
                       <th onClick={() => toggleSort('regime_trabalho_nome')} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider cursor-pointer select-none hover:bg-gray-700">Regime{sortIcon('regime_trabalho_nome')}</th>
@@ -1015,7 +1016,7 @@ export default function RhCadastroGeral() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {colaboradores.length === 0 ? (
                       <tr>
-                        <td colSpan="18" className="px-6 py-12 text-center text-gray-500">
+                        <td colSpan="19" className="px-6 py-12 text-center text-gray-500">
                           <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
@@ -1090,6 +1091,11 @@ export default function RhCadastroGeral() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {colab.salario != null && colab.salario !== ''
                               ? Number(colab.salario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                              : '-'}
+                          </td>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${colab.salario_final != null && colab.salario_final !== '' && Number(colab.salario_final) !== Number(colab.salario) ? 'text-amber-700 font-semibold' : 'text-gray-500'}`}>
+                            {colab.salario_final != null && colab.salario_final !== ''
+                              ? Number(colab.salario_final).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                               : '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
