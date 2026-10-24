@@ -94,6 +94,34 @@ export default function RhHolerites() {
   );
 }
 
+
+// Foto redonda do colaborador; clicar abre ampliada no meio da tela (fecha clicando fora ou no ✕)
+function FotoColab({ url, nome }) {
+  const [aberta, setAberta] = useState(false);
+  useEffect(() => {
+    if (!aberta) return;
+    const esc = (e) => e.key === 'Escape' && setAberta(false);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [aberta]);
+  if (!url) return <span className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-xs shrink-0">{(nome || '?')[0]}</span>;
+  return (
+    <>
+      <img src={url} alt="" loading="lazy" onClick={() => setAberta(true)} title="Clique pra ampliar"
+        className="w-8 h-8 rounded-full object-cover border shrink-0 cursor-zoom-in hover:ring-2 hover:ring-purple-400" />
+      {aberta && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setAberta(false)}>
+          <div className="relative bg-white rounded-xl p-3 shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setAberta(false)} className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white shadow text-gray-700 font-bold hover:bg-gray-100">✕</button>
+            <img src={url} alt={nome || ''} className="w-full aspect-square object-cover rounded-lg" />
+            <p className="text-center font-semibold text-gray-800 mt-2 text-sm">{nome}</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ============================ IMPORTAR & CLASSIFICAR ============================ */
 const labelEmpresa = (e) => e.apelido ? `Loja ${e.cod_loja} — ${e.apelido}` : (e.label || e.nome_fantasia || e.razao_social || e.id);
 const cpfDigits = (v) => String(v || '').replace(/\D/g, '');
@@ -651,9 +679,7 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, onExcluir, ree
     <>
       <tr>
         <td className="px-3 py-2"><div className="flex items-center gap-2">
-          {r.foto_url
-            ? <img src={r.foto_url} alt="" className="w-8 h-8 rounded-full object-cover border shrink-0" loading="lazy" />
-            : <span className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-xs shrink-0">{(r.nome || '?')[0]}</span>}
+          <FotoColab url={r.foto_url} nome={r.nome} />
           <div><div className="font-semibold text-gray-800">{r.nome}</div><div className="text-gray-500">{r.matricula ? `nº ${r.matricula} · ` : ''}{r.celular || <span className="text-amber-700">📵 sem celular</span>}</div></div></div></td>
         <td className="px-3 py-2">{r.tipo_nome || 'PAGAMENTO'}</td>
         <td className="px-3 py-2 whitespace-nowrap">{fmtComp(r.competencia)}</td>
@@ -781,9 +807,7 @@ function AbaAcessos({ loja }) {
             {lista.map(r => (
               <tr key={r.colaborador_id}>
                 <td className="px-3 py-1.5">
-                  {r.foto_url
-                    ? <img src={r.foto_url} alt="" className="w-8 h-8 rounded-full object-cover border" loading="lazy" />
-                    : <span className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-xs">{(r.nome || '?')[0]}</span>}
+                  <FotoColab url={r.foto_url} nome={r.nome} />
                 </td>
                 <td className="px-3 py-2 font-semibold text-gray-800">{r.nome}{r.matricula ? <span className="font-normal text-gray-500"> · nº {r.matricula}</span> : null}
                   {r.status !== 'ativo' && <div className="font-normal text-[11px] text-amber-700">desligado em {r.data_desligamento ? new Date(r.data_desligamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'} · acessa até {r.acesso_ate ? new Date(r.acesso_ate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'}</div>}
