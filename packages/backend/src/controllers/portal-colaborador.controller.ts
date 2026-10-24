@@ -151,7 +151,7 @@ export class PortalColaboradorController {
       res.json(await AppDataSource.query(
         `SELECT a.id, a.competencia, a.status, t.nome AS tipo_nome, a.enviado_em, a.visualizado_em, a.aceito_em, a.hash_sha256, a.created_at, d.nome AS arquivo_nome
          FROM rh_documento_aceites a LEFT JOIN rh_tipos_holerite t ON t.id = a.tipo_holerite_id LEFT JOIN rh_documentos d ON d.id = a.documento_id
-         WHERE a.colaborador_id = $1 AND a.tipo = 'HOLERITE' AND a.status <> 'substituido'
+         WHERE a.colaborador_id = $1 AND a.tipo = 'HOLERITE' AND a.status NOT IN ('substituido', 'excluido')
          ORDER BY a.competencia DESC, a.created_at DESC`,
         [Number(req.user!.id)]
       ));
@@ -182,7 +182,7 @@ export class PortalColaboradorController {
       const colabId = Number(req.user!.id);
       const [a] = await AppDataSource.query(
         `SELECT a.id, a.status, d.arquivo_url, d.nome FROM rh_documento_aceites a LEFT JOIN rh_documentos d ON d.id = a.documento_id
-         WHERE a.id = $1 AND a.colaborador_id = $2`,
+         WHERE a.id = $1 AND a.colaborador_id = $2 AND a.status <> 'excluido'`,
         [Number(req.params.id), colabId]
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
@@ -212,7 +212,7 @@ export class PortalColaboradorController {
     try {
       const colabId = Number(req.user!.id);
       const [a] = await AppDataSource.query(
-        `SELECT id, status FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2`,
+        `SELECT id, status FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2 AND status <> 'excluido'`,
         [Number(req.params.id), colabId]
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
@@ -227,7 +227,7 @@ export class PortalColaboradorController {
     try {
       const colabId = Number(req.user!.id);
       const [a] = await AppDataSource.query(
-        `SELECT id FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2`,
+        `SELECT id FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2 AND status <> 'excluido'`,
         [Number(req.params.id), colabId]
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
@@ -265,7 +265,7 @@ export class PortalColaboradorController {
       const ua = String(req.headers['user-agent'] || '');
       const colabId = Number(req.user!.id);
       const [a] = await AppDataSource.query(
-        `SELECT id, status FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2`,
+        `SELECT id, status FROM rh_documento_aceites WHERE id = $1 AND colaborador_id = $2 AND status <> 'excluido'`,
         [Number(req.params.id), colabId]
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });

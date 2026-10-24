@@ -344,10 +344,10 @@ export class PortalColaboradorService {
        LEFT JOIN rh_empresas e ON e.id = c.company_id
        LEFT JOIN rh_documentos d ON d.id = a.documento_id
        LEFT JOIN rh_tipos_holerite t ON t.id = a.tipo_holerite_id
-       WHERE a.id = $1`,
+       WHERE a.id = $1 AND a.status <> 'excluido'`,
       [aceiteId]
     );
-    if (!a) throw new Error('Publicação não encontrada');
+    if (!a) throw new Error('Publicação não encontrada (ou excluída)');
     if (!a.arquivo_url) throw new Error('Documento do holerite não existe mais');
     const r: ResultadoPublicacao = { colaborador_id: a.colaborador_id, nome: a.nome, aceite_id: a.id, publicado: true, whats: 'nao_enviado' };
     const pdf = Buffer.from((await axios.get(a.arquivo_url, { responseType: 'arraybuffer', timeout: 30000 })).data);
@@ -358,8 +358,8 @@ export class PortalColaboradorService {
     return r;
   }
 
-  static async listarPublicacoes(competencia?: string, colaboradorId?: number, companyId?: string) {
-    const where: string[] = ["a.status <> 'substituido'"];
+  static async listarPublicacoes(competencia?: string, colaboradorId?: number, companyId?: string, excluidos = false) {
+    const where: string[] = [excluidos ? "a.status = 'excluido'" : "a.status NOT IN ('substituido', 'excluido')"];
     const params: any[] = [];
     if (competencia) { params.push(competencia); where.push(`a.competencia = $${params.length}`); }
     if (colaboradorId) { params.push(colaboradorId); where.push(`a.colaborador_id = $${params.length}`); }
@@ -367,6 +367,7 @@ export class PortalColaboradorService {
     return AppDataSource.query(
       `SELECT a.id, a.colaborador_id, c.nome, c.matricula, c.celular, a.tipo, t.nome AS tipo_nome, a.competencia, a.status,
               a.enviado_em, a.enviado_para, a.visualizado_em, a.aceito_em, a.aceite_ip, a.aceite_metodo,
+              a.excluido_em, a.excluido_por, a.motivo_exclusao, a.status_antes_exclusao, a.excluido_arquivo_url, a.excluido_assinado_url,
               a.hash_sha256, a.created_at, a.publicado_por, d.nome AS arquivo_nome,
               (ac.senha_hash IS NOT NULL) AS tem_senha,
               (ac.setup_token IS NOT NULL AND ac.setup_usado_em IS NULL AND ac.setup_expira_em > NOW()) AS setup_pendente
@@ -379,6 +380,34 @@ export class PortalColaboradorService {
        ORDER BY a.competencia DESC, c.nome`,
       params
     );
+  }
+
+  /**
+   * Exclui o envio (ex.: holerite errado) SEM apagar o registro: status 'excluido',
+   * quem/quando/motivo; tira os arquivos da pasta do colaborador mas guarda as URLs.
+   * Some do portal na hora (todas as rotas do portal ignoram 'excluido').
+   */
+  static async excluirPublicacao(aceiteId: number, por: string | null, motivo: string) {
+    const [a] = await AppDataSource.query(
+      `SELECT a.id, a.status, a.documento_id, a.documento_assinado_id, d.arquivo_url, da.arquivo_url AS assinado_url
+       FROM rh_documento_aceites a
+       LEFT JOIN rh_documentos d ON d.id = a.documento_id
+       LEFT JOIN rh_documentos da ON da.id = a.documento_assinado_id
+       WHERE a.id = $1`,
+      [aceiteId]
+    );
+    if (!a) throw new Error('Publicação não encontrada');
+    if (a.status === 'excluido') return { ok: true, ja_excluido: true };
+    await AppDataSource.query(
+      `UPDATE rh_documento_aceites SET status_antes_exclusao = status, status = 'excluido', excluido_em = NOW(), excluido_por = $2,
+              motivo_exclusao = $3, excluido_arquivo_url = $4, excluido_assinado_url = $5, updated_at = NOW() WHERE id = $1`,
+      [aceiteId, por, motivo, a.arquivo_url || null, a.assinado_url || null]
+    );
+    // tira da pasta HOLERITES do colaborador (o arquivo continua no armazenamento, URL guardada acima)
+    const docs = [a.documento_id, a.documento_assinado_id].filter(Boolean);
+    if (docs.length) await AppDataSource.query(`DELETE FROM rh_documentos WHERE id = ANY($1::int[])`, [docs]);
+    await this.registrarEvento(aceiteId, 'excluido', { detalhe: `${por || 'RH'}: ${motivo}` });
+    return { ok: true };
   }
 
   static async eventos(aceiteId: number) {

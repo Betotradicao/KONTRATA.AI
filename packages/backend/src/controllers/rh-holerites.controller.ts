@@ -107,7 +107,16 @@ export class RhHoleritesController {
       const competencia = (req.query.competencia as string) || undefined;
       const colaboradorId = req.query.colaborador_id ? Number(req.query.colaborador_id) : undefined;
       const companyId = (req.query.company_id as string) || undefined;
-      res.json(await PortalColaboradorService.listarPublicacoes(competencia, colaboradorId, companyId));
+      res.json(await PortalColaboradorService.listarPublicacoes(competencia, colaboradorId, companyId, req.query.excluidos === '1'));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** Exclui o envio (fica registrado em "Excluídos" com quem/quando/motivo). */
+  static async excluir(req: AuthRequest, res: Response) {
+    try {
+      const motivo = String(req.body?.motivo || '').trim();
+      if (motivo.length < 3) return res.status(400).json({ error: 'Informe o motivo da exclusão' });
+      res.json(await PortalColaboradorService.excluirPublicacao(Number(req.params.id), quemPublicou(req), motivo));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 

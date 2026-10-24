@@ -39,7 +39,7 @@ export async function gerarDossie(colaboradorId: number, geradoPor: string | nul
   if (!c) throw new Error('Colaborador não encontrado');
 
   const aceites = await AppDataSource.query(
-    `SELECT a.*, t.nome AS tipo_nome, d.arquivo_url, d.nome AS arquivo_nome
+    `SELECT a.*, t.nome AS tipo_nome, COALESCE(d.arquivo_url, a.excluido_arquivo_url) AS arquivo_url, COALESCE(d.nome, 'holerite_excluido.pdf') AS arquivo_nome
      FROM rh_documento_aceites a
      LEFT JOIN rh_tipos_holerite t ON t.id = a.tipo_holerite_id
      LEFT JOIN rh_documentos d ON d.id = a.documento_id

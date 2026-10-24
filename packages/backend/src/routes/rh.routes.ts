@@ -299,6 +299,7 @@ router.post('/holerites/lotes/:id/publicar', authenticateToken, lgpdDemoReadOnly
 router.post('/holerites/publicar-gerado', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.publicarGerado);
 router.get('/holerites/publicacoes', authenticateToken, lgpdDemoMask, RhHoleritesController.listarPublicacoes);
 router.post('/holerites/publicacoes/:id/reenviar', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.reenviar);
+router.post('/holerites/publicacoes/:id/excluir', authenticateToken, lgpdDemoReadOnly, RhHoleritesController.excluir);
 router.get('/holerites/publicacoes/:id/eventos', authenticateToken, RhHoleritesController.eventos);
 router.get('/holerites/publicacoes/:id/comprovante', authenticateToken, RhHoleritesController.comprovante);
 router.get('/holerites/dossie/:colaboradorId', authenticateToken, RhHoleritesController.dossie);

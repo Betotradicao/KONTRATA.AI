@@ -26,6 +26,7 @@ const STATUS_PUB = {
   visualizado: { label: 'Visualizado', cls: 'bg-blue-100 text-blue-800' },
   aceito:      { label: 'Ciente ✓',    cls: 'bg-green-100 text-green-800' },
   substituido: { label: 'Substituído', cls: 'bg-gray-100 text-gray-600' },
+  excluido:    { label: 'Excluído',    cls: 'bg-red-100 text-red-700' },
 };
 const Badge = ({ map, k }) => { const m = map[k] || { label: k, cls: 'bg-gray-100 text-gray-700' }; return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${m.cls}`}>{m.label}</span>; };
 
@@ -431,6 +432,7 @@ function AbaPublicacoes({ loja, tipos = [] }) {
   const tipoDe = (r) => r.tipo_nome || 'PAGAMENTO';
   const toggleTipo = (n) => setTiposOff(prev => { const s = new Set(prev); s.has(n) ? s.delete(n) : s.add(n); return s; });
   const [competencia, setCompetencia] = useState(compAtual()); // abre sempre no mês atual
+  const [verExcluidos, setVerExcluidos] = useState(false);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [eventos, setEventos] = useState({});
@@ -440,12 +442,26 @@ function AbaPublicacoes({ loja, tipos = [] }) {
     setLoading(true);
     const qs = new URLSearchParams();
     if (competencia) qs.set('competencia', competencia);
+    if (verExcluidos) qs.set('excluidos', '1');
     if (loja) qs.set('company_id', loja);
     try { const r = await api.get(`/rh/holerites/publicacoes${qs.toString() ? `?${qs}` : ''}`); setRows(r.data || []); }
     catch (e) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { carregar(); }, [competencia]);
+  useEffect(() => { carregar(); }, [competencia, verExcluidos]);
+
+  // Excluir envio (ex.: holerite errado): some do portal e da pasta, mas fica registrado em "Excluídos"
+  const excluir = async (r) => {
+    const motivo = window.prompt(`Excluir o holerite ${fmtComp(r.competencia)} (${r.tipo_nome || 'PAGAMENTO'}) de ${r.nome}?
+
+Ele some do portal do colaborador e da pasta HOLERITES, mas fica registrado em "Excluídos".
+
+Motivo:`);
+    if (motivo === null) return;
+    if (motivo.trim().length < 3) { toast.error('Informe o motivo'); return; }
+    try { await api.post(`/rh/holerites/publicacoes/${r.id}/excluir`, { motivo: motivo.trim() }); toast.success('Envio excluído'); carregar(); }
+    catch (e) { toast.error(e.response?.data?.error || 'Erro ao excluir'); }
+  };
 
   const reenviar = async (r) => {
     setReenviando(r.id);
@@ -483,6 +499,10 @@ function AbaPublicacoes({ loja, tipos = [] }) {
         <label className="text-xs text-gray-600">Competência</label>
         <input type="month" value={competencia} onChange={e => setCompetencia(e.target.value)} className="border rounded px-2 py-1 text-sm" />
         {competencia && <button onClick={() => setCompetencia('')} className="text-xs text-gray-500 hover:underline">todas</button>}
+        <div className="flex rounded-lg border overflow-hidden text-xs font-semibold">
+          <button onClick={() => setVerExcluidos(false)} className={`px-3 py-1.5 ${!verExcluidos ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Ativos</button>
+          <button onClick={() => setVerExcluidos(true)} className={`px-3 py-1.5 ${verExcluidos ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>🗑 Excluídos</button>
+        </div>
         <div className="flex items-center gap-2 flex-wrap text-xs ml-2">
           <span className="text-gray-600">Tipo:</span>
           {(tipos.length ? tipos.map(t => t.nome) : ['PAGAMENTO']).map(n => (
@@ -518,7 +538,7 @@ function AbaPublicacoes({ loja, tipos = [] }) {
             </thead>
             <tbody className="divide-y">
               {visiveis.map(r => (
-                <FragmentRow key={r.id} r={r} eventos={eventos[r.id]} onEventos={() => verEventos(r)} onReenviar={() => reenviar(r)} onLink={() => copiarLink(r)} reenviando={reenviando === r.id} />
+                <FragmentRow key={r.id} r={r} eventos={eventos[r.id]} onEventos={() => verEventos(r)} onReenviar={() => reenviar(r)} onLink={() => copiarLink(r)} onExcluir={() => excluir(r)} reenviando={reenviando === r.id} />
               ))}
             </tbody>
           </table>
@@ -528,7 +548,7 @@ function AbaPublicacoes({ loja, tipos = [] }) {
   );
 }
 
-function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) {
+function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, onExcluir, reenviando }) {
   const abrirComprovante = async (row) => {
     try {
       const x = await api.get(`/rh/holerites/publicacoes/${row.id}/comprovante`, { responseType: 'blob' });
@@ -548,11 +568,24 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) 
         <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}{/otp_whatsapp$/.test(r.aceite_metodo || '') ? ' · 🔐 código WhatsApp' : r.aceite_metodo ? ' · só senha' : ''}{/^abertura/.test(r.aceite_metodo || '') ? ' · ao abrir' : ''}{/^visualizacao/.test(r.aceite_metodo || '') ? ' · convertido pelo RH' : ''}</div></> : '—'}</td>
         <td className="px-3 py-2 whitespace-nowrap">{r.tem_senha ? <span className="text-green-700">senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">
+          {r.status === 'excluido' ? (
+            <div className="text-[11px] text-red-700 leading-snug max-w-[320px] whitespace-normal">
+              <b>Excluído em {fmtData(r.excluido_em)}</b>{r.excluido_por ? ` por ${r.excluido_por}` : ''}<br />
+              Motivo: {r.motivo_exclusao}{r.status_antes_exclusao ? ` · estava "${(STATUS_PUB[r.status_antes_exclusao] || {}).label || r.status_antes_exclusao}"` : ''}
+              <div className="mt-1 space-x-2">
+                {r.excluido_arquivo_url && <a href={r.excluido_arquivo_url} target="_blank" rel="noreferrer" className="text-gray-700 underline">📄 arquivo excluído</a>}
+                {r.excluido_assinado_url && <a href={r.excluido_assinado_url} target="_blank" rel="noreferrer" className="text-gray-700 underline">📄 versão assinada</a>}
+                <button onClick={onEventos} className="text-gray-500 hover:underline">{eventos ? '▲' : '▼'} trilha</button>
+              </div>
+            </div>
+          ) : (<>
           <button onClick={onReenviar} disabled={reenviando} className="text-purple-700 hover:underline mr-2 disabled:opacity-50">{reenviando ? '…' : '📲 reenviar'}</button>
           <button onClick={onLink} className="text-gray-600 hover:underline mr-2" title="Copiar link de acesso">🔗 link</button>
           {r.status === 'aceito' && <button onClick={() => abrirComprovante(r)} className="text-green-700 hover:underline mr-2" title="Holerite + página do comprovante de ciência">📄 comprovante</button>}
           <button onClick={onEventos} className="text-gray-500 hover:underline" title="Trilha de auditoria">{eventos ? '▲' : '▼'} trilha</button>
           <button onClick={() => baixarDossie(r.colaborador_id, r.nome)} className="ml-2 text-gray-700 hover:underline" title="ZIP com todos os holerites, comprovantes e trilha deste colaborador — pra processo">📦 dossiê</button>
+          <button onClick={onExcluir} className="ml-2 text-red-600 hover:underline" title="Excluir este envio (fica registrado em Excluídos)">🗑 excluir</button>
+          </>)}
         </td>
       </tr>
       {eventos && (
