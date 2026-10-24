@@ -2159,67 +2159,48 @@ export class RhController {
     return RhController.deletarConfig(req, res, 'rh_departamentos');
   }
 
+  /**
+   * Cartões do topo do Cadastro Geral. Aceita os MESMOS filtros da tabela (busca, loja,
+   * cargo, setor, jornada) pra os números acompanharem o que está na tela. O status
+   * (ativo/desligado) não filtra aqui: cada cartão já é um status.
+   */
   static async getStats(req: AuthRequest, res: Response) {
     try {
-      const empresa_id = req.query.empresa_id ? parseInt(req.query.empresa_id as string) : undefined;
-
-      let empresaFilter = '';
+      const where: string[] = [];
       const params: any[] = [];
+      // cada filtro vira $N (todas as ocorrências de $? no trecho usam o mesmo parâmetro)
+      const add = (sql: string, v: any) => { params.push(v); where.push(sql.split('$?').join(`$${params.length}`)); };
+      const empresa_id = req.query.empresa_id ? parseInt(req.query.empresa_id as string) : undefined;
+      if (empresa_id) add('c.empresa_id = $?', empresa_id);
+      if (req.query.company_id) add('c.company_id = $?::uuid', String(req.query.company_id));
+      if (req.query.cargo_id) add('c.cargo_id = $?::int', Number(req.query.cargo_id));
+      if (req.query.departamento_id) add('c.departamento_id = $?::int', Number(req.query.departamento_id));
+      if (req.query.jornada_id) add('c.jornada_id = $?::int', Number(req.query.jornada_id));
+      if (req.query.search) add('(c.nome ILIKE $? OR c.cpf ILIKE $? OR c.matricula ILIKE $?)', `%${req.query.search}%`);
+      const base = where.length ? 'WHERE ' + where.join(' AND ') : '';
+      const e = (extra: string) => (base ? `${base} AND ${extra}` : `WHERE ${extra}`);
+      const FROM = `FROM rh_colaboradores c LEFT JOIN rh_regimes_trabalho rt ON rt.id = c.regime_trabalho_id`;
 
-      if (empresa_id) {
-        empresaFilter = 'WHERE empresa_id = $1';
-        params.push(empresa_id);
-      }
-
-      const totalResult = await AppDataSource.query(
-        `SELECT COUNT(*) as total FROM rh_colaboradores ${empresaFilter}`,
+      const [r] = await AppDataSource.query(
+        `SELECT
+           (SELECT COUNT(*) ${FROM} ${base}) AS total,
+           (SELECT COUNT(*) ${FROM} ${e("c.status = 'ativo'")}) AS ativos,
+           (SELECT COUNT(*) ${FROM} ${e("c.status = 'desligado'")}) AS desligados,
+           (SELECT COUNT(*) ${FROM} ${e("c.status = 'ativo' AND UPPER(COALESCE(rt.nome, '')) LIKE '%CLT%'")}) AS clts,
+           (SELECT COUNT(*) ${FROM} ${e("c.status = 'ativo' AND UPPER(COALESCE(rt.nome, '')) LIKE '%APRENDIZ%'")}) AS aprendizes,
+           (SELECT COUNT(*) ${FROM} ${e("c.data_admissao >= NOW() - INTERVAL '30 days'")}) AS admissoes_recentes`,
         params
       );
-
-      const ativosResult = await AppDataSource.query(
-        `SELECT COUNT(*) as total FROM rh_colaboradores ${empresaFilter ? empresaFilter + " AND status = 'ativo'" : "WHERE status = 'ativo'"}`,
-        params
-      );
-
-      const desligadosResult = await AppDataSource.query(
-        `SELECT COUNT(*) as total FROM rh_colaboradores ${empresaFilter ? empresaFilter + " AND status = 'desligado'" : "WHERE status = 'desligado'"}`,
-        params
-      );
-
-      const generoResult = await AppDataSource.query(
-        `SELECT sexo, COUNT(*) as total FROM rh_colaboradores ${empresaFilter} GROUP BY sexo`,
-        params
-      );
-
-      const admissoesRecentesResult = await AppDataSource.query(
-        `SELECT COUNT(*) as total FROM rh_colaboradores
-         ${empresaFilter ? empresaFilter + ' AND' : 'WHERE'} data_admissao >= NOW() - INTERVAL '30 days'`,
-        params
-      );
-
-      // Contagem por regime de trabalho (so ativos)
-      const ativosWhere = empresaFilter ? empresaFilter + " AND c.status = 'ativo'" : "WHERE c.status = 'ativo'";
-      const cltsResult = await AppDataSource.query(
-        `SELECT COUNT(*) as total FROM rh_colaboradores c
-         LEFT JOIN rh_regimes_trabalho rt ON rt.id = c.regime_trabalho_id
-         ${ativosWhere} AND UPPER(COALESCE(rt.nome, '')) LIKE '%CLT%'`,
-        params
-      );
-      const aprendizesResult = await AppDataSource.query(
-        `SELECT COUNT(*) as total FROM rh_colaboradores c
-         LEFT JOIN rh_regimes_trabalho rt ON rt.id = c.regime_trabalho_id
-         ${ativosWhere} AND UPPER(COALESCE(rt.nome, '')) LIKE '%APRENDIZ%'`,
-        params
-      );
+      const generoResult = await AppDataSource.query(`SELECT c.sexo, COUNT(*) as total ${FROM} ${base} GROUP BY c.sexo`, params);
 
       res.json({
-        total: parseInt(totalResult[0].total),
-        ativos: parseInt(ativosResult[0].total),
-        desligados: parseInt(desligadosResult[0].total),
-        clts: parseInt(cltsResult[0].total),
-        aprendizes: parseInt(aprendizesResult[0].total),
-        genero: generoResult.map((r: any) => ({ sexo: r.sexo, total: parseInt(r.total) })),
-        admissoesRecentes: parseInt(admissoesRecentesResult[0].total),
+        total: parseInt(r.total),
+        ativos: parseInt(r.ativos),
+        desligados: parseInt(r.desligados),
+        clts: parseInt(r.clts),
+        aprendizes: parseInt(r.aprendizes),
+        genero: generoResult.map((g: any) => ({ sexo: g.sexo, total: parseInt(g.total) })),
+        admissoesRecentes: parseInt(r.admissoes_recentes),
       });
     } catch (error) {
       console.error('Get RH stats error:', error);

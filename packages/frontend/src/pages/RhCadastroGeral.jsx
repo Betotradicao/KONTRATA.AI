@@ -317,6 +317,9 @@ export default function RhCadastroGeral() {
     carregarEstatisticas();
   }, [filtroDebounced, statusFiltro]);
 
+  // Cartões do topo acompanham os filtros de loja/cargo/setor/jornada (a tabela já filtra no navegador)
+  useEffect(() => { carregarEstatisticas(); }, [filtroEmpresa, filtroCargo, filtroSetor, filtroJornada]);
+
   // Carregar configuracoes ao montar
   useEffect(() => {
     carregarConfiguracoes();
@@ -421,7 +424,13 @@ export default function RhCadastroGeral() {
 
   const carregarEstatisticas = async () => {
     try {
-      const response = await api.get('/rh/colaboradores/stats');
+      const qs = new URLSearchParams();
+      if (filtroDebounced) qs.set('search', filtroDebounced);
+      if (filtroEmpresa) qs.set('company_id', filtroEmpresa);
+      if (filtroCargo) qs.set('cargo_id', filtroCargo);
+      if (filtroSetor) qs.set('departamento_id', filtroSetor);
+      if (filtroJornada) qs.set('jornada_id', filtroJornada);
+      const response = await api.get(`/rh/colaboradores/stats${qs.toString() ? `?${qs}` : ''}`);
       setStats({
         total: response.data?.totalColaboradores || response.data?.total || 0,
         ativos: response.data?.ativos || 0,
@@ -1159,9 +1168,9 @@ export default function RhCadastroGeral() {
               </div>
 
               {/* Contador total */}
-              {totalRegistros > 0 && (
+              {colaboradoresOrdenados.length > 0 && (
                 <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-sm text-gray-700">
-                  Total: <span className="font-medium">{totalRegistros}</span> colaborador(es)
+                  Total: <span className="font-medium">{colaboradoresOrdenados.length}</span> colaborador(es)
                 </div>
               )}
             </div>
