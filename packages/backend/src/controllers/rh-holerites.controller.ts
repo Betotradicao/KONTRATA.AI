@@ -204,6 +204,7 @@ export class RhHoleritesController {
       const dias = Math.max(0, parseInt(String(await ConfigurationService.get('portal_dias_acesso_desligado', '150')), 10) || 0);
       res.json(await AppDataSource.query(
         `SELECT c.id AS colaborador_id, c.nome, c.matricula, c.celular, c.status, c.data_desligamento,
+                COALESCE(NULLIF(ac.foto_url, ''), NULLIF(c.foto_url, '')) AS foto_url,
                 (c.data_desligamento + ($1::int * interval '1 day'))::date AS acesso_ate,
                 (ac.senha_hash IS NOT NULL) AS tem_senha, ac.ultimo_login, ac.bloqueado_ate, ac.ativo,
                 (ac.setup_token IS NOT NULL AND ac.setup_usado_em IS NULL AND ac.setup_expira_em > NOW()) AS setup_pendente

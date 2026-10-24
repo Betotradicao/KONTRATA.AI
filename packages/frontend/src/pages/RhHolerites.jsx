@@ -433,6 +433,7 @@ function AbaPublicacoes({ loja, tipos = [] }) {
   const toggleTipo = (n) => setTiposOff(prev => { const s = new Set(prev); s.has(n) ? s.delete(n) : s.add(n); return s; });
   const [competencia, setCompetencia] = useState(compAtual()); // abre sempre no mês atual
   const [verExcluidos, setVerExcluidos] = useState(false);
+  const [statusFiltro, setStatusFiltro] = useState(''); // '' = todos; clicar nos totais filtra
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [eventos, setEventos] = useState({});
@@ -490,8 +491,9 @@ Motivo:`);
     } catch { toast.error('Erro ao gerar link'); }
   };
 
-  const visiveis = useMemo(() => rows.filter(r => !tiposOff.has(tipoDe(r))), [rows, tiposOff]);
-  const tot = useMemo(() => ({ total: visiveis.length, aceito: visiveis.filter(r => r.status === 'aceito').length, visto: visiveis.filter(r => r.status === 'visualizado').length, pend: visiveis.filter(r => r.status === 'pendente').length }), [visiveis]);
+  const porTipo = useMemo(() => rows.filter(r => !tiposOff.has(tipoDe(r))), [rows, tiposOff]);
+  const visiveis = useMemo(() => porTipo.filter(r => !statusFiltro || r.status === statusFiltro), [porTipo, statusFiltro]);
+  const tot = useMemo(() => ({ total: porTipo.length, aceito: porTipo.filter(r => r.status === 'aceito').length, visto: porTipo.filter(r => r.status === 'visualizado').length, pend: porTipo.filter(r => r.status === 'pendente').length }), [porTipo]);
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -512,10 +514,15 @@ Motivo:`);
           ))}
         </div>
         <div className="ml-auto flex gap-3 text-xs">
-          <span className="text-gray-600">Total <b>{tot.total}</b></span>
-          <span className="text-green-700">Ciente <b>{tot.aceito}</b></span>
-          <span className="text-blue-700">Visto <b>{tot.visto}</b></span>
-          <span className="text-amber-700">Pendente <b>{tot.pend}</b></span>
+          {[['', 'Total', tot.total, 'text-gray-700', 'bg-gray-100 border-gray-400'],
+            ['aceito', 'Ciente', tot.aceito, 'text-green-700', 'bg-green-100 border-green-500'],
+            ['visualizado', 'Visto', tot.visto, 'text-blue-700', 'bg-blue-100 border-blue-500'],
+            ['pendente', 'Pendente', tot.pend, 'text-amber-700', 'bg-amber-100 border-amber-500']].map(([k, l, n, cor, ativo]) => (
+            <button key={k || 'total'} onClick={() => setStatusFiltro(k)} title={k ? `Mostrar só ${l}` : 'Mostrar todos'}
+              className={`${cor} px-2 py-1 rounded-full border ${statusFiltro === k ? ativo + ' font-bold' : 'border-transparent hover:bg-gray-50'}`}>
+              {l} <b>{n}</b>
+            </button>
+          ))}
         </div>
       </div>
       {loading && <p className="text-center text-gray-400 py-10 text-sm">Carregando…</p>}
@@ -680,11 +687,16 @@ function AbaAcessos({ loja }) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 text-gray-600 uppercase text-[10px]"><tr>
-            <th className="px-3 py-2 text-left">Colaborador</th><th className="px-3 py-2 text-left">Situação</th><th className="px-3 py-2 text-left">Celular</th><th className="px-3 py-2 text-left">Acesso</th><th className="px-3 py-2 text-left">Último login</th><th className="px-3 py-2"></th>
+            <th className="px-3 py-2 text-left w-10"></th><th className="px-3 py-2 text-left">Colaborador</th><th className="px-3 py-2 text-left">Situação</th><th className="px-3 py-2 text-left">Celular</th><th className="px-3 py-2 text-left">Acesso</th><th className="px-3 py-2 text-left">Último login</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody className="divide-y">
             {lista.map(r => (
               <tr key={r.colaborador_id}>
+                <td className="px-3 py-1.5">
+                  {r.foto_url
+                    ? <img src={r.foto_url} alt="" className="w-8 h-8 rounded-full object-cover border" loading="lazy" />
+                    : <span className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-xs">{(r.nome || '?')[0]}</span>}
+                </td>
                 <td className="px-3 py-2 font-semibold text-gray-800">{r.nome}{r.matricula ? <span className="font-normal text-gray-500"> · nº {r.matricula}</span> : null}
                   {r.status !== 'ativo' && <div className="font-normal text-[11px] text-amber-700">desligado em {r.data_desligamento ? new Date(r.data_desligamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'} · acessa até {r.acesso_ate ? new Date(r.acesso_ate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'}</div>}
                 </td>
