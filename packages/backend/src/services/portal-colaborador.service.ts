@@ -66,6 +66,21 @@ export interface DocumentoParaPublicar {
 
 export class PortalColaboradorService {
   /**
+   * Foto do colaborador vinda do portal: normaliza (gira pelo EXIF, 640x640, JPEG),
+   * grava no MinIO, salva no acesso e — SÓ se o cadastro estiver sem foto — preenche
+   * rh_colaboradores.foto_url. Foto que o RH já colocou não é sobrescrita.
+   */
+  static async salvarFotoColaborador(colaboradorId: number, original: Buffer): Promise<string> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const sharp = require('sharp');
+    const jpg: Buffer = await sharp(original).rotate().resize(640, 640, { fit: 'cover', position: 'attention' }).jpeg({ quality: 82 }).toBuffer();
+    const url = await minioService.uploadFile(`rh/fotos/colab_${colaboradorId}_${Date.now()}.jpg`, jpg, 'image/jpeg');
+    await AppDataSource.query(`UPDATE rh_colaborador_acessos SET foto_url = $2, updated_at = NOW() WHERE colaborador_id = $1`, [colaboradorId, url]);
+    await AppDataSource.query(`UPDATE rh_colaboradores SET foto_url = $2 WHERE id = $1 AND (foto_url IS NULL OR foto_url = '')`, [colaboradorId, url]);
+    return url;
+  }
+
+  /**
    * Quem pode entrar no portal. Decisão do Beto (11/10/2026): desligado continua
    * acessando por N dias após data_desligamento (padrão 150 = 5 meses — LGPD art. 18: acesso aos
    * próprios dados; baixar holerites/rescisão). Bloqueio manual (acessos.ativo=false)

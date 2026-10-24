@@ -109,6 +109,20 @@ export default function PortalHolerites() {
 
   const sair = () => { portalLogout(); navigate('/portal', { replace: true }); };
 
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const enviarFoto = async (f) => {
+    if (!f) return;
+    if (!/^image\//.test(f.type)) { setMsg('Escolha uma imagem'); return; }
+    setEnviandoFoto(true);
+    try {
+      const fd = new FormData(); fd.append('foto', f);
+      const { data } = await portalApi.post('/portal/foto', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 });
+      setMe(m => ({ ...m, foto_url: data.foto_url }));
+      setMsg('✅ Foto salva!'); setTimeout(() => setMsg(''), 3000);
+    } catch (err) { setMsg(err.response?.data?.error || 'Não foi possível salvar a foto'); }
+    finally { setEnviandoFoto(false); }
+  };
+
   const anos = useMemo(() => [...new Set(itens.map(i => String(i.competencia || '').slice(0, 4)).filter(Boolean))].sort().reverse(), [itens]);
   const filtrados = useMemo(() => itens.filter(i => {
     const [y, m] = String(i.competencia || '').split('-');
@@ -131,6 +145,12 @@ export default function PortalHolerites() {
       <header className="px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#3D1B7E' }}>
         <div className="flex items-center gap-3 min-w-0">
           <Logo size="small" />
+          <label className="cursor-pointer shrink-0" title="Trocar foto">
+            {me?.foto_url
+              ? <img src={me.foto_url} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-white/60" />
+              : <span className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center font-bold">{(me?.nome || '?')[0]}</span>}
+            <input type="file" accept="image/*" className="hidden" onChange={e => enviarFoto(e.target.files?.[0])} />
+          </label>
           <div className="min-w-0">
             <p className="text-white font-semibold text-sm truncate">{me?.nome || '…'}</p>
             <p className="text-white/60 text-[11px] truncate">{[me?.cargo, me?.empresa].filter(Boolean).join(' · ')}</p>
@@ -171,6 +191,18 @@ export default function PortalHolerites() {
           )}
         </div>
         {msg && <div className="p-3 rounded-lg bg-white border border-purple-200 text-sm text-purple-900">{msg}</div>}
+        {me && !me.foto_url && (
+          <label className="flex items-center gap-3 bg-white border-2 border-dashed border-purple-300 rounded-xl p-3 cursor-pointer hover:bg-purple-50">
+            <span className="text-2xl">📷</span>
+            <span className="flex-1">
+              <span className="block font-bold text-purple-900 text-sm">Adicione sua foto</span>
+              <span className="block text-[11px] text-gray-500">Foto do rosto, de frente — identifica você no cadastro da empresa</span>
+            </span>
+            <span className="text-purple-700 font-bold text-sm">{enviandoFoto ? '…' : 'Adicionar'}</span>
+            <input type="file" accept="image/*" className="hidden" onChange={e => enviarFoto(e.target.files?.[0])} />
+          </label>
+        )}
+
         {me?.acesso_ate && (
           <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
             Seu acesso ao portal fica disponível até <b>{new Date(me.acesso_ate).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</b>. Baixe e guarde seus holerites até lá.

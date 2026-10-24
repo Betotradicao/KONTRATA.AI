@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import { PortalColaboradorController } from '../controllers/portal-colaborador.controller';
 import { authenticateColaborador, AuthRequest } from '../middleware/auth';
 import { PortalColaboradorService } from '../services/portal-colaborador.service';
@@ -7,6 +8,7 @@ import { PortalColaboradorService } from '../services/portal-colaborador.service
 // Portal do Colaborador — montado em /api/portal. Públicas primeiro (com limiter), depois
 // tudo atrás do JWT de colaborador (NUNCA authenticateToken: token do painel não entra aqui).
 const router: Router = Router();
+const uploadFoto = multer({ storage: multer.memoryStorage(), limits: { fileSize: 12 * 1024 * 1024 } });
 
 const publicoLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -18,7 +20,7 @@ const publicoLimiter = rateLimit({
 
 router.post('/login', publicoLimiter, PortalColaboradorController.login);
 router.get('/setup/:token', publicoLimiter, PortalColaboradorController.getSetup);
-router.post('/setup/:token', publicoLimiter, PortalColaboradorController.postSetup);
+router.post('/setup/:token', publicoLimiter, uploadFoto.single('foto'), PortalColaboradorController.postSetup);
 
 router.use(authenticateColaborador);
 // Token vale 7 dias, mas bloqueio/desligamento tem que valer na hora: confere a cada requisição
@@ -30,6 +32,7 @@ router.use(async (req: AuthRequest, res, next) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 router.get('/me', PortalColaboradorController.me);
+router.post('/foto', uploadFoto.single('foto'), PortalColaboradorController.foto);
 router.get('/holerites', PortalColaboradorController.holerites);
 router.get('/holerites/:id/pdf', PortalColaboradorController.pdf);
 router.post('/holerites/:id/codigo', PortalColaboradorController.pedirCodigo);

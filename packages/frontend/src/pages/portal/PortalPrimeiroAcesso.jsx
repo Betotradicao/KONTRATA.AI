@@ -33,6 +33,15 @@ export default function PortalPrimeiroAcesso() {
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [sucesso, setSucesso] = useState(false);
+  // Foto obrigatória (decisão do Beto, 24/10/2026): identifica o colaborador no cadastro e no portal
+  const [foto, setFoto] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState('');
+  const escolherFoto = (f) => {
+    if (!f) return;
+    if (!/^image\//.test(f.type)) { setErro('Escolha uma imagem (foto)'); return; }
+    setErro(''); setFoto(f);
+    setFotoPreview(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(f); });
+  };
 
   useEffect(() => {
     (async () => {
@@ -51,9 +60,14 @@ export default function PortalPrimeiroAcesso() {
     if (cpf.replace(/\D/g, '').length !== 11) { setErro('Digite seu CPF completo'); return; }
     if (!isPasswordStrong(senha)) { setErro('A senha não atende aos requisitos abaixo'); return; }
     if (senha !== confirm) { setErro('As senhas não coincidem'); return; }
+    if (!foto) { setErro('Tire ou escolha uma foto sua pra criar a conta'); return; }
     setEnviando(true);
     try {
-      await portalApi.post(`/portal/setup/${token}`, { cpf: cpf.replace(/\D/g, ''), senha });
+      const fd = new FormData();
+      fd.append('cpf', cpf.replace(/\D/g, ''));
+      fd.append('senha', senha);
+      fd.append('foto', foto);
+      await portalApi.post(`/portal/setup/${token}`, fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120000 });
       setSucesso(true);
       setTimeout(() => navigate('/portal', { replace: true }), 2500);
     } catch (err) {
@@ -85,9 +99,21 @@ export default function PortalPrimeiroAcesso() {
   return (
     <Shell>
       <h1 className="text-lg font-bold text-gray-900 text-center">Olá, {nome.split(' ')[0]}!</h1>
-      <p className="text-xs text-gray-500 text-center mt-1 mb-4">Confirme seu CPF e crie a senha do seu acesso</p>
+      <p className="text-xs text-gray-500 text-center mt-1 mb-4">Coloque sua foto, confirme seu CPF e crie a senha do seu acesso</p>
       {erro && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">{erro}</div>}
       <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+        <div className="flex flex-col items-center">
+          <label className="cursor-pointer flex flex-col items-center">
+            <span className={`w-28 h-28 rounded-full overflow-hidden flex items-center justify-center border-4 ${foto ? 'border-purple-500' : 'border-dashed border-purple-300 bg-purple-50'}`}>
+              {fotoPreview
+                ? <img src={fotoPreview} alt="Sua foto" className="w-full h-full object-cover" />
+                : <span className="text-4xl">📷</span>}
+            </span>
+            <span className="mt-2 text-sm font-semibold text-purple-700">{foto ? 'Trocar foto' : 'Tirar ou escolher foto *'}</span>
+            <input type="file" accept="image/*" className="hidden" onChange={e => escolherFoto(e.target.files?.[0])} />
+          </label>
+          <p className="text-[10px] text-gray-400 text-center mt-1 leading-snug max-w-[260px]">Foto do rosto, de frente. Usada só pra identificar você no cadastro da empresa e no portal.</p>
+        </div>
         <div>
           <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">CPF</label>
           <input type="tel" inputMode="numeric" value={formatCpf(cpf)} onChange={e => setCpf(e.target.value)} placeholder="000.000.000-00"

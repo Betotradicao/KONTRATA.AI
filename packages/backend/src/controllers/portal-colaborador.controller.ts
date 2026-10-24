@@ -102,6 +102,12 @@ export class PortalColaboradorController {
       if (new Date(row.setup_expira_em) < new Date()) return res.status(410).json({ error: 'Link expirado. Peça um novo ao RH.' });
       // Confirma o CPF pra ninguém que pegue o link criar senha no lugar do colaborador
       if (cpf.length !== 11 || cpf !== row.cpf) return res.status(400).json({ error: 'CPF não confere com o cadastro' });
+      // Foto obrigatória pra criar a conta (identificação no cadastro e no portal)
+      const foto = (req as any).file;
+      if (!foto) return res.status(400).json({ error: 'Tire ou escolha uma foto sua pra criar a conta' });
+      if (!/^image\//.test(foto.mimetype || '')) return res.status(400).json({ error: 'O arquivo da foto precisa ser uma imagem' });
+      try { await PortalColaboradorService.salvarFotoColaborador(row.colaborador_id, foto.buffer); }
+      catch (e: any) { console.warn('[Portal] foto setup:', e.message); return res.status(400).json({ error: 'Não conseguimos ler essa foto. Tente outra.' }); }
       const hash = await bcrypt.hash(senha, 10);
       await AppDataSource.query(
         `UPDATE rh_colaborador_acessos SET senha_hash = $2, setup_usado_em = NOW(), tentativas = 0, bloqueado_ate = NULL, ativo = true, updated_at = NOW() WHERE colaborador_id = $1`,
@@ -118,14 +124,26 @@ export class PortalColaboradorController {
   static async me(req: AuthRequest, res: Response) {
     try {
       const [c] = await AppDataSource.query(
-        `SELECT c.id, c.nome, c.matricula, ca.nome AS cargo, COALESCE(e.apelido, e.nome_fantasia, e.razao_social) AS empresa
-         FROM rh_colaboradores c LEFT JOIN rh_cargos ca ON ca.id = c.cargo_id LEFT JOIN rh_empresas e ON e.id = c.company_id WHERE c.id = $1`,
+        `SELECT c.id, c.nome, c.matricula, ca.nome AS cargo, COALESCE(e.apelido, e.nome_fantasia, e.razao_social) AS empresa,
+                COALESCE(NULLIF(ac.foto_url, ''), NULLIF(c.foto_url, '')) AS foto_url
+         FROM rh_colaboradores c LEFT JOIN rh_cargos ca ON ca.id = c.cargo_id LEFT JOIN rh_empresas e ON e.id = c.company_id
+         LEFT JOIN rh_colaborador_acessos ac ON ac.colaborador_id = c.id WHERE c.id = $1`,
         [Number(req.user!.id)]
       );
       if (!c) return res.status(404).json({ error: 'Colaborador não encontrado' });
       const pode = await PortalColaboradorService.podeAcessar(c.id);
       res.json({ ...c, acesso_ate: pode.acesso_ate || null });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** Colaborador já logado adiciona/troca a foto do portal (preenche o cadastro só se estiver vazio). */
+  static async foto(req: AuthRequest, res: Response) {
+    try {
+      const foto = (req as any).file;
+      if (!foto || !/^image\//.test(foto.mimetype || '')) return res.status(400).json({ error: 'Envie uma imagem' });
+      const url = await PortalColaboradorService.salvarFotoColaborador(Number(req.user!.id), foto.buffer);
+      res.json({ ok: true, foto_url: url });
+    } catch (e: any) { res.status(400).json({ error: 'Não conseguimos ler essa foto. Tente outra.' }); }
   }
 
   static async holerites(req: AuthRequest, res: Response) {
