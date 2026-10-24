@@ -199,10 +199,15 @@ export class RhHoleritesController {
                 (ac.senha_hash IS NOT NULL) AS tem_senha, ac.ultimo_login, ac.bloqueado_ate, ac.ativo,
                 (ac.setup_token IS NOT NULL AND ac.setup_usado_em IS NULL AND ac.setup_expira_em > NOW()) AS setup_pendente
          FROM rh_colaboradores c LEFT JOIN rh_colaborador_acessos ac ON ac.colaborador_id = c.id
-         WHERE (c.status = 'ativo' OR (c.data_desligamento IS NOT NULL AND c.data_desligamento >= CURRENT_DATE - ($1::int * interval '1 day')))
+         WHERE (
+                 ($3 = 'ativos'   AND c.status = 'ativo')
+              OR ($3 = 'inativos' AND c.status <> 'ativo')
+              OR ($3 = 'todos')
+           )
            AND ($2::uuid IS NULL OR c.company_id = $2::uuid)
          ORDER BY (c.status = 'ativo') DESC, c.nome`,
-        [dias, (req.query.company_id as string) || null]
+        [dias, (req.query.company_id as string) || null,
+         ['ativos', 'inativos', 'todos'].includes(String(req.query.situacao)) ? String(req.query.situacao) : 'ativos']
       ));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }

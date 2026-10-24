@@ -85,7 +85,7 @@ export default function RhHolerites() {
 
         <div className="p-4">
           {aba === 'importar' && <AbaImportar key={`imp-${loja}`} colaboradores={colaboradores} tipos={tipos} empresas={empresas} loja={loja} />}
-          {aba === 'publicacoes' && <AbaPublicacoes key={`pub-${loja}`} loja={loja} />}
+          {aba === 'publicacoes' && <AbaPublicacoes key={`pub-${loja}`} loja={loja} tipos={tipos} />}
           {aba === 'acessos' && <AbaAcessos key={`ace-${loja}`} loja={loja} />}
         </div>
       </div>
@@ -425,7 +425,11 @@ async function baixarDossie(colaboradorId, nome) {
 }
 
 /* ============================ PUBLICAÇÕES ============================ */
-function AbaPublicacoes({ loja }) {
+function AbaPublicacoes({ loja, tipos = [] }) {
+  // Filtro de tipo: todos marcados por padrão; desmarcar esconde. Sem tipo = PAGAMENTO.
+  const [tiposOff, setTiposOff] = useState(new Set());
+  const tipoDe = (r) => r.tipo_nome || 'PAGAMENTO';
+  const toggleTipo = (n) => setTiposOff(prev => { const s = new Set(prev); s.has(n) ? s.delete(n) : s.add(n); return s; });
   const [competencia, setCompetencia] = useState(compAtual()); // abre sempre no mês atual
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -470,7 +474,8 @@ function AbaPublicacoes({ loja }) {
     } catch { toast.error('Erro ao gerar link'); }
   };
 
-  const tot = useMemo(() => ({ total: rows.length, aceito: rows.filter(r => r.status === 'aceito').length, visto: rows.filter(r => r.status === 'visualizado').length, pend: rows.filter(r => r.status === 'pendente').length }), [rows]);
+  const visiveis = useMemo(() => rows.filter(r => !tiposOff.has(tipoDe(r))), [rows, tiposOff]);
+  const tot = useMemo(() => ({ total: visiveis.length, aceito: visiveis.filter(r => r.status === 'aceito').length, visto: visiveis.filter(r => r.status === 'visualizado').length, pend: visiveis.filter(r => r.status === 'pendente').length }), [visiveis]);
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -478,6 +483,14 @@ function AbaPublicacoes({ loja }) {
         <label className="text-xs text-gray-600">Competência</label>
         <input type="month" value={competencia} onChange={e => setCompetencia(e.target.value)} className="border rounded px-2 py-1 text-sm" />
         {competencia && <button onClick={() => setCompetencia('')} className="text-xs text-gray-500 hover:underline">todas</button>}
+        <div className="flex items-center gap-2 flex-wrap text-xs ml-2">
+          <span className="text-gray-600">Tipo:</span>
+          {(tipos.length ? tipos.map(t => t.nome) : ['PAGAMENTO']).map(n => (
+            <label key={n} className={`flex items-center gap-1 px-2 py-1 rounded-full border cursor-pointer ${tiposOff.has(n) ? 'bg-white text-gray-400 border-gray-200' : 'bg-purple-50 text-purple-800 border-purple-300'}`}>
+              <input type="checkbox" checked={!tiposOff.has(n)} onChange={() => toggleTipo(n)} className="accent-purple-600" />{n}
+            </label>
+          ))}
+        </div>
         <div className="ml-auto flex gap-3 text-xs">
           <span className="text-gray-600">Total <b>{tot.total}</b></span>
           <span className="text-green-700">Ciente <b>{tot.aceito}</b></span>
@@ -504,7 +517,7 @@ function AbaPublicacoes({ loja }) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {rows.map(r => (
+              {visiveis.map(r => (
                 <FragmentRow key={r.id} r={r} eventos={eventos[r.id]} onEventos={() => verEventos(r)} onReenviar={() => reenviar(r)} onLink={() => copiarLink(r)} reenviando={reenviando === r.id} />
               ))}
             </tbody>
@@ -558,10 +571,15 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) 
 
 /* ============================ ACESSOS ============================ */
 function AbaAcessos({ loja }) {
+  const [situacao, setSituacao] = useState('ativos');
   const [rows, setRows] = useState([]);
   const [busca, setBusca] = useState('');
-  const carregar = async () => { try { const r = await api.get(`/rh/holerites/acessos${loja ? `?company_id=${loja}` : ''}`); setRows(r.data || []); } catch { /* noop */ } };
-  useEffect(() => { carregar(); }, []);
+  const carregar = async () => {
+    const qs = new URLSearchParams({ situacao });
+    if (loja) qs.set('company_id', loja);
+    try { const r = await api.get(`/rh/holerites/acessos?${qs}`); setRows(r.data || []); } catch { /* noop */ }
+  };
+  useEffect(() => { carregar(); }, [situacao]);
 
   // Desligado continua acessando por N dias após o desligamento (padrão 150 = 5 meses)
   const [diasDesligado, setDiasDesligado] = useState('150');
@@ -613,6 +631,11 @@ function AbaAcessos({ loja }) {
     <div className="bg-white rounded-lg shadow">
       <div className="px-4 py-3 border-b flex flex-wrap items-center gap-3">
         <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar colaborador…" className="border rounded px-3 py-1.5 text-sm w-64" />
+        <div className="flex rounded-lg border overflow-hidden text-xs font-semibold">
+          {[['ativos', 'Ativos'], ['inativos', 'Inativos'], ['todos', 'Todos']].map(([k, l]) => (
+            <button key={k} onClick={() => setSituacao(k)} className={`px-3 py-1.5 ${situacao === k ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{l}</button>
+          ))}
+        </div>
         <p className="text-xs text-gray-500 flex-1">Link de 1º acesso: o colaborador confirma o CPF e cria a senha. O link também vai automaticamente no WhatsApp da 1ª publicação.</p>
         <div className="flex items-center gap-2 text-xs bg-gray-50 border rounded-lg px-3 py-1.5">
           <span className="text-gray-600">Desligados acessam por</span>
