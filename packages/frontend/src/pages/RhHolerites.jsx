@@ -647,7 +647,7 @@ function AbaAcessos({ loja }) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 text-gray-600 uppercase text-[10px]"><tr>
-            <th className="px-3 py-2 text-left">Colaborador</th><th className="px-3 py-2 text-left">Celular</th><th className="px-3 py-2 text-left">Acesso</th><th className="px-3 py-2 text-left">Último login</th><th className="px-3 py-2"></th>
+            <th className="px-3 py-2 text-left">Colaborador</th><th className="px-3 py-2 text-left">Situação</th><th className="px-3 py-2 text-left">Celular</th><th className="px-3 py-2 text-left">Acesso</th><th className="px-3 py-2 text-left">Último login</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody className="divide-y">
             {lista.map(r => (
@@ -655,6 +655,9 @@ function AbaAcessos({ loja }) {
                 <td className="px-3 py-2 font-semibold text-gray-800">{r.nome}{r.matricula ? <span className="font-normal text-gray-500"> · nº {r.matricula}</span> : null}
                   {r.status !== 'ativo' && <div className="font-normal text-[11px] text-amber-700">desligado em {r.data_desligamento ? new Date(r.data_desligamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'} · acessa até {r.acesso_ate ? new Date(r.acesso_ate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'}</div>}
                 </td>
+                <td className="px-3 py-2 whitespace-nowrap">{r.status === 'ativo'
+                  ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">ATIVO</span>
+                  : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-700" title="Vem do cadastro em Colaboradores">INATIVO</span>}</td>
                 <td className="px-3 py-2">{r.celular || <span className="text-amber-700">📵 sem celular</span>}</td>
                 <td className="px-3 py-2">{r.tem_senha ? <span className="text-green-700">✓ senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}{r.bloqueado_ate && new Date(r.bloqueado_ate) > new Date() && <span className="text-red-600 ml-1">(senha errada 5x)</span>}{r.ativo === false && <span className="ml-1 font-bold text-red-700">⛔ bloqueado pelo RH</span>}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{fmtData(r.ultimo_login)}</td>
