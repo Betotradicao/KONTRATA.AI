@@ -169,16 +169,20 @@ export class PortalColaboradorController {
       );
       if (!a) return res.status(404).json({ error: 'Documento não encontrado' });
       if (!a.arquivo_url) return res.status(410).json({ error: 'Arquivo não está mais disponível' });
-      if (a.status !== 'aceito' && (await PortalColaboradorController.estadoCodigo(colabId, a.id)) === 'precisa') {
-        return res.status(403).json({ error: 'Digite o código enviado no seu WhatsApp', precisa_codigo: true });
+      let estado: 'validado' | 'falhou' | 'precisa' | null = null;
+      if (a.status !== 'aceito') {
+        estado = await PortalColaboradorController.estadoCodigo(colabId, a.id);
+        if (estado === 'precisa') return res.status(403).json({ error: 'Digite o código enviado no seu WhatsApp', precisa_codigo: true });
       }
       const r = await axios.get(a.arquivo_url, { responseType: 'arraybuffer', timeout: 30000 });
-      if (a.status === 'pendente') {
-        await AppDataSource.query(`UPDATE rh_documento_aceites SET status = 'visualizado', visualizado_em = NOW(), updated_at = NOW() WHERE id = $1`, [a.id]);
-        await PortalColaboradorService.registrarEvento(a.id, 'visualizado', { ip: getIp(req), user_agent: String(req.headers['user-agent'] || '') });
+      // Decisão do Beto (24/10/2026): ABRIU = CIENTE. Muitos abriam e não tocavam no
+      // "Ciente". O aviso "ao abrir, fica registrado que você recebeu" aparece ANTES, na
+      // tela do código — é ele que sustenta a ciência. Sem botão de aceite.
+      if (a.status !== 'aceito') {
+        const metodo = estado === 'validado' ? 'abertura_otp_whatsapp' : 'abertura_senha';
+        await PortalColaboradorController.registrarCiencia(a.id, getIp(req), String(req.headers['user-agent'] || ''), metodo);
       }
-      // Depois do "Ciente", o PDF sai com a página do comprovante de ciência no fim
-      const pdf = a.status === 'aceito' ? await anexarComprovante(a.id, Buffer.from(r.data)) : Buffer.from(r.data);
+      const pdf = await anexarComprovante(a.id, Buffer.from(r.data));
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${a.nome || 'holerite.pdf'}"`);
       res.send(pdf);
@@ -252,19 +256,24 @@ export class PortalColaboradorController {
       const estado = await PortalColaboradorController.estadoCodigo(colabId, a.id);
       if (estado === 'precisa') return res.status(403).json({ error: 'Abra o holerite (com o código do WhatsApp) antes de confirmar', precisa_codigo: true });
       const metodo = estado === 'validado' ? 'cpf_senha_otp_whatsapp' : 'cpf_senha';
-
-      await AppDataSource.query(
-        `UPDATE rh_documento_aceites SET status = 'aceito', aceito_em = NOW(), aceite_ip = $2, aceite_user_agent = $3, aceite_metodo = $4,
-                visualizado_em = COALESCE(visualizado_em, NOW()), updated_at = NOW() WHERE id = $1`,
-        [a.id, ip, ua, metodo]
-      );
-      await PortalColaboradorService.registrarEvento(a.id, 'aceito', { ip, user_agent: ua, detalhe: metodo });
-      // Cópia assinada (holerite + comprovante) na pasta HOLERITES — em segundo plano, não segura a resposta
-      salvarVersaoAssinada(a.id)
-        .then(async id => { if (id) await PortalColaboradorService.registrarEvento(a.id, 'assinado_arquivado', { detalhe: `documento ${id}` }); })
-        .catch(e => console.warn(`[Portal] versão assinada aceite ${a.id}:`, e.message));
+      await PortalColaboradorController.registrarCiencia(a.id, ip, ua, metodo);
       res.json({ ok: true, metodo });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** Grava a ciência + trilha e arquiva a cópia assinada (em segundo plano). */
+  private static async registrarCiencia(aceiteId: number, ip: string, ua: string, metodo: string) {
+    const upd = await AppDataSource.query(
+      `UPDATE rh_documento_aceites SET status = 'aceito', aceito_em = NOW(), aceite_ip = $2, aceite_user_agent = $3, aceite_metodo = $4,
+              visualizado_em = COALESCE(visualizado_em, NOW()), updated_at = NOW()
+       WHERE id = $1 AND status <> 'aceito' RETURNING id`,
+      [aceiteId, ip, ua, metodo]
+    );
+    if (!upd.length) return; // já estava aceito (duplo clique)
+    await PortalColaboradorService.registrarEvento(aceiteId, 'aceito', { ip, user_agent: ua, detalhe: metodo });
+    salvarVersaoAssinada(aceiteId)
+      .then(async id => { if (id) await PortalColaboradorService.registrarEvento(aceiteId, 'assinado_arquivado', { detalhe: `documento ${id}` }); })
+      .catch(e => console.warn(`[Portal] versão assinada aceite ${aceiteId}:`, e.message));
   }
 
   static async trocarSenha(req: AuthRequest, res: Response) {

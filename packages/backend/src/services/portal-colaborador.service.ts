@@ -343,11 +343,12 @@ export class PortalColaboradorService {
     return r;
   }
 
-  static async listarPublicacoes(competencia?: string, colaboradorId?: number) {
+  static async listarPublicacoes(competencia?: string, colaboradorId?: number, companyId?: string) {
     const where: string[] = ["a.status <> 'substituido'"];
     const params: any[] = [];
     if (competencia) { params.push(competencia); where.push(`a.competencia = $${params.length}`); }
     if (colaboradorId) { params.push(colaboradorId); where.push(`a.colaborador_id = $${params.length}`); }
+    if (companyId) { params.push(companyId); where.push(`c.company_id = $${params.length}::uuid`); }
     return AppDataSource.query(
       `SELECT a.id, a.colaborador_id, c.nome, c.matricula, c.celular, a.tipo, t.nome AS tipo_nome, a.competencia, a.status,
               a.enviado_em, a.enviado_para, a.visualizado_em, a.aceito_em, a.aceite_ip, a.aceite_metodo,

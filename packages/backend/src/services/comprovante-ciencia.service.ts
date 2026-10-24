@@ -15,6 +15,8 @@ const fmtCpf = (v: string | null) => { const d = String(v || '').replace(/\D/g, 
 const METODO: Record<string, string> = {
   cpf_senha: 'Login pessoal (CPF + senha) — assinatura eletrônica simples',
   cpf_senha_otp_whatsapp: 'Login pessoal (CPF + senha) + código de 6 dígitos enviado ao WhatsApp do colaborador — assinatura eletrônica avançada (2 fatores)',
+  abertura_otp_whatsapp: 'Ciência registrada na ABERTURA do documento, após aviso expresso de que abrir equivale a confirmar o recebimento. Login pessoal (CPF + senha) + código de 6 dígitos enviado ao WhatsApp do colaborador — assinatura eletrônica avançada (2 fatores)',
+  abertura_senha: 'Ciência registrada na ABERTURA do documento, após aviso expresso de que abrir equivale a confirmar o recebimento. Login pessoal (CPF + senha) — assinatura eletrônica simples',
 };
 
 // Helvetica padrão do pdf-lib é WinAnsi: tira o que não cabe (emoji etc.)

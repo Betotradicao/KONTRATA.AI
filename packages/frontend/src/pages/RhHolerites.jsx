@@ -36,6 +36,9 @@ export default function RhHolerites() {
   const [colaboradores, setColaboradores] = useState([]);
   const [tipos, setTipos] = useState([]);
   const [empresas, setEmpresas] = useState([]);
+  // Loja escolhida no topo vale pras 3 abas (lotes, publicações, acessos). Lembrada no navegador.
+  const [loja, setLojaState] = useState(() => { try { return localStorage.getItem('rh_holerites_loja') || ''; } catch { return ''; } });
+  const setLoja = (v) => { setLojaState(v); try { localStorage.setItem('rh_holerites_loja', v); } catch { /* ignore */ } };
 
   useEffect(() => {
     (async () => {
@@ -59,9 +62,17 @@ export default function RhHolerites() {
           <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-purple-700 shrink-0">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold">Holerites</h1>
             <p className="text-purple-100 text-sm">Importar PDF da contabilidade → classificar → publicar no Portal do Colaborador</p>
+          </div>
+          <div className="shrink-0">
+            <label className="block text-[10px] uppercase text-purple-100 font-semibold mb-0.5">Empresa / Loja</label>
+            <select value={loja} onChange={e => setLoja(e.target.value)}
+              className="bg-white text-gray-800 rounded-lg px-3 py-2 text-sm font-semibold min-w-[240px]">
+              <option value="">— Todas as lojas —</option>
+              {empresas.map(e => <option key={e.id} value={e.id}>{labelEmpresa(e)}</option>)}
+            </select>
           </div>
         </div>
 
@@ -73,9 +84,9 @@ export default function RhHolerites() {
         </div>
 
         <div className="p-4">
-          {aba === 'importar' && <AbaImportar colaboradores={colaboradores} tipos={tipos} empresas={empresas} />}
-          {aba === 'publicacoes' && <AbaPublicacoes />}
-          {aba === 'acessos' && <AbaAcessos />}
+          {aba === 'importar' && <AbaImportar key={`imp-${loja}`} colaboradores={colaboradores} tipos={tipos} empresas={empresas} loja={loja} />}
+          {aba === 'publicacoes' && <AbaPublicacoes key={`pub-${loja}`} loja={loja} />}
+          {aba === 'acessos' && <AbaAcessos key={`ace-${loja}`} loja={loja} />}
         </div>
       </div>
     </div>
@@ -89,8 +100,8 @@ const cpfDigits = (v) => String(v || '').replace(/\D/g, '');
 const cpfConfere = (it) => !it.cpf_detectado || !it.colaborador_cpf || cpfDigits(it.cpf_detectado) === cpfDigits(it.colaborador_cpf);
 const itemPronto = (it) => it.colaborador_id && it.tipo_id && it.competencia && cpfConfere(it);
 
-function AbaImportar({ colaboradores, tipos, empresas }) {
-  const [empresaImport, setEmpresaImport] = useState('');
+function AbaImportar({ colaboradores, tipos, empresas, loja }) {
+  const empresaImport = loja;
   const [lotes, setLotes] = useState([]);
   const [lote, setLote] = useState(null);
   const [importando, setImportando] = useState(false);
@@ -101,7 +112,7 @@ function AbaImportar({ colaboradores, tipos, empresas }) {
   const fileRef = useRef(null);
 
   const carregarLotes = async () => {
-    try { const r = await api.get('/rh/holerites/lotes'); setLotes(r.data || []); } catch { /* noop */ }
+    try { const r = await api.get(`/rh/holerites/lotes${loja ? `?company_id=${loja}` : ''}`); setLotes(r.data || []); } catch { /* noop */ }
   };
   useEffect(() => { carregarLotes(); }, []);
 
@@ -116,6 +127,7 @@ function AbaImportar({ colaboradores, tipos, empresas }) {
 
   const importar = async (file) => {
     if (!file) return;
+    if (!loja) { toast.error('Escolha a loja lá em cima antes de importar'); if (fileRef.current) fileRef.current.value = ''; return; }
     setImportando(true);
     const fd = new FormData();
     fd.append('arquivo', file);
@@ -205,11 +217,9 @@ function AbaImportar({ colaboradores, tipos, empresas }) {
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="font-bold text-gray-800 mb-1">📥 Importar PDF</h3>
           <p className="text-xs text-gray-500 mb-3">O PDF da contabilidade com todos os holerites. O sistema separa por pessoa usando o CPF impresso.</p>
-          <label className="block text-[10px] uppercase text-gray-600 font-semibold mb-1">Empresa / Loja</label>
-          <select value={empresaImport} onChange={e => setEmpresaImport(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm mb-3">
-            <option value="">— Todas (não filtrar) —</option>
-            {empresas.map(e => <option key={e.id} value={e.id}>{labelEmpresa(e)}</option>)}
-          </select>
+          <p className={`text-xs mb-3 px-2 py-1.5 rounded ${loja ? 'bg-purple-50 text-purple-800' : 'bg-amber-50 text-amber-800'}`}>
+            {loja ? <>Vai importar para: <b>{labelEmpresa(empresas.find(e => e.id === loja) || { id: loja })}</b></> : <>⚠️ Escolha a <b>loja</b> lá em cima antes de importar.</>}
+          </p>
           <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => importar(e.target.files?.[0])} />
           <button onClick={() => fileRef.current?.click()} disabled={importando}
             className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm disabled:opacity-60">
@@ -415,7 +425,7 @@ async function baixarDossie(colaboradorId, nome) {
 }
 
 /* ============================ PUBLICAÇÕES ============================ */
-function AbaPublicacoes() {
+function AbaPublicacoes({ loja }) {
   const [competencia, setCompetencia] = useState('');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -424,7 +434,10 @@ function AbaPublicacoes() {
 
   const carregar = async () => {
     setLoading(true);
-    try { const r = await api.get(`/rh/holerites/publicacoes${competencia ? `?competencia=${competencia}` : ''}`); setRows(r.data || []); }
+    const qs = new URLSearchParams();
+    if (competencia) qs.set('competencia', competencia);
+    if (loja) qs.set('company_id', loja);
+    try { const r = await api.get(`/rh/holerites/publicacoes${qs.toString() ? `?${qs}` : ''}`); setRows(r.data || []); }
     catch (e) { toast.error(e.response?.data?.error || 'Erro'); }
     finally { setLoading(false); }
   };
@@ -519,7 +532,7 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) 
         <td className="px-3 py-2"><Badge map={STATUS_PUB} k={r.status} /></td>
         <td className="px-3 py-2 whitespace-nowrap">{r.enviado_em ? `${fmtData(r.enviado_em)}` : <span className="text-gray-400">não enviado</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">{fmtData(r.visualizado_em)}</td>
-        <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}{r.aceite_metodo === 'cpf_senha_otp_whatsapp' ? ' · 🔐 código WhatsApp' : r.aceite_metodo ? ' · só senha' : ''}</div></> : '—'}</td>
+        <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}{/otp_whatsapp$/.test(r.aceite_metodo || '') ? ' · 🔐 código WhatsApp' : r.aceite_metodo ? ' · só senha' : ''}{/^abertura/.test(r.aceite_metodo || '') ? ' · ao abrir' : ''}</div></> : '—'}</td>
         <td className="px-3 py-2 whitespace-nowrap">{r.tem_senha ? <span className="text-green-700">senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">
           <button onClick={onReenviar} disabled={reenviando} className="text-purple-700 hover:underline mr-2 disabled:opacity-50">{reenviando ? '…' : '📲 reenviar'}</button>
@@ -544,10 +557,10 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) 
 }
 
 /* ============================ ACESSOS ============================ */
-function AbaAcessos() {
+function AbaAcessos({ loja }) {
   const [rows, setRows] = useState([]);
   const [busca, setBusca] = useState('');
-  const carregar = async () => { try { const r = await api.get('/rh/holerites/acessos'); setRows(r.data || []); } catch { /* noop */ } };
+  const carregar = async () => { try { const r = await api.get(`/rh/holerites/acessos${loja ? `?company_id=${loja}` : ''}`); setRows(r.data || []); } catch { /* noop */ } };
   useEffect(() => { carregar(); }, []);
 
   // Desligado continua acessando por N dias após o desligamento (padrão 150 = 5 meses)

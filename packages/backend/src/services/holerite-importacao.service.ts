@@ -158,12 +158,15 @@ export class HoleriteImportacaoService {
     return this.obterLote(lote.id);
   }
 
-  static async listarLotes() {
+  static async listarLotes(companyId: string | null = null) {
     return AppDataSource.query(
       `SELECT l.*, COALESCE(e.apelido, e.nome_fantasia, e.razao_social) AS empresa_nome,
               (SELECT count(*) FROM rh_holerite_lote_itens i WHERE i.lote_id = l.id AND i.status = 'publicado') AS publicados,
               (SELECT count(*) FROM rh_holerite_lote_itens i WHERE i.lote_id = l.id AND i.status = 'pendente') AS pendentes
-       FROM rh_holerite_lotes l LEFT JOIN rh_empresas e ON e.id = l.company_id ORDER BY l.created_at DESC LIMIT 50`
+       FROM rh_holerite_lotes l LEFT JOIN rh_empresas e ON e.id = l.company_id
+       WHERE ($1::uuid IS NULL OR l.company_id = $1::uuid)
+       ORDER BY l.created_at DESC LIMIT 50`,
+      [companyId]
     );
   }
 

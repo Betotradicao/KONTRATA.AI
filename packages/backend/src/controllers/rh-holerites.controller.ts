@@ -44,7 +44,7 @@ export class RhHoleritesController {
   }
 
   static async listarLotes(_req: AuthRequest, res: Response) {
-    try { res.json(await HoleriteImportacaoService.listarLotes()); }
+    try { res.json(await HoleriteImportacaoService.listarLotes((_req.query.company_id as string) || null)); }
     catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
@@ -106,7 +106,8 @@ export class RhHoleritesController {
     try {
       const competencia = (req.query.competencia as string) || undefined;
       const colaboradorId = req.query.colaborador_id ? Number(req.query.colaborador_id) : undefined;
-      res.json(await PortalColaboradorService.listarPublicacoes(competencia, colaboradorId));
+      const companyId = (req.query.company_id as string) || undefined;
+      res.json(await PortalColaboradorService.listarPublicacoes(competencia, colaboradorId, companyId));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
@@ -189,7 +190,7 @@ export class RhHoleritesController {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 
-  static async acessos(_req: AuthRequest, res: Response) {
+  static async acessos(req: AuthRequest, res: Response) {
     try {
       const dias = Math.max(0, parseInt(String(await ConfigurationService.get('portal_dias_acesso_desligado', '150')), 10) || 0);
       res.json(await AppDataSource.query(
@@ -198,9 +199,10 @@ export class RhHoleritesController {
                 (ac.senha_hash IS NOT NULL) AS tem_senha, ac.ultimo_login, ac.bloqueado_ate, ac.ativo,
                 (ac.setup_token IS NOT NULL AND ac.setup_usado_em IS NULL AND ac.setup_expira_em > NOW()) AS setup_pendente
          FROM rh_colaboradores c LEFT JOIN rh_colaborador_acessos ac ON ac.colaborador_id = c.id
-         WHERE c.status = 'ativo' OR (c.data_desligamento IS NOT NULL AND c.data_desligamento >= CURRENT_DATE - ($1::int * interval '1 day'))
+         WHERE (c.status = 'ativo' OR (c.data_desligamento IS NOT NULL AND c.data_desligamento >= CURRENT_DATE - ($1::int * interval '1 day')))
+           AND ($2::uuid IS NULL OR c.company_id = $2::uuid)
          ORDER BY (c.status = 'ativo') DESC, c.nome`,
-        [dias]
+        [dias, (req.query.company_id as string) || null]
       ));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }

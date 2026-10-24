@@ -18,7 +18,10 @@ const sha256 = (b: Buffer) => crypto.createHash('sha256').update(b).digest('hex'
 const fmt = (d: any) => d ? new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '';
 const csv = (rows: any[][]) => '﻿' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
 const slug = (s: string) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '');
-const METODO: Record<string, string> = { cpf_senha: 'CPF + senha', cpf_senha_otp_whatsapp: 'CPF + senha + codigo WhatsApp' };
+const METODO: Record<string, string> = {
+  cpf_senha: 'CPF + senha', cpf_senha_otp_whatsapp: 'CPF + senha + codigo WhatsApp',
+  abertura_senha: 'Abertura do documento (apos aviso) - CPF + senha', abertura_otp_whatsapp: 'Abertura do documento (apos aviso) - CPF + senha + codigo WhatsApp',
+};
 
 async function baixar(url: string): Promise<Buffer | null> {
   try { return Buffer.from((await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 })).data); }

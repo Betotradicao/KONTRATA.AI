@@ -10,13 +10,12 @@ const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julh
 const fmtComp = (c) => { const [y, m] = String(c || '').split('-'); return m ? `${MESES[parseInt(m) - 1]} / ${y}` : c; };
 const fmtData = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
-// Lista de holerites do colaborador logado: abre o PDF, "Ciente / Recebi" registra a ciência.
+// Lista de holerites do colaborador logado. ABRIR = CIENTE (decisão do Beto, 24/10/2026): sem botão de aceite.
 export default function PortalHolerites() {
   const navigate = useNavigate();
   const [me, setMe] = useState(null);
   const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [aceitando, setAceitando] = useState(null);
   const [msg, setMsg] = useState('');
   const [showSenha, setShowSenha] = useState(false);
   const [ano, setAno] = useState('');
@@ -49,7 +48,7 @@ export default function PortalHolerites() {
     if (janela && !janela.closed) janela.location.href = url;
     else window.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 120000);
-    if (it.status === 'pendente') setItens(prev => prev.map(x => x.id === it.id ? { ...x, status: 'visualizado' } : x));
+    if (it.status !== 'aceito') setItens(prev => prev.map(x => x.id === it.id ? { ...x, status: 'aceito', aceito_em: new Date().toISOString() } : x));
   };
 
   const abrirPdf = async (it) => {
@@ -107,18 +106,6 @@ export default function PortalHolerites() {
     setTimeout(() => setMsg(''), 4000);
   };
 
-  const darCiencia = async (it) => {
-    if (it.status === 'pendente') { setMsg('Abra o holerite e confira antes de confirmar o recebimento.'); return; }
-    if (!window.confirm(`Confirmar que você recebeu e conferiu o holerite de ${fmtComp(it.competencia)}?`)) return;
-    setAceitando(it.id);
-    try {
-      await portalApi.post(`/portal/holerites/${it.id}/ciencia`);
-      marcarAceito(it);
-    } catch (err) {
-      if (err.response?.data?.precisa_codigo) setMsg('Seu acesso a este holerite expirou (30 min). Toque em "Abrir PDF" de novo para receber um novo código.');
-      else setMsg(err.response?.data?.error || 'Erro ao registrar');
-    } finally { setAceitando(null); }
-  };
 
   const sair = () => { portalLogout(); navigate('/portal', { replace: true }); };
 
@@ -136,7 +123,7 @@ export default function PortalHolerites() {
   const badge = (s) => ({
     pendente:    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">NOVO</span>,
     visualizado: <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">VISTO</span>,
-    aceito:      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">CIENTE ✓</span>,
+    aceito:      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">RECEBIDO ✓</span>,
   }[s] || null);
 
   return (
@@ -213,18 +200,18 @@ export default function PortalHolerites() {
               </div>
               {badge(it.status)}
             </div>
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => abrirPdf(it)} className="flex-1 py-2.5 rounded-lg border border-purple-300 text-purple-800 font-semibold text-sm hover:bg-purple-50">
-                📄 {it.status === 'aceito' ? 'PDF + comprovante' : 'Abrir PDF'}
+            {it.status !== 'aceito' && (
+              <p className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1 leading-snug">
+                Ao abrir, fica registrado que você <b>recebeu</b> este holerite. Dúvidas sobre os valores? Fale com o RH.
+              </p>
+            )}
+            <div className="mt-3 flex gap-2 items-center">
+              <button onClick={() => abrirPdf(it)} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm ${it.status === 'aceito' ? 'border border-purple-300 text-purple-800 hover:bg-purple-50' : 'bg-purple-700 hover:bg-purple-800 text-white'}`}>
+                📄 {it.status === 'aceito' ? 'Abrir PDF + comprovante' : 'Abrir holerite'}
               </button>
-              {it.status !== 'aceito' ? (
-                <button onClick={() => darCiencia(it)} disabled={aceitando === it.id}
-                  className="flex-1 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm disabled:opacity-60">
-                  {aceitando === it.id ? '…' : '✓ Ciente / Recebi'}
-                </button>
-              ) : (
-                <div className="flex-1 py-2.5 text-center text-[11px] text-green-700 leading-tight">
-                  Ciência registrada<br />{fmtData(it.aceito_em)}
+              {it.status === 'aceito' && (
+                <div className="text-center text-[11px] text-green-700 leading-tight px-2">
+                  Recebido em<br />{fmtData(it.aceito_em)}
                 </div>
               )}
             </div>
@@ -232,7 +219,7 @@ export default function PortalHolerites() {
         ))}
 
         <p className="text-[10px] text-gray-400 text-center pt-4 leading-snug">
-          Ao tocar em "Ciente / Recebi" o sistema registra data, hora, dispositivo e o código de verificação do documento, como comprovante de recebimento.
+          Ao abrir um holerite, o sistema registra data, hora, dispositivo e o código de verificação do documento, como comprovante de recebimento. Em caso de dúvida sobre os valores, procure o RH.
         </p>
       </main>
 
@@ -243,7 +230,10 @@ export default function PortalHolerites() {
           <div className="bg-white rounded-xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-gray-900">🔐 Código de acesso</h3>
             <p className="text-sm text-gray-600 mt-1">Holerite de <b>{fmtComp(codigoModal.it.competencia)}</b> · {codigoModal.it.tipo_nome || 'PAGAMENTO'}</p>
-            <p className="text-sm text-gray-700 mt-4">Enviamos um código de 6 números para o seu WhatsApp <b>{codigoModal.para}</b>.</p>
+            <div className="mt-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-snug">
+              ⚠️ <b>Ao abrir, fica registrado que você recebeu este holerite.</b> Se tiver dúvida sobre algum valor, fale com o RH.
+            </div>
+            <p className="text-sm text-gray-700 mt-3">Enviamos um código de 6 números para o seu WhatsApp <b>{codigoModal.para}</b>.</p>
             <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codigoModal.codigo}
               onChange={e => setCodigoModal({ ...codigoModal, codigo: e.target.value.replace(/\D/g, '').slice(0, 6), erro: '' })}
               onKeyDown={e => e.key === 'Enter' && validarEAbrir()}
@@ -262,7 +252,7 @@ export default function PortalHolerites() {
                 {codigoModal.enviando ? '…' : '📄 Abrir holerite'}
               </button>
             </div>
-            <p className="text-[10px] text-gray-400 mt-3 leading-snug">O código protege seu holerite: só quem está com o seu celular consegue abrir. Ele também é registrado como comprovante quando você confirmar o recebimento.</p>
+            <p className="text-[10px] text-gray-400 mt-3 leading-snug">O código protege seu holerite: só quem está com o seu celular consegue abrir. Ele também fica registrado no comprovante de recebimento.</p>
           </div>
         </div>
       )}
