@@ -36,11 +36,27 @@ export function lerCamposDaPagina(numero: number, textoBruto: string): PaginaLid
   const titulo = (texto.match(/^(.{5,80}?)\s+(?=[A-Z0-9][A-Z0-9 .&-]{3,}\b(?:LTDA|S\/?A|ME|EPP|EIRELI|COMERCIAL|COMERCIO|SUPERMERCADO))/) || [])[1]
     || (texto.match(/^(Demonstrativo[^0-9]{0,60}?|Recibo[^0-9]{0,60}?)(?=\s[A-Z]{3,})/) || [])[1]
     || texto.slice(0, 60);
-  const cpf = (texto.match(/\bCPF\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/i) || [])[1]?.replace(/\D/g, '') || null;
+  const cpf = (texto.match(/\bCPF\s*(?:n[ºo°.]*)?\s*:?\s*(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/i) || [])[1]?.replace(/\D/g, '') || null;
   const matricula = (texto.match(/\b(?:Nro|N[ºo°]\.?|Matr[ií]cula|Registro|C[óo]d(?:igo)?)\s*:?\s*(\d{1,10})\b/i) || [])[1] || null;
-  const nome = (texto.match(/\bNome\s*:?\s*([A-ZÀ-Ú][A-ZÀ-Ú' ]{3,}?)\s+(?=Admiss|CBO|CPF|Fun[cç]|Cargo|Depto|Setor)/) || [])[1]?.trim() || null;
-  const periodo = (texto.match(/\b(?:Per[ií]odo|Compet[êe]ncia|Refer[êe]ncia|M[êe]s)\s*:?\s*(\d{2}\/\d{4})\b/i) || [])[1] || null;
+  const nome = (texto.match(/\bNome\s*:?\s*([A-ZÀ-Ú][A-ZÀ-Ú' ]{3,}?)\s+(?=Admiss|CBO|CPF|Fun[cç]|Cargo|Depto|Setor)/) || [])[1]?.trim()
+    // Recibo de bolsa-auxílio (menor aprendiz/estágio, 24/10/2026): "Eu, CAUÃ PIETRO PEREIRA BARBOSA , declaro que recebi…"
+    || (texto.match(/\bEu,?\s+([A-ZÀ-Ú][A-ZÀ-Ú' ]{3,}?)\s*,\s*(?:portador|inscrit|CPF|RG|declaro)/) || [])[1]?.trim()
+    || null;
+  const periodo = (texto.match(/\b(?:Per[ií]odo|Compet[êe]ncia|Refer[êe]ncia|M[êe]s)\s*:?\s*(\d{2}\/\d{4})\b/i) || [])[1]
+    || periodoPorExtenso(texto)
+    || null;
   return { numero, texto, titulo: titulo ? titulo.trim() : null, cpf, matricula, nome, periodo };
+}
+
+// "…realizado no mês Outubr o de 2026…" → "10/2026". O PDF do recibo do aprendiz quebra
+// palavras com espaço ("Outubr o", "P AGAMENT O"), então junta as letras antes de comparar.
+const MESES_EXT = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+function periodoPorExtenso(texto: string): string | null {
+  const m = texto.match(/\bm[êe]s\s+(?:de\s+)?((?:[A-Za-zÀ-ú]\s?){4,12}?)\s+de\s+(\d{4})\b/i);
+  if (!m) return null;
+  const nomeMes = normalizar(m[1]).replace(/\s+/g, '');
+  const i = MESES_EXT.indexOf(nomeMes);
+  return i >= 0 ? `${String(i + 1).padStart(2, '0')}/${m[2]}` : null;
 }
 
 export function periodoParaCompetencia(p: string | null): string | null {
@@ -77,11 +93,12 @@ export class HoleriteImportacaoService {
 
   private static async sugerirTipo(titulo: string | null, tipos: any[]): Promise<number | null> {
     if (!titulo) return null;
-    const t = normalizar(titulo);
+    // compara SEM espaços: o recibo do aprendiz vem "RECIBO DE P AGAMENT O"
+    const t = normalizar(titulo).replace(/\s+/g, '');
     // 13º/férias/adiantamento antes de "pagamento" (que é o genérico)
     const ordenados = [...tipos].sort((a, b) => (normalizar(a.nome) === 'pagamento' ? 1 : 0) - (normalizar(b.nome) === 'pagamento' ? 1 : 0));
     for (const tipo of ordenados) {
-      const kws = String(tipo.palavras_chave || '').split(',').map((k: string) => normalizar(k)).filter(Boolean);
+      const kws = String(tipo.palavras_chave || '').split(',').map((k: string) => normalizar(k).replace(/\s+/g, '')).filter(Boolean);
       if (kws.some(k => t.includes(k))) return tipo.id;
     }
     return null;
