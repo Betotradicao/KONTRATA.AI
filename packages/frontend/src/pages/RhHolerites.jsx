@@ -426,7 +426,7 @@ async function baixarDossie(colaboradorId, nome) {
 
 /* ============================ PUBLICAÇÕES ============================ */
 function AbaPublicacoes({ loja }) {
-  const [competencia, setCompetencia] = useState('');
+  const [competencia, setCompetencia] = useState(compAtual()); // abre sempre no mês atual
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [eventos, setEventos] = useState({});
