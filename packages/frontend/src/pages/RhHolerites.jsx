@@ -650,7 +650,11 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, onExcluir, ree
   return (
     <>
       <tr>
-        <td className="px-3 py-2"><div className="font-semibold text-gray-800">{r.nome}</div><div className="text-gray-500">{r.matricula ? `nº ${r.matricula} · ` : ''}{r.celular || <span className="text-amber-700">📵 sem celular</span>}</div></td>
+        <td className="px-3 py-2"><div className="flex items-center gap-2">
+          {r.foto_url
+            ? <img src={r.foto_url} alt="" className="w-8 h-8 rounded-full object-cover border shrink-0" loading="lazy" />
+            : <span className="w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-bold flex items-center justify-center text-xs shrink-0">{(r.nome || '?')[0]}</span>}
+          <div><div className="font-semibold text-gray-800">{r.nome}</div><div className="text-gray-500">{r.matricula ? `nº ${r.matricula} · ` : ''}{r.celular || <span className="text-amber-700">📵 sem celular</span>}</div></div></div></td>
         <td className="px-3 py-2">{r.tipo_nome || 'PAGAMENTO'}</td>
         <td className="px-3 py-2 whitespace-nowrap">{fmtComp(r.competencia)}</td>
         <td className="px-3 py-2"><Badge map={STATUS_PUB} k={r.status} />{r.lembretes_enviados > 0 && <div className="text-[10px] text-amber-700 mt-0.5" title={`último em ${fmtData(r.ultimo_lembrete_em)}`}>📲 lembrado {r.lembretes_enviados}x</div>}</td>

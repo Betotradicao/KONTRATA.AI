@@ -369,6 +369,7 @@ export class PortalColaboradorService {
               a.enviado_em, a.enviado_para, a.visualizado_em, a.aceito_em, a.aceite_ip, a.aceite_metodo,
               a.excluido_em, a.excluido_por, a.motivo_exclusao, a.status_antes_exclusao, a.excluido_arquivo_url, a.excluido_assinado_url,
               a.lembretes_enviados, a.ultimo_lembrete_em,
+              COALESCE(NULLIF(ac.foto_url, ''), NULLIF(c.foto_url, '')) AS foto_url,
               a.hash_sha256, a.created_at, a.publicado_por, d.nome AS arquivo_nome,
               (ac.senha_hash IS NOT NULL) AS tem_senha,
               (ac.setup_token IS NOT NULL AND ac.setup_usado_em IS NULL AND ac.setup_expira_em > NOW()) AS setup_pendente
