@@ -39,6 +39,7 @@ Cada página tem `Periodo : 09/2026 Nro 111 Nome FULANO Admissão … CPF 150152
 - **Tipo** = primeira `palavras_chave` de `rh_tipos_holerite` que aparece no título (13º/férias/adiantamento antes de "pagamento").
 - "Nro" da contabilidade **≠ matrícula** do sistema — não usar pra casar.
 - PDF escaneado (sem camada de texto) é recusado com mensagem clara.
+- **Recibo de bolsa-auxílio do menor aprendiz** (24/10/2026, `caua.pdf`): texto corrido "Eu, NOME , declaro que recebi… no mês Outubro de 2026", **sem CPF**, e o PDF quebra palavras com espaço ("Outubr o", "RECIBO DE P AGAMENT O"). Nome por "Eu, X, declaro"; competência por extenso juntando as letras; tipo comparado sem espaços. Sem CPF → casa pelo nome (confiança média), trava de CPF não se aplica.
 - Regex em `lerCamposDaPagina()` (`services/holerite-importacao.service.ts`). Outro escritório contábil com layout diferente → ajustar ali.
 
 ## Arquitetura
