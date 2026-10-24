@@ -21,6 +21,7 @@ const slug = (s: string) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g,
 const METODO: Record<string, string> = {
   cpf_senha: 'CPF + senha', cpf_senha_otp_whatsapp: 'CPF + senha + codigo WhatsApp',
   abertura_senha: 'Abertura do documento (apos aviso) - CPF + senha', abertura_otp_whatsapp: 'Abertura do documento (apos aviso) - CPF + senha + codigo WhatsApp',
+  visualizacao_otp_whatsapp: 'Abertura antes do aviso, convertida pelo RH em 24/10/2026 - CPF + senha + codigo WhatsApp', visualizacao_senha: 'Abertura antes do aviso, convertida pelo RH em 24/10/2026 - CPF + senha',
 };
 
 async function baixar(url: string): Promise<Buffer | null> {

@@ -17,6 +17,8 @@ const METODO: Record<string, string> = {
   cpf_senha_otp_whatsapp: 'Login pessoal (CPF + senha) + código de 6 dígitos enviado ao WhatsApp do colaborador — assinatura eletrônica avançada (2 fatores)',
   abertura_otp_whatsapp: 'Ciência registrada na ABERTURA do documento, após aviso expresso de que abrir equivale a confirmar o recebimento. Login pessoal (CPF + senha) + código de 6 dígitos enviado ao WhatsApp do colaborador — assinatura eletrônica avançada (2 fatores)',
   abertura_senha: 'Ciência registrada na ABERTURA do documento, após aviso expresso de que abrir equivale a confirmar o recebimento. Login pessoal (CPF + senha) — assinatura eletrônica simples',
+  visualizacao_otp_whatsapp: 'Documento ABERTO pelo colaborador com login pessoal (CPF + senha) + código de 6 dígitos enviado ao seu WhatsApp, em data anterior ao aviso de que abrir equivale a confirmar. Ciência convertida por decisão do RH em 24/10/2026; data/hora, IP e dispositivo são os da abertura original.',
+  visualizacao_senha: 'Documento ABERTO pelo colaborador com login pessoal (CPF + senha), em data anterior ao aviso de que abrir equivale a confirmar. Ciência convertida por decisão do RH em 24/10/2026; data/hora, IP e dispositivo são os da abertura original.',
 };
 
 // Helvetica padrão do pdf-lib é WinAnsi: tira o que não cabe (emoji etc.)

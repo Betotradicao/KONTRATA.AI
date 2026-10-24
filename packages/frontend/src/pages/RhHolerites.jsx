@@ -545,7 +545,7 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, reenviando }) 
         <td className="px-3 py-2"><Badge map={STATUS_PUB} k={r.status} /></td>
         <td className="px-3 py-2 whitespace-nowrap">{r.enviado_em ? `${fmtData(r.enviado_em)}` : <span className="text-gray-400">não enviado</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">{fmtData(r.visualizado_em)}</td>
-        <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}{/otp_whatsapp$/.test(r.aceite_metodo || '') ? ' · 🔐 código WhatsApp' : r.aceite_metodo ? ' · só senha' : ''}{/^abertura/.test(r.aceite_metodo || '') ? ' · ao abrir' : ''}</div></> : '—'}</td>
+        <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}{/otp_whatsapp$/.test(r.aceite_metodo || '') ? ' · 🔐 código WhatsApp' : r.aceite_metodo ? ' · só senha' : ''}{/^abertura/.test(r.aceite_metodo || '') ? ' · ao abrir' : ''}{/^visualizacao/.test(r.aceite_metodo || '') ? ' · convertido pelo RH' : ''}</div></> : '—'}</td>
         <td className="px-3 py-2 whitespace-nowrap">{r.tem_senha ? <span className="text-green-700">senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">
           <button onClick={onReenviar} disabled={reenviando} className="text-purple-700 hover:underline mr-2 disabled:opacity-50">{reenviando ? '…' : '📲 reenviar'}</button>
