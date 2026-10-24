@@ -455,7 +455,6 @@ function AbaPublicacoes({ loja, tipos = [] }) {
   // Lembretes pros pendentes: manual em lote + configuração do automático
   const [cfgLembrete, setCfgLembrete] = useState(null); // modal de configuração
   const [lembrando, setLembrando] = useState(false);
-  const pendentesVisiveis = useMemo(() => porTipo.filter(r => r.status === 'pendente'), [porTipo]);
   const lembrarPendentes = async () => {
     const alvo = pendentesVisiveis.filter(r => r.celular);
     const semCel = pendentesVisiveis.length - alvo.length;
@@ -522,6 +521,7 @@ Motivo:`);
 
   const porTipo = useMemo(() => rows.filter(r => !tiposOff.has(tipoDe(r))), [rows, tiposOff]);
   const visiveis = useMemo(() => porTipo.filter(r => !statusFiltro || r.status === statusFiltro), [porTipo, statusFiltro]);
+  const pendentesVisiveis = useMemo(() => porTipo.filter(r => r.status === 'pendente'), [porTipo]);
   const tot = useMemo(() => ({ total: porTipo.length, aceito: porTipo.filter(r => r.status === 'aceito').length, visto: porTipo.filter(r => r.status === 'visualizado').length, pend: porTipo.filter(r => r.status === 'pendente').length }), [porTipo]);
 
   return (
