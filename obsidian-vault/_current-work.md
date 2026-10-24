@@ -1,21 +1,18 @@
 # Trabalho atual (11/10/2026)
 
-## ✅ Portal do Colaborador + Holerites — commitado, push feito, DEPLOY na Tradição (8c75720)
-Ver [[modulos/portal-colaborador]]. Migrations rodaram na Tradição (3 novas + 2 do Atendente Virtual), `/portal` responde 200.
-Backup dos 7 arquivos soltos do Atendente que travavam o pull: `/root/kontrata-repo-untracked-20261011` (eram idênticos aos commitados — pode apagar).
+## ✅ Portal do Colaborador + Holerites — no ar na Tradição e no Castrioto (956415e)
+Ver [[modulos/portal-colaborador]]. Fluxo: importar PDF da contabilidade → classificar → publicar → colaborador abre com código do WhatsApp → "Ciente" → `_ASSINADO.pdf` na pasta + dossiê pra processo.
 
-### Próximo: Beto testar na Tradição
-1. Config. de REDE → APIs → Evolution: instância `KONTRATAAI` ainda `connecting` (QR) — ou apontar pra `RECURSOS` (…6060590) que está `open`.
-2. Cadastrar celular nos colaboradores que vão receber.
-3. Financeiro RH → HOLERITES → importar PDF da contabilidade → classificar → publicar.
-4. Se HOLERITES não aparecer no menu: Config. de REDE → Módulos → ativar "Holerites (Portal do Colaborador)".
-Depois validar: propagar pros outros clientes **um por vez** (Castrioto precisa celulares + Evolution antes).
+### Pendências pra usar de verdade
+- **Tradição**: Evolution `KONTRATAAI` precisa QR (ou apontar pra `RECURSOS`) — sem isso o portal abre sem código ("só senha").
+- **Castrioto**: configurar Evolution + cadastrar **celulares** dos 30 (todos sem celular) + ativar módulo "Holerites (Portal do Colaborador)" se não aparecer no menu.
+- Teste na Tradição: colaborador id 122 "ROBERTO BASTOS RUIVO" (CPF 390.266.078-30, `TESTE-PORTAL`) com holerite simulado 09/2026 — **excluir depois**.
+- Outros clientes kontrata ainda NÃO atualizados — subir **um por vez** quando o Beto pedir.
 
 ### Dev local (não vai pra produção)
-- Colaborador de teste id 99 "ROBERTO BASTOS RUIVO" CPF 529.982.247-25 celular 12988426869 em `kontrata_dev`; aceite 3.
-- `configurations` de dev apontam Evolution → `RECURSOS`; `.env` tem `FRONTEND_URL=http://10.6.1.171:3004`.
+- `kontrata_dev`: colaborador 99 de teste (CPF 529.982.247-25, senha `Teste@2026x`), aceites 3 e 4; Evolution → `RECURSOS`; `.env` `FRONTEND_URL=http://10.6.1.171:3004`.
 
 ## Ainda em aberto
-- WhatsApp Tradição: instância `KONTRATAAI` precisa QR. Ver [[tradicao]].
 - 🚨 `/api/config/configurations` responde 200 sem login em todos os clientes.
 - Atendente Virtual subiu junto, desligado/não testado em produção.
+- Backup `/root/kontrata-repo-untracked-20261011` na VPS (idêntico ao commitado — pode apagar).
