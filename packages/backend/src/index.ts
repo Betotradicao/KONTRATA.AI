@@ -36,6 +36,7 @@ import portalColaboradorRouter from './routes/portal-colaborador.routes';
 import { startVagasAbertasCron } from './crons/vagas-abertas.cron';
 import { startAsoVencimentosCron } from './crons/aso-vencimentos.cron';
 import { startDpDocsCron } from './crons/dp-docs.cron';
+import { startLembretesHoleriteCron } from './crons/lembretes-holerite.cron';
 import { startAniversarioCron } from './crons/aniversario.cron';
 import { startDisparoVagasCron } from './crons/disparo-vagas.cron';
 import { startBancoHorasCron } from './crons/banco-horas.cron';
@@ -225,6 +226,7 @@ const startServer = async () => {
   try { startAsoVencimentosCron(); } catch (e) { console.error('Falha ao iniciar cron aso:', e); }
   // Cron diário de Documentos / Departamento Pessoal no WhatsApp
   try { startDpDocsCron(); } catch (e) { console.error('Falha ao iniciar cron dp-docs:', e); }
+  try { startLembretesHoleriteCron(); } catch (e) { console.error('Falha ao iniciar cron lembretes-holerite:', e); }
   // Cron diário de Aniversariantes no WhatsApp
   try { startAniversarioCron(); } catch (e) { console.error('Falha ao iniciar cron aniversario:', e); }
   // Cron de Disparo de Vagas no WhatsApp (semanal ou mensal)

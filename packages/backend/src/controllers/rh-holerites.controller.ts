@@ -7,6 +7,7 @@ import { HoleriteImportacaoService } from '../services/holerite-importacao.servi
 import { PortalColaboradorService } from '../services/portal-colaborador.service';
 import { anexarComprovante } from '../services/comprovante-ciencia.service';
 import { gerarDossie } from '../services/dossie-holerites.service';
+import { LembretesHoleriteService, TEXTO_PADRAO } from '../services/lembretes-holerite.service';
 
 /**
  * RH → Holerites: importar PDF da contabilidade, classificar, publicar no Portal do
@@ -108,6 +109,26 @@ export class RhHoleritesController {
       const colaboradorId = req.query.colaborador_id ? Number(req.query.colaborador_id) : undefined;
       const companyId = (req.query.company_id as string) || undefined;
       res.json(await PortalColaboradorService.listarPublicacoes(competencia, colaboradorId, companyId, req.query.excluidos === '1'));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  // ---- Lembretes pros pendentes ----
+  static async lembretesConfig(_req: AuthRequest, res: Response) {
+    try { res.json({ ...(await LembretesHoleriteService.getConfig()), texto_padrao: TEXTO_PADRAO }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  static async salvarLembretesConfig(req: AuthRequest, res: Response) {
+    try { res.json({ ...(await LembretesHoleriteService.salvarConfig(req.body || {})), texto_padrao: TEXTO_PADRAO }); }
+    catch (e: any) { res.status(500).json({ error: e.message }); }
+  }
+
+  /** Lembrete manual em lote (ids das publicações pendentes que estão na tela). */
+  static async enviarLembretes(req: AuthRequest, res: Response) {
+    try {
+      const ids = Array.isArray(req.body?.aceite_ids) ? req.body.aceite_ids.map(Number).filter(Boolean) : [];
+      if (!ids.length) return res.status(400).json({ error: 'Nenhum pendente selecionado' });
+      res.json(await LembretesHoleriteService.enviarLote(ids, baseUrlPortal(req)));
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   }
 

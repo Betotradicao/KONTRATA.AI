@@ -452,6 +452,35 @@ function AbaPublicacoes({ loja, tipos = [] }) {
   useEffect(() => { carregar(); }, [competencia, verExcluidos]);
 
   // Excluir envio (ex.: holerite errado): some do portal e da pasta, mas fica registrado em "Excluídos"
+  // Lembretes pros pendentes: manual em lote + configuração do automático
+  const [cfgLembrete, setCfgLembrete] = useState(null); // modal de configuração
+  const [lembrando, setLembrando] = useState(false);
+  const pendentesVisiveis = useMemo(() => porTipo.filter(r => r.status === 'pendente'), [porTipo]);
+  const lembrarPendentes = async () => {
+    const alvo = pendentesVisiveis.filter(r => r.celular);
+    const semCel = pendentesVisiveis.length - alvo.length;
+    if (!alvo.length) { toast.error(pendentesVisiveis.length ? 'Os pendentes estão sem celular cadastrado' : 'Nenhum pendente na lista'); return; }
+    if (!window.confirm(`Mandar lembrete no WhatsApp pra ${alvo.length} pendente(s)?${semCel ? `\n(${semCel} sem celular ficam de fora)` : ''}\n\nA mensagem traz o passo a passo pra abrir o holerite.`)) return;
+    setLembrando(true);
+    try {
+      const { data } = await api.post('/rh/holerites/lembretes/enviar', { aceite_ids: alvo.map(r => r.id) }, { timeout: 600000 });
+      const ok = data.filter(x => x.ok).length;
+      toast.success(`${ok}/${data.length} lembrete(s) enviado(s)`);
+      const falhas = data.filter(x => !x.ok);
+      if (falhas.length) toast.error(falhas.slice(0, 3).map(f => `${f.nome || f.aceite_id}: ${f.erro}`).join('\n'), { duration: 8000 });
+      carregar();
+    } catch (e) { toast.error(e.response?.data?.error || 'Erro ao enviar lembretes'); }
+    finally { setLembrando(false); }
+  };
+  const abrirCfgLembrete = async () => {
+    try { const { data } = await api.get('/rh/holerites/lembretes/config'); setCfgLembrete(data); }
+    catch { toast.error('Erro ao carregar configuração'); }
+  };
+  const salvarCfgLembrete = async () => {
+    try { const { data } = await api.put('/rh/holerites/lembretes/config', cfgLembrete); setCfgLembrete(null); toast.success(data.ativo ? 'Lembrete automático ligado' : 'Configuração salva (automático desligado)'); }
+    catch { toast.error('Erro ao salvar'); }
+  };
+
   const excluir = async (r) => {
     const motivo = window.prompt(`Excluir o holerite ${fmtComp(r.competencia)} (${r.tipo_nome || 'PAGAMENTO'}) de ${r.nome}?
 
@@ -505,6 +534,16 @@ Motivo:`);
           <button onClick={() => setVerExcluidos(false)} className={`px-3 py-1.5 ${!verExcluidos ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Ativos</button>
           <button onClick={() => setVerExcluidos(true)} className={`px-3 py-1.5 ${verExcluidos ? 'bg-red-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>🗑 Excluídos</button>
         </div>
+        {!verExcluidos && (
+          <div className="flex items-center gap-1">
+            <button onClick={lembrarPendentes} disabled={lembrando}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold disabled:opacity-50"
+              title="Manda no WhatsApp o passo a passo pra quem ainda não abriu (respeita os filtros da tela)">
+              {lembrando ? '⏳ enviando…' : `📲 Lembrar pendentes (${pendentesVisiveis.length})`}
+            </button>
+            <button onClick={abrirCfgLembrete} className="px-2 py-1.5 rounded-lg border text-xs text-gray-700 hover:bg-gray-50" title="Configurar lembrete automático">⚙️ Lembretes</button>
+          </div>
+        )}
         <div className="flex items-center gap-2 flex-wrap text-xs ml-2">
           <span className="text-gray-600">Tipo:</span>
           {(tipos.length ? tipos.map(t => t.nome) : ['PAGAMENTO']).map(n => (
@@ -551,6 +590,51 @@ Motivo:`);
           </table>
         </div>
       )}
+      {cfgLembrete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setCfgLembrete(null)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-800">⚙️ Lembrete automático pros pendentes</h3>
+                <p className="text-xs text-gray-500">WhatsApp pra quem ainda não abriu o holerite. Segunda a sábado, no horário escolhido.</p>
+              </div>
+              <label className="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                <input type="checkbox" checked={!!cfgLembrete.ativo} onChange={e => setCfgLembrete({ ...cfgLembrete, ativo: e.target.checked })} className="w-4 h-4 accent-green-600" />
+                {cfgLembrete.ativo ? <span className="text-green-700">Ligado</span> : <span className="text-gray-500">Desligado</span>}
+              </label>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <label className="block"><span className="text-[11px] uppercase text-gray-500 font-semibold">1º lembrete após</span>
+                  <div className="flex items-center gap-1 mt-1"><input type="number" min="1" value={cfgLembrete.primeiro_dias} onChange={e => setCfgLembrete({ ...cfgLembrete, primeiro_dias: e.target.value })} className="w-16 border rounded px-2 py-1" /> dias</div></label>
+                <label className="block"><span className="text-[11px] uppercase text-gray-500 font-semibold">Depois, a cada</span>
+                  <div className="flex items-center gap-1 mt-1"><input type="number" min="1" value={cfgLembrete.intervalo_dias} onChange={e => setCfgLembrete({ ...cfgLembrete, intervalo_dias: e.target.value })} className="w-16 border rounded px-2 py-1" /> dias</div></label>
+                <label className="block"><span className="text-[11px] uppercase text-gray-500 font-semibold">No máximo</span>
+                  <div className="flex items-center gap-1 mt-1"><input type="number" min="1" value={cfgLembrete.max_lembretes} onChange={e => setCfgLembrete({ ...cfgLembrete, max_lembretes: e.target.value })} className="w-16 border rounded px-2 py-1" /> lembretes</div></label>
+                <label className="block"><span className="text-[11px] uppercase text-gray-500 font-semibold">Horário</span>
+                  <input type="time" value={cfgLembrete.hora} onChange={e => setCfgLembrete({ ...cfgLembrete, hora: e.target.value })} className="mt-1 border rounded px-2 py-1" /></label>
+              </div>
+              <p className="text-xs text-gray-600 bg-gray-50 rounded p-2">
+                Ex.: holerite enviado dia 10 → lembrete dia {10 + Number(cfgLembrete.primeiro_dias || 0)}
+                {Number(cfgLembrete.max_lembretes) > 1 && <>, depois {Array.from({ length: Math.min(Number(cfgLembrete.max_lembretes) - 1, 4) }, (_, i) => 10 + Number(cfgLembrete.primeiro_dias || 0) + (i + 1) * Number(cfgLembrete.intervalo_dias || 0)).join(', ')}</>}
+                {' '}— às {cfgLembrete.hora}. Quem abrir o holerite para de receber.
+              </p>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] uppercase text-gray-500 font-semibold">Mensagem</span>
+                  <button onClick={() => setCfgLembrete({ ...cfgLembrete, texto: cfgLembrete.texto_padrao })} className="text-xs text-purple-700 hover:underline">restaurar texto padrão</button>
+                </div>
+                <textarea rows={12} value={cfgLembrete.texto} onChange={e => setCfgLembrete({ ...cfgLembrete, texto: e.target.value })} className="w-full mt-1 border rounded p-2 text-sm font-mono" />
+                <p className="text-[11px] text-gray-500 mt-1">Variáveis: <code>{'{nome}'}</code> (primeiro nome) · <code>{'{competencia}'}</code> · <code>{'{tipo}'}</code> · <code>{'{link}'}</code> (portal ou 1º acesso) · <code>{'{empresa}'}</code>. *negrito* e _itálico_ como no WhatsApp.</p>
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button onClick={() => setCfgLembrete(null)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>
+              <button onClick={salvarCfgLembrete} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-bold">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -569,7 +653,7 @@ function FragmentRow({ r, eventos, onEventos, onReenviar, onLink, onExcluir, ree
         <td className="px-3 py-2"><div className="font-semibold text-gray-800">{r.nome}</div><div className="text-gray-500">{r.matricula ? `nº ${r.matricula} · ` : ''}{r.celular || <span className="text-amber-700">📵 sem celular</span>}</div></td>
         <td className="px-3 py-2">{r.tipo_nome || 'PAGAMENTO'}</td>
         <td className="px-3 py-2 whitespace-nowrap">{fmtComp(r.competencia)}</td>
-        <td className="px-3 py-2"><Badge map={STATUS_PUB} k={r.status} /></td>
+        <td className="px-3 py-2"><Badge map={STATUS_PUB} k={r.status} />{r.lembretes_enviados > 0 && <div className="text-[10px] text-amber-700 mt-0.5" title={`último em ${fmtData(r.ultimo_lembrete_em)}`}>📲 lembrado {r.lembretes_enviados}x</div>}</td>
         <td className="px-3 py-2 whitespace-nowrap">{r.enviado_em ? `${fmtData(r.enviado_em)}` : <span className="text-gray-400">não enviado</span>}</td>
         <td className="px-3 py-2 whitespace-nowrap">{fmtData(r.visualizado_em)}</td>
         <td className="px-3 py-2 whitespace-nowrap">{r.aceito_em ? <>{fmtData(r.aceito_em)}<div className="text-gray-400">{r.aceite_ip}{/otp_whatsapp$/.test(r.aceite_metodo || '') ? ' · 🔐 código WhatsApp' : r.aceite_metodo ? ' · só senha' : ''}{/^abertura/.test(r.aceite_metodo || '') ? ' · ao abrir' : ''}{/^visualizacao/.test(r.aceite_metodo || '') ? ' · convertido pelo RH' : ''}</div></> : '—'}</td>
@@ -687,7 +771,7 @@ function AbaAcessos({ loja }) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 text-gray-600 uppercase text-[10px]"><tr>
-            <th className="px-3 py-2 text-left w-10"></th><th className="px-3 py-2 text-left">Colaborador</th><th className="px-3 py-2 text-left">Situação</th><th className="px-3 py-2 text-left">Celular</th><th className="px-3 py-2 text-left">Acesso</th><th className="px-3 py-2 text-left">Último login</th><th className="px-3 py-2"></th>
+            <th className="px-3 py-2 text-left w-10"></th><th className="px-3 py-2 text-left">Colaborador</th><th className="px-3 py-2 text-left">Situação</th><th className="px-3 py-2 text-left">Celular</th><th className="px-3 py-2 text-left">Acesso</th><th className="px-3 py-2 text-left">App</th><th className="px-3 py-2 text-left">Último login</th><th className="px-3 py-2"></th>
           </tr></thead>
           <tbody className="divide-y">
             {lista.map(r => (
@@ -704,7 +788,10 @@ function AbaAcessos({ loja }) {
                   ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">ATIVO</span>
                   : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-700" title="Vem do cadastro em Colaboradores">INATIVO</span>}</td>
                 <td className="px-3 py-2">{r.celular || <span className="text-amber-700">📵 sem celular</span>}</td>
-                <td className="px-3 py-2">{r.tem_senha ? <span className="text-green-700">✓ senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}{r.bloqueado_ate && new Date(r.bloqueado_ate) > new Date() && <span className="text-red-600 ml-1">(senha errada 5x)</span>}{r.ativo === false && <span className="ml-1 font-bold text-red-700">⛔ bloqueado pelo RH</span>}</td>
+                <td className="px-3 py-2">{r.tem_senha ? <span className="text-green-700">✓ senha criada</span> : r.setup_pendente ? <span className="text-amber-700">1º acesso pendente</span> : <span className="text-gray-400">sem acesso</span>}{r.bloqueado_ate && new Date(r.bloqueado_ate) > new Date() && <span className="text-red-600 ml-1">(senha errada 5x)</span>}</td>
+                <td className="px-3 py-2 whitespace-nowrap">{r.ativo === false
+                  ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">⛔ BLOQUEADO PELO RH</span>
+                  : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">LIBERADO</span>}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{fmtData(r.ultimo_login)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.tem_senha
