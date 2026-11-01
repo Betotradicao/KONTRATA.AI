@@ -23,6 +23,16 @@ let personCache: { at: number; base: string; email: string; list: RhidPerson[] }
 
 function pisNorm(pis: any): string { return String(pis ?? '').replace(/\D/g, '').replace(/^0+/, '') || '0'; }
 
+/**
+ * Só aceita base de API (…/api.svc). Já aconteceu de colarem o endereço da TELA do
+ * site (https://www.rhid.com.br/v2/#/list/device) → login dava 405. Endereço com '#'
+ * ou sem 'api.svc' cai no padrão. (Castrioto, 01/11/2026)
+ */
+function baseValida(base?: string | null): string {
+  const b = String(base || '').trim().replace(/\/+$/, '');
+  return b && !b.includes('#') && /api\.svc$/i.test(b) ? b : DEFAULT_BASE;
+}
+
 async function getConfig() {
   const [email, senha, dominio, base] = await Promise.all([
     ConfigurationService.get('rhid_email'),
@@ -31,7 +41,7 @@ async function getConfig() {
     ConfigurationService.get('rhid_base', DEFAULT_BASE),
   ]);
   if (!email || !senha) throw new Error('RHiD não configurada (defina rhid_email e rhid_senha nas Configurações)');
-  return { email, senha, dominio: dominio || undefined, base: base || DEFAULT_BASE };
+  return { email, senha, dominio: dominio || undefined, base: baseValida(base) };
 }
 
 async function getToken(): Promise<{ token: string; base: string }> {
@@ -66,7 +76,7 @@ export const RhidService = {
 
   /** Testa credenciais informadas (sem salvar) — pro botão "Testar Conexão". */
   async testarLoginManual(email: string, senha: string, dominio?: string, base?: string) {
-    const b = base || DEFAULT_BASE;
+    const b = baseValida(base);
     const body: any = { email, password: senha };
     if (dominio) body.domain = dominio;
     const t0 = Date.now();
