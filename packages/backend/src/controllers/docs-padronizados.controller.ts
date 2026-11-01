@@ -327,7 +327,13 @@ export class DocsPadronizadosController {
         '$DATA_HOJE$':    `${dd}/${mm}/${yyyy}`,
         '$DATA_EXTENSO$': dataExtenso,
         '$EMPRESA_NOME$': colab.empresa_nome || '',
-        '$EMPRESA_CNPJ$': colab.empresa_cnpj || '',
+        // Razão social (nome jurídico) — documentos com valor legal (acordos, contratos).
+        // Cai no nome de exibição se a empresa ainda não tem razão social cadastrada.
+        '$EMPRESA_RAZAO$': colab.empresa_razao_social || colab.empresa_nome || '',
+        '$EMPRESA_CNPJ$': (() => {
+          const d = String(colab.empresa_cnpj || '').replace(/\D/g, '');
+          return d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : (colab.empresa_cnpj || '');
+        })(),
         '$EMPRESA_ENDERECO$': empresaEndereco,
         '$EMPRESA_BAIRRO$': colab.empresa_bairro || '',
         '$EMPRESA_CEP$': colab.empresa_cep || '',

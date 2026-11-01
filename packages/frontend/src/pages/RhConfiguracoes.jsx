@@ -2012,6 +2012,7 @@ function DocsPadronizadosTab() {
     { tag: '$DATA_HOJE$',    desc: 'dd/mm/yyyy' },
     { tag: '$DATA_EXTENSO$', desc: '"24 de julho de 2025"' },
     { tag: '$EMPRESA_NOME$',     desc: 'Nome da empresa' },
+    { tag: '$EMPRESA_RAZAO$',    desc: 'Razão social da empresa (nome jurídico)' },
     { tag: '$EMPRESA_CNPJ$',     desc: 'CNPJ da empresa' },
     { tag: '$EMPRESA_ENDERECO$', desc: 'Endereço da empresa (rua, nº)' },
     { tag: '$EMPRESA_BAIRRO$',   desc: 'Bairro da empresa' },
