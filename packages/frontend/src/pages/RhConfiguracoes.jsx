@@ -2155,37 +2155,61 @@ function DocsPadronizadosTab() {
     }
   };
 
+  // Valida os passos extras (motivo, datas) e monta a querystring — usado no gerar
+  // de 1 colaborador e no lote (o mesmo motivo/data vale pra todos do lote).
+  const validarEMontarQs = () => {
+    if (precisaMotivo() && !motivoSel) { toast.error('Selecione o motivo da advertência antes de continuar'); return null; }
+    if (precisaDataInicio() && !dataInicioGerar) { toast.error('Informe a data de início do contrato antes de continuar'); return null; }
+    if (precisaDataAviso() && !dataAvisoGerar) { toast.error('Informe a data de início do aviso antes de continuar'); return null; }
+    const params = [];
+    if (motivoSel) params.push(`motivo_id=${motivoSel}`);
+    if (datasOcorrencia.length) params.push(`datas_ocorrencia=${encodeURIComponent(datasOcorrencia.join(','))}`);
+    if (dataInicioGerar) params.push(`data_inicio=${dataInicioGerar}`);
+    if (precisaDataAviso() && dataAvisoGerar) params.push(`data_aviso=${dataAvisoGerar}`);
+    if (precisaTipoAviso()) {
+      params.push(`tipo_aviso=${tipoAviso}`);
+      if (tipoAviso === 'trabalhado') params.push(`reducao_aviso=${reducaoAviso}`);
+    }
+    return params.length ? `?${params.join('&')}` : '';
+  };
+
   const gerarPdf = async (colaboradorId) => {
     if (!docEditado?.id) return;
-    if (precisaMotivo() && !motivoSel) {
-      toast.error('Selecione o motivo da advertência antes de continuar');
-      return;
-    }
-    if (precisaDataInicio() && !dataInicioGerar) {
-      toast.error('Informe a data de início do contrato antes de continuar');
-      return;
-    }
-    if (precisaDataAviso() && !dataAvisoGerar) {
-      toast.error('Informe a data de início do aviso antes de continuar');
-      return;
-    }
+    const qs = validarEMontarQs();
+    if (qs === null) return;
     try {
-      const params = [];
-      if (motivoSel) params.push(`motivo_id=${motivoSel}`);
-      if (datasOcorrencia.length) params.push(`datas_ocorrencia=${encodeURIComponent(datasOcorrencia.join(','))}`);
-      if (dataInicioGerar) params.push(`data_inicio=${dataInicioGerar}`);
-      if (precisaDataAviso() && dataAvisoGerar) params.push(`data_aviso=${dataAvisoGerar}`);
-      if (precisaTipoAviso()) {
-        params.push(`tipo_aviso=${tipoAviso}`);
-        if (tipoAviso === 'trabalhado') params.push(`reducao_aviso=${reducaoAviso}`);
-      }
-      const qs = params.length ? `?${params.join('&')}` : '';
       const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${colaboradorId}${qs}`);
       setResultado(r.data);
       setGerando(false);
     } catch (e) {
       toast.error('Erro ao gerar documento');
     }
+  };
+
+  // ---- Impressão em lote: marca vários colaboradores e imprime tudo de uma vez ----
+  const [selecionadosLote, setSelecionadosLote] = useState(new Set());
+  const [imprimindoLote, setImprimindoLote] = useState(false);
+  useEffect(() => { setSelecionadosLote(new Set()); }, [gerando, empresaSel]);
+  const toggleLote = (id) => setSelecionadosLote(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const imprimirLote = async () => {
+    if (!docEditado?.id || !selecionadosLote.size) return;
+    const qs = validarEMontarQs();
+    if (qs === null) return;
+    setImprimindoLote(true);
+    try {
+      // mantém a ordem da lista na tela
+      const ids = colaboradores.filter(c => selecionadosLote.has(c.id)).map(c => c.id);
+      const docs = [];
+      for (const id of ids) {
+        const r = await api.get(`/rh/docs-padronizados/${docEditado.id}/gerar/${id}${qs}`);
+        docs.push(r.data);
+      }
+      imprimirDocs(docs);
+      toast.success(`${docs.length} documento(s) enviados pra impressão`);
+    } catch (e) {
+      toast.error('Erro ao gerar os documentos do lote');
+    } finally { setImprimindoLote(false); }
   };
 
   // CRUD inline de Motivos de Advertência (usado na fase 4, painel abaixo do editor).
@@ -2286,31 +2310,38 @@ function DocsPadronizadosTab() {
     return html;
   };
 
-  const imprimirResultado = () => {
+  const imprimirResultado = () => imprimirDocs([resultado]);
+
+  // Imprime 1 ou vários documentos gerados numa única janela — cada um começa em folha nova.
+  const imprimirDocs = (docs) => {
+    const lista = (docs || []).filter(Boolean);
+    if (!lista.length) return;
     const w = window.open('', '_blank');
     if (!w) return;
-    const corpo = buildConteudoHtml(resultado.conteudo, resultado.epis_lista);
-    const logoTag = resultado.logo_url
-      ? `<div class="logo-wrap"><img src="${resultado.logo_url}" alt="Logo" /></div>`
-      : '';
+    const primeiro = lista[0];
+    const blocoDoc = (d, i) => {
+      const logo = d.logo_url ? `<div class="logo-wrap"><img src="${d.logo_url}" alt="Logo" /></div>` : '';
+      return `<section${i > 0 ? ' style="page-break-before:always"' : ''}>${logo}<h1>${d.titulo}</h1><div>${buildConteudoHtml(d.conteudo, d.epis_lista)}</div></section>`;
+    };
+    const corpoTodo = lista.map(blocoDoc).join('');
     // Advertência tende a ter assinaturas+testemunhas que estouram em 2 paginas.
     // Aplica layout mais compacto so quando o doc for Advertencia (detectado
     // pelo titulo) pra caber em 1 folha A4 sem afetar os outros docs.
-    const isAdvert = /advert/i.test(resultado.titulo || '');
+    const isAdvert = /advert/i.test(primeiro.titulo || '');
     // Contrato tem MUITAS cláusulas -> modo bem compacto pra caber em 1 folha A4.
-    const isContrato = /contrato/i.test(resultado.titulo || '');
+    const isContrato = /contrato/i.test(primeiro.titulo || '');
     const cfg = isContrato
       ? { pageMargin: '10mm', font: '7.7pt',   lh: '1.15', logoMb: '4px',  h1Size: '11pt', h1Mb: '6px',  pMb: '4px' }
       : isAdvert
       ? { pageMargin: '14mm', font: '10.5pt',  lh: '1.3',  logoMb: '8px',  h1Size: '13pt', h1Mb: '10px', pMb: '6px' }
       : { pageMargin: '25mm', font: '12pt',    lh: '1.5',  logoMb: '20px', h1Size: '16pt', h1Mb: '30px', pMb: '12px' };
-    w.document.write('<!DOCTYPE html><html><head><title>' + resultado.titulo + '</title>' +
+    w.document.write('<!DOCTYPE html><html><head><title>' + primeiro.titulo + (lista.length > 1 ? ` (${lista.length})` : '') + '</title>' +
       `<style>@page{size:A4;margin:${cfg.pageMargin}}body{font-family:Times New Roman,serif;font-size:${cfg.font};line-height:${cfg.lh};color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
       `.logo-wrap{text-align:center;margin:0 0 ${cfg.logoMb}}.logo-wrap img{max-height:${isContrato ? '42px' : isAdvert ? '55px' : '80px'};max-width:${isContrato ? '130px' : isAdvert ? '160px' : '200px'};object-fit:contain}` +
       `h1{font-size:${cfg.h1Size};text-align:center;margin:0 0 ${cfg.h1Mb};line-height:1.2}` +
       `p{margin:0 0 ${cfg.pMb};text-align:justify;white-space:pre-wrap}` +
       'table{page-break-inside:auto}tr{page-break-inside:avoid}</style></head><body>' +
-      logoTag + '<h1>' + resultado.titulo + '</h1><div>' + corpo + '</div>' +
+      corpoTodo +
       '<script>window.onload=()=>{window.print()}</script></body></html>');
     w.document.close();
   };
@@ -2803,18 +2834,38 @@ function DocsPadronizadosTab() {
                     <p className="text-sm text-gray-400 text-center py-4">Carregando colaboradores...</p>
                   ) : colaboradores.length === 0 ? (
                     <p className="text-sm text-gray-400 text-center py-4">Nenhum colaborador nesta empresa.</p>
-                  ) : colaboradores.map(c => (
-                    <button key={c.id} onClick={() => gerarPdf(c.id)}
-                      className="w-full text-left p-2 hover:bg-emerald-50 rounded border border-transparent hover:border-emerald-300">
-                      <div className="font-semibold text-sm text-gray-800">{c.nome}</div>
-                      <div className="text-xs text-gray-500">Mat. {c.matricula || '-'} · {c.cargo_nome || '-'}</div>
-                    </button>
-                  ))}
+                  ) : (
+                    <>
+                      {/* Impressão em lote: marca vários e imprime tudo junto */}
+                      <label className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-gray-600 border-b mb-1 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4 accent-emerald-600"
+                          checked={colaboradores.length > 0 && selecionadosLote.size === colaboradores.length}
+                          onChange={(e) => setSelecionadosLote(e.target.checked ? new Set(colaboradores.map(c => c.id)) : new Set())} />
+                        Selecionar todos ({colaboradores.length}) <span className="font-normal text-gray-400">· ou clique no nome pra gerar só um</span>
+                      </label>
+                      {colaboradores.map(c => (
+                        <div key={c.id} className={`flex items-center gap-2 rounded border ${selecionadosLote.has(c.id) ? 'bg-emerald-50 border-emerald-300' : 'border-transparent hover:bg-emerald-50 hover:border-emerald-300'}`}>
+                          <input type="checkbox" className="w-4 h-4 ml-2 accent-emerald-600 shrink-0"
+                            checked={selecionadosLote.has(c.id)} onChange={() => toggleLote(c.id)} />
+                          <button onClick={() => gerarPdf(c.id)} className="flex-1 text-left p-2" title="Gerar só deste colaborador">
+                            <div className="font-semibold text-sm text-gray-800">{c.nome}</div>
+                            <div className="text-xs text-gray-500">Mat. {c.matricula || '-'} · {c.cargo_nome || '-'}</div>
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </>
               )}
             </div>
 
-            <div className="p-4 border-t flex justify-end">
+            <div className="p-4 border-t flex justify-end gap-2">
+              {empresaSel && colaboradores.length > 0 && (
+                <button onClick={imprimirLote} disabled={!selecionadosLote.size || imprimindoLote}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-bold disabled:opacity-40">
+                  {imprimindoLote ? '⏳ Gerando…' : `🖨️ Imprimir selecionados (${selecionadosLote.size})`}
+                </button>
+              )}
               <button onClick={() => setGerando(false)}
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm font-semibold">Cancelar</button>
             </div>
